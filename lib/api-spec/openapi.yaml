@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Alfis Jeans Catamarca — API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: products
+    description: Product catalog
+  - name: orders
+    description: Order management
+  - name: payment
+    description: MercadoPago payment integration
+  - name: shipping
+    description: Shipping cost calculation
 paths:
   /healthz:
     get:
@@ -24,6 +32,219 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /products:
+    get:
+      operationId: getProducts
+      tags: [products]
+      summary: Get all products
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          description: Max results
+        - name: offset
+          in: query
+          schema:
+            type: integer
+          description: Offset for pagination
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+
+  /products/categories:
+    get:
+      operationId: getCategories
+      tags: [products]
+      summary: Get available categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesResponse"
+
+  /products/featured:
+    get:
+      operationId: getFeaturedProducts
+      tags: [products]
+      summary: Get featured products
+      responses:
+        "200":
+          description: Featured products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /shipping/cost:
+    get:
+      operationId: getShippingCost
+      tags: [shipping]
+      summary: Get shipping cost by province
+      parameters:
+        - name: province
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Argentine province name
+      responses:
+        "200":
+          description: Shipping cost details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingCostResponse"
+
+  /shipping/provinces:
+    get:
+      operationId: getProvinces
+      tags: [shipping]
+      summary: Get list of Argentine provinces
+      responses:
+        "200":
+          description: List of provinces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvincesResponse"
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{trackingNumber}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by tracking number
+      parameters:
+        - name: trackingNumber
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payment/create-preference:
+    post:
+      operationId: createPaymentPreference
+      tags: [payment]
+      summary: Create MercadoPago payment preference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentPreferenceRequest"
+      responses:
+        "200":
+          description: Payment preference created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentPreferenceResponse"
+        "500":
+          description: Payment error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payment/webhook:
+    post:
+      operationId: paymentWebhook
+      tags: [payment]
+      summary: MercadoPago webhook for payment notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +255,271 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        colors:
+          type: array
+          items:
+            type: string
+        sizes:
+          type: array
+          items:
+            type: string
+        stock:
+          type: integer
+        featured:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - price
+        - category
+        - images
+        - colors
+        - sizes
+        - stock
+        - featured
+
+    ProductListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total:
+          type: integer
+      required:
+        - products
+        - total
+
+    CategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+      required:
+        - categories
+
+    ShippingCostResponse:
+      type: object
+      properties:
+        province:
+          type: string
+        cost:
+          type: number
+        days:
+          type: integer
+        description:
+          type: string
+      required:
+        - province
+        - cost
+        - days
+        - description
+
+    ProvincesResponse:
+      type: object
+      properties:
+        provinces:
+          type: array
+          items:
+            type: string
+      required:
+        - provinces
+
+    OrderItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        size:
+          type: string
+        color:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+      required:
+        - productId
+        - productName
+        - size
+        - color
+        - quantity
+        - price
+
+    CustomerInfo:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        province:
+          type: string
+        postalCode:
+          type: string
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+        - address
+        - city
+        - province
+        - postalCode
+
+    CreateOrderRequest:
+      type: object
+      properties:
+        customer:
+          $ref: "#/components/schemas/CustomerInfo"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        shippingCost:
+          type: number
+        total:
+          type: number
+      required:
+        - customer
+        - items
+        - shippingCost
+        - total
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        trackingNumber:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, preparing, shipped, delivered]
+        customer:
+          $ref: "#/components/schemas/CustomerInfo"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        shippingCost:
+          type: number
+        total:
+          type: number
+        paymentId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - trackingNumber
+        - status
+        - customer
+        - items
+        - shippingCost
+        - total
+        - createdAt
+        - updatedAt
+
+    CreatePaymentPreferenceRequest:
+      type: object
+      properties:
+        orderId:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+            required:
+              - title
+              - quantity
+              - unit_price
+        payer:
+          type: object
+          properties:
+            name:
+              type: string
+            surname:
+              type: string
+            email:
+              type: string
+          required:
+            - name
+            - surname
+            - email
+        total:
+          type: number
+      required:
+        - orderId
+        - items
+        - payer
+        - total
+
+    PaymentPreferenceResponse:
+      type: object
+      properties:
+        preferenceId:
+          type: string
+        initPoint:
+          type: string
+        sandboxInitPoint:
+          type: string
+      required:
+        - preferenceId
+        - initPoint
+        - sandboxInitPoint

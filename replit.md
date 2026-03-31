@@ -1,8 +1,27 @@
-# Workspace
+# Alfis Jeans Catamarca — Tienda Online
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Full e-commerce site for **Alfis Jeans Catamarca**, an Argentine clothing brand. Built as a pnpm workspace monorepo using TypeScript.
+
+### Key features
+- Product catalog with categories: Pantalones, Denim, Remeras, Buzos, Sweaters, Tapados
+- Shopping cart with localStorage persistence
+- Checkout with customer form + Argentine province shipping cost calculator
+- MercadoPago Checkout Pro integration (requires MP_ACCESS_TOKEN + MP_PUBLIC_KEY env vars)
+- Order confirmation page with tracking number (format: AJ-XXXXXXXX)
+- Order tracking page — enter tracking number to see status timeline
+
+### Environment variables needed for production
+- `MP_ACCESS_TOKEN` — MercadoPago access token (from Mercado Pago developer account)
+- `MP_PUBLIC_KEY` — MercadoPago public key
+- `APP_URL` — base URL of the app (e.g. https://alfis-jeans.replit.app), used for MP redirect URLs
+
+### Seed data
+Run `pnpm --filter @workspace/scripts run seed` to seed 28 products across all categories.
+
+### Demo mode
+Without `MP_ACCESS_TOKEN`, the payment preference endpoint redirects directly to `/confirmacion/:trackingNumber` (order is auto-confirmed). Useful for testing without real MercadoPago credentials.
 
 ## Stack
 

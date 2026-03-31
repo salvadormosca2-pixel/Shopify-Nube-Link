@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Alfis Jeans Catamarca"
+version = "1.0.0"
+id = "artifacts/alfis-jeans"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23362
+
+[services.development]
+run = "pnpm --filter @workspace/alfis-jeans run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/alfis-jeans", "run", "build" ]
+publicDir = "artifacts/alfis-jeans/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23362"
+BASE_PATH = "/"
