@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 
 const router: IRouter = Router();
 
@@ -29,7 +29,7 @@ const PROVINCES_SHIPPING: Record<string, { cost: number; days: number; descripti
   "Tucumán": { cost: 4000, days: 4, description: "Entrega en 4 días hábiles" },
 };
 
-router.get("/shipping/cost", async (req, res) => {
+async function shippingCostHandler(req: Request, res: Response) {
   const { province } = req.query as Record<string, string>;
 
   if (!province) {
@@ -50,7 +50,10 @@ router.get("/shipping/cost", async (req, res) => {
     days: shipping.days,
     description: shipping.description,
   });
-});
+}
+
+router.get("/shipping/cost", shippingCostHandler);
+router.get("/shipping-cost", shippingCostHandler);
 
 router.get("/shipping/provinces", async (_req, res) => {
   res.json({ provinces: Object.keys(PROVINCES_SHIPPING).sort() });

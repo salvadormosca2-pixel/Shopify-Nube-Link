@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetProduct, getGetProductQueryKey } from "@workspace/api-client-react";
 import { useCart } from "@/context/CartContext";
@@ -51,9 +51,12 @@ export default function ProductDetail() {
     );
   }
 
-  // Set initial selected values if not set
-  if (!selectedColor && product.colors.length > 0) setSelectedColor(product.colors[0]);
-  if (!selectedSize && product.sizes.length > 0) setSelectedSize(product.sizes[0]);
+  useEffect(() => {
+    if (product) {
+      if (!selectedColor && product.colors.length > 0) setSelectedColor(product.colors[0]);
+      if (!selectedSize && product.sizes.length > 0) setSelectedSize(product.sizes[0]);
+    }
+  }, [product?.id]);
 
   const handleAddToCart = () => {
     if (!selectedColor || !selectedSize) {
