@@ -59,6 +59,16 @@ paths:
           schema:
             type: integer
           description: Offset for pagination
+        - name: size
+          in: query
+          schema:
+            type: string
+          description: Filter by size (e.g. S, M, L, 40, 42)
+        - name: color
+          in: query
+          schema:
+            type: string
+          description: Filter by color (e.g. NEGRO, BLANCO)
       responses:
         "200":
           description: List of products

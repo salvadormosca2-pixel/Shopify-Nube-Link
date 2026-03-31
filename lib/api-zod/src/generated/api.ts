@@ -23,6 +23,14 @@ export const GetProductsQueryParams = zod.object({
   search: zod.coerce.string().optional().describe("Search by name"),
   limit: zod.coerce.number().optional().describe("Max results"),
   offset: zod.coerce.number().optional().describe("Offset for pagination"),
+  size: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter by size (e.g. S, M, L, 40, 42)"),
+  color: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter by color (e.g. NEGRO, BLANCO)"),
 });
 
 export const GetProductsResponse = zod.object({

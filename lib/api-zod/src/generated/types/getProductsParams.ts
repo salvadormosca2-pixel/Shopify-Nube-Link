@@ -23,4 +23,12 @@ export type GetProductsParams = {
    * Offset for pagination
    */
   offset?: number;
+  /**
+   * Filter by size (e.g. S, M, L, 40, 42)
+   */
+  size?: string;
+  /**
+   * Filter by color (e.g. NEGRO, BLANCO)
+   */
+  color?: string;
 };
