@@ -1,13 +1,13 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
-import { eq, ilike, and, type SQL } from "drizzle-orm";
+import { eq, ilike, and, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.get("/products", async (req, res) => {
   try {
-    const { category, search, limit = "100", offset = "0" } = req.query as Record<string, string>;
+    const { category, search, size, color, limit = "100", offset = "0" } = req.query as Record<string, string>;
 
     const conditions: SQL[] = [];
 
@@ -17,6 +17,14 @@ router.get("/products", async (req, res) => {
 
     if (search) {
       conditions.push(ilike(productsTable.name, `%${search}%`));
+    }
+
+    if (size) {
+      conditions.push(sql`${productsTable.sizes}::jsonb ? ${size}`);
+    }
+
+    if (color) {
+      conditions.push(sql`${productsTable.colors}::jsonb ? ${color}`);
     }
 
     const query = conditions.length > 0

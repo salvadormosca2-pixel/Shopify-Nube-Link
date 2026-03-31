@@ -3,16 +3,9 @@ import { db } from "@workspace/db";
 import { ordersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { MercadoPagoConfig, Preference } from "mercadopago";
 
 const router: IRouter = Router();
-
-function getMercadoPagoAccessToken(): string {
-  const token = process.env["MP_ACCESS_TOKEN"];
-  if (!token) {
-    throw new Error("MP_ACCESS_TOKEN environment variable is not set");
-  }
-  return token;
-}
 
 router.post("/payment/create-preference", async (req, res) => {
   try {
@@ -23,43 +16,16 @@ router.post("/payment/create-preference", async (req, res) => {
       return;
     }
 
-    let accessToken: string;
-    const hasToken = !!process.env["MP_ACCESS_TOKEN"];
+    const accessToken = process.env["MP_ACCESS_TOKEN"];
 
-    if (!hasToken) {
-      logger.warn("MP_ACCESS_TOKEN not set — returning demo payment redirect");
-
-      const [demoOrder] = await db
-        .select({ trackingNumber: ordersTable.trackingNumber })
-        .from(ordersTable)
-        .where(eq(ordersTable.id, parseInt(String(orderId), 10)))
-        .limit(1);
-
-      const demoTracking = demoOrder?.trackingNumber || String(orderId);
-      const demoBase = process.env["APP_URL"] || "";
-
-      await db
-        .update(ordersTable)
-        .set({ status: "confirmed", updatedAt: new Date() })
-        .where(eq(ordersTable.id, parseInt(String(orderId), 10)));
-
-      res.json({
-        preferenceId: "DEMO_PREFERENCE_ID",
-        initPoint: `${demoBase}/confirmacion/${demoTracking}`,
-        sandboxInitPoint: `${demoBase}/confirmacion/${demoTracking}`,
+    if (!accessToken) {
+      logger.warn("MP_ACCESS_TOKEN not set — payment flow unavailable in this environment");
+      res.status(503).json({
+        error: "payment_unavailable",
+        message: "El sistema de pagos no está configurado aún. Por favor contacte a la tienda para finalizar su compra.",
       });
       return;
     }
-
-    try {
-      accessToken = getMercadoPagoAccessToken();
-    } catch (err) {
-      req.log.error({ err }, "MP_ACCESS_TOKEN error");
-      res.status(500).json({ error: "payment_error", message: "Payment not configured" });
-      return;
-    }
-
-    const baseUrl = process.env["APP_URL"] || "https://alfis-jeans.replit.app";
 
     const [existingOrder] = await db
       .select({ trackingNumber: ordersTable.trackingNumber })
@@ -67,56 +33,46 @@ router.post("/payment/create-preference", async (req, res) => {
       .where(eq(ordersTable.id, parseInt(String(orderId), 10)))
       .limit(1);
 
-    const trackingNumber = existingOrder?.trackingNumber || String(orderId);
-
-    const preferenceData = {
-      items: items.map((item: { title: string; quantity: number; unit_price: number }) => ({
-        title: item.title,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        currency_id: "ARS",
-      })),
-      payer: {
-        name: payer.name,
-        surname: payer.surname,
-        email: payer.email,
-      },
-      back_urls: {
-        success: `${baseUrl}/confirmacion/${trackingNumber}`,
-        failure: `${baseUrl}/checkout`,
-        pending: `${baseUrl}/confirmacion/${trackingNumber}`,
-      },
-      auto_return: "approved",
-      external_reference: String(orderId),
-      notification_url: `${baseUrl}/api/payment/webhook`,
-    };
-
-    const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(preferenceData),
-    });
-
-    if (!mpRes.ok) {
-      const errorBody = await mpRes.text();
-      req.log.error({ status: mpRes.status, body: errorBody }, "MercadoPago API error");
-      res.status(500).json({ error: "payment_error", message: "Error creating payment preference" });
+    if (!existingOrder) {
+      res.status(404).json({ error: "order_not_found", message: "Order not found" });
       return;
     }
 
-    const mpData = await mpRes.json() as {
-      id: string;
-      init_point: string;
-      sandbox_init_point: string;
-    };
+    const trackingNumber = existingOrder.trackingNumber;
+    const baseUrl = process.env["APP_URL"] || "https://alfis-jeans.replit.app";
+
+    const client = new MercadoPagoConfig({ accessToken });
+    const preference = new Preference(client);
+
+    const preferenceData = await preference.create({
+      body: {
+        items: items.map((item: { title: string; quantity: number; unit_price: number }) => ({
+          id: String(orderId),
+          title: item.title,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          currency_id: "ARS",
+        })),
+        payer: {
+          name: payer.name,
+          surname: payer.surname,
+          email: payer.email,
+        },
+        back_urls: {
+          success: `${baseUrl}/confirmacion/${trackingNumber}`,
+          failure: `${baseUrl}/checkout`,
+          pending: `${baseUrl}/confirmacion/${trackingNumber}`,
+        },
+        auto_return: "approved",
+        external_reference: String(orderId),
+        notification_url: `${baseUrl}/api/payment/webhook`,
+      },
+    });
 
     res.json({
-      preferenceId: mpData.id,
-      initPoint: mpData.init_point,
-      sandboxInitPoint: mpData.sandbox_init_point,
+      preferenceId: preferenceData.id,
+      initPoint: preferenceData.init_point,
+      sandboxInitPoint: preferenceData.sandbox_init_point,
     });
   } catch (err) {
     req.log.error({ err }, "Error creating payment preference");
@@ -131,28 +87,23 @@ router.post("/payment/webhook", async (req, res) => {
     if (type === "payment" && data?.id) {
       const accessToken = process.env["MP_ACCESS_TOKEN"];
       if (accessToken) {
-        const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
-          headers: { "Authorization": `Bearer ${accessToken}` },
-        });
+        const client = new MercadoPagoConfig({ accessToken });
+        const { Payment } = await import("mercadopago");
+        const paymentClient = new Payment(client);
 
-        if (paymentRes.ok) {
-          const payment = await paymentRes.json() as {
-            status: string;
-            external_reference: string;
-          };
+        const payment = await paymentClient.get({ id: data.id });
 
-          if (payment.status === "approved" && payment.external_reference) {
-            const orderId = parseInt(payment.external_reference, 10);
-            if (!isNaN(orderId)) {
-              await db
-                .update(ordersTable)
-                .set({
-                  status: "confirmed",
-                  paymentId: String(data.id),
-                  updatedAt: new Date(),
-                })
-                .where(eq(ordersTable.id, orderId));
-            }
+        if (payment.status === "approved" && payment.external_reference) {
+          const orderId = parseInt(payment.external_reference, 10);
+          if (!isNaN(orderId)) {
+            await db
+              .update(ordersTable)
+              .set({
+                status: "confirmed",
+                paymentId: String(data.id),
+                updatedAt: new Date(),
+              })
+              .where(eq(ordersTable.id, orderId));
           }
         }
       }
