@@ -1,4 +1,4 @@
-import { db, productsTable } from "@workspace/db";
+import { db, productsTable, couponsTable } from "@workspace/db";
 
 const CDN = "https://dcdn-us.mitiendanube.com/stores/006/441/586/products";
 
@@ -466,6 +466,23 @@ async function seed() {
   }
 
   console.log(`Inserted ${products.length} products successfully.`);
+
+  console.log("Seeding coupons...");
+
+  const coupons = [
+    { code: "ALFIS10", discount: 10, active: true },
+    { code: "JEANS15", discount: 15, active: true },
+    { code: "BIENVENIDO20", discount: 20, active: true },
+  ];
+
+  for (const coupon of coupons) {
+    await db
+      .insert(couponsTable)
+      .values(coupon)
+      .onConflictDoNothing();
+  }
+
+  console.log(`Inserted ${coupons.length} coupons successfully.`);
   process.exit(0);
 }
 

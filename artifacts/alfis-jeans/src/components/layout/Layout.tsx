@@ -3,7 +3,8 @@ import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { MessageCircle } from "lucide-react";
 
-const WHATSAPP_URL = "https://wa.me/5493834000000";
+const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
+const WHATSAPP_URL = `https://wa.me/5493834000000?text=${WHATSAPP_MSG}`;
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

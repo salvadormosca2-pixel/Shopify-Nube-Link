@@ -90,6 +90,20 @@ export default function Contact() {
             <p className="text-muted-foreground text-sm">Lunes a Viernes: 9:00 – 18:00 hs</p>
             <p className="text-muted-foreground text-sm">Sábados: 9:00 – 13:00 hs</p>
           </div>
+
+          {/* Static map */}
+          <div className="border border-border overflow-hidden" data-testid="contact-map">
+            <p className="text-xs font-bold uppercase tracking-wider p-3 border-b border-border">Encontranos aquí</p>
+            <iframe
+              title="Alfis Jeans Catamarca — Mapa"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-65.7950%2C-28.4780%2C-65.7750%2C-28.4580&layer=mapnik&marker=-28.4680%2C-65.7850"
+              width="100%"
+              height="220"
+              style={{ border: 0 }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
         </div>
 
         {/* Form */}
