@@ -134,24 +134,18 @@ export default function Checkout() {
         data: {
           customer: data,
           items: orderItems,
-          shippingCost,
-          total
+          couponCode: appliedCoupon?.code,
         }
       });
+
+      // Use server-computed total to avoid client-side manipulation
+      const serverTotal = (order as unknown as { total: number }).total;
 
       const mpItems = items.map(i => ({
         title: `${i.productName} - ${i.color} (${i.size})`,
         quantity: i.quantity,
         unit_price: i.price
       }));
-
-      if (discountAmount > 0) {
-        mpItems.push({
-          title: `Descuento cupón ${appliedCoupon!.code} (${appliedCoupon!.discount}%)`,
-          quantity: 1,
-          unit_price: -discountAmount
-        });
-      }
 
       if (shippingCost > 0) {
         mpItems.push({
@@ -170,7 +164,7 @@ export default function Checkout() {
             surname: data.lastName,
             email: data.email
           },
-          total
+          total: serverTotal
         }
       });
 

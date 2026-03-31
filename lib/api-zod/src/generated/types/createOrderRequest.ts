@@ -11,6 +11,5 @@ import type { OrderItem } from "./orderItem";
 export interface CreateOrderRequest {
   customer: CustomerInfo;
   items: OrderItem[];
-  shippingCost: number;
-  total: number;
+  couponCode?: string;
 }

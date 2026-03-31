@@ -147,8 +147,7 @@ export const CreateOrderBody = zod.object({
       price: zod.number(),
     }),
   ),
-  shippingCost: zod.number(),
-  total: zod.number(),
+  couponCode: zod.string().optional(),
 });
 
 /**

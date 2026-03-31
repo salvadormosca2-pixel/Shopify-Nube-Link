@@ -71,8 +71,7 @@ export interface CustomerInfo {
 export interface CreateOrderRequest {
   customer: CustomerInfo;
   items: OrderItem[];
-  shippingCost: number;
-  total: number;
+  couponCode?: string;
 }
 
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];

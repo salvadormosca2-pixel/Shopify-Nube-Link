@@ -534,15 +534,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrderItem"
-        shippingCost:
-          type: number
-        total:
-          type: number
+        couponCode:
+          type: string
       required:
         - customer
         - items
-        - shippingCost
-        - total
 
     Order:
       type: object

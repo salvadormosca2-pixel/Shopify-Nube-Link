@@ -1,9 +1,36 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ordersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { ordersTable, productsTable, couponsTable } from "@workspace/db/schema";
+import { eq, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+const PROVINCES_SHIPPING: Record<string, number> = {
+  "Buenos Aires": 3500,
+  "CABA": 2500,
+  "Catamarca": 2800,
+  "Chaco": 5200,
+  "Chubut": 6500,
+  "Córdoba": 3800,
+  "Corrientes": 4800,
+  "Entre Ríos": 4200,
+  "Formosa": 5500,
+  "Jujuy": 4500,
+  "La Pampa": 4800,
+  "La Rioja": 3800,
+  "Mendoza": 4500,
+  "Misiones": 5200,
+  "Neuquén": 5800,
+  "Río Negro": 5800,
+  "Salta": 4200,
+  "San Juan": 4500,
+  "San Luis": 4200,
+  "Santa Cruz": 7500,
+  "Santa Fe": 3800,
+  "Santiago del Estero": 3500,
+  "Tierra del Fuego": 8500,
+  "Tucumán": 4000,
+};
 
 function generateTrackingNumber(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -16,12 +43,55 @@ function generateTrackingNumber(): string {
 
 router.post("/orders", async (req, res) => {
   try {
-    const { customer, items, shippingCost, total } = req.body;
+    const { customer, items, couponCode } = req.body;
 
     if (!customer || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: "invalid_request", message: "Missing required fields" });
       return;
     }
+
+    if (!customer.province || !PROVINCES_SHIPPING[customer.province]) {
+      res.status(400).json({ error: "invalid_province", message: "Province is invalid or missing" });
+      return;
+    }
+
+    // Recompute totals server-side from DB prices
+    const productIds: number[] = items.map((i: { productId: number }) => i.productId);
+    const dbProducts = await db
+      .select({ id: productsTable.id, price: productsTable.price })
+      .from(productsTable)
+      .where(inArray(productsTable.id, productIds));
+
+    const priceMap = new Map(dbProducts.map(p => [p.id, parseFloat(p.price)]));
+
+    let subtotal = 0;
+    for (const item of items as { productId: number; quantity: number }[]) {
+      const price = priceMap.get(item.productId);
+      if (price === undefined) {
+        res.status(400).json({ error: "invalid_product", message: `Product ${item.productId} not found` });
+        return;
+      }
+      subtotal += price * item.quantity;
+    }
+
+    const shippingCost = PROVINCES_SHIPPING[customer.province];
+
+    // Server-side coupon validation
+    let discountPct = 0;
+    if (couponCode) {
+      const code = String(couponCode).trim().toUpperCase();
+      const [coupon] = await db
+        .select()
+        .from(couponsTable)
+        .where(eq(couponsTable.code, code))
+        .limit(1);
+      if (coupon && coupon.active) {
+        discountPct = coupon.discount;
+      }
+    }
+
+    const discountAmount = Math.round(subtotal * discountPct / 100);
+    const total = subtotal - discountAmount + shippingCost;
 
     const trackingNumber = generateTrackingNumber();
 
@@ -42,7 +112,12 @@ router.post("/orders", async (req, res) => {
       paymentId: null,
     }).returning();
 
-    res.status(201).json(formatOrder(order));
+    res.status(201).json({
+      ...formatOrder(order),
+      discountPct,
+      discountAmount,
+      subtotal,
+    });
   } catch (err) {
     req.log.error({ err }, "Error creating order");
     res.status(500).json({ error: "internal_error", message: "Error creating order" });
