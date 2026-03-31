@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCart } from "@/context/CartContext";
-import { useGetProvinces, useGetShippingCost, useCreateOrder, useCreatePaymentPreference } from "@workspace/api-client-react";
+import { useGetProvinces, useGetShippingCost, useCreateOrder, useCreatePaymentPreference, getGetShippingCostQueryKey } from "@workspace/api-client-react";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -38,7 +38,7 @@ export default function Checkout() {
   
   const { data: shippingData, isLoading: isLoadingShipping } = useGetShippingCost(
     { province: selectedProvince },
-    { query: { enabled: !!selectedProvince } }
+    { query: { enabled: !!selectedProvince, queryKey: getGetShippingCostQueryKey({ province: selectedProvince }) } }
   );
 
   const createOrderMutation = useCreateOrder();

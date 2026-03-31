@@ -19,7 +19,7 @@ export default function Home() {
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { data: featuredData, isLoading: isLoadingFeatured } = useGetFeaturedProducts();
 
