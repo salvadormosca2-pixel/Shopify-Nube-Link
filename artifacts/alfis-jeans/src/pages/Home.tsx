@@ -264,14 +264,19 @@ export default function Home() {
 
   return (
     <div className="pb-20">
-      {/* Hero Section — parallax */}
+      {/* Hero Section — video background */}
       <section ref={heroRef} className="relative h-[90vh] min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-black">
         <motion.div className="absolute inset-0 z-0" style={{ y: heroY }}>
-          <img
-            src="https://images.unsplash.com/photo-1542272604-787c3835535d?w=1600&q=80"
-            alt="Alfis Jeans — denim premium"
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
             className="w-full h-full object-cover opacity-60"
-          />
+            poster="https://images.unsplash.com/photo-1542272604-787c3835535d?w=1600&q=80"
+          >
+            <source src="https://videos.pexels.com/video-files/1448735/1448735-hd_1920_1080_25fps.mp4" type="video/mp4" />
+          </video>
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         </motion.div>
 
