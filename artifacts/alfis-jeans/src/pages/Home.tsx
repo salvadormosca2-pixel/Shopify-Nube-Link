@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { useGetProducts, useGetCategories, useGetFeaturedProducts, getGetProductsQueryKey } from "@workspace/api-client-react";
+import { useGetProducts, useGetCategories, getGetProductsQueryKey } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, X, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, X, ArrowRight, Scissors, Truck, Award, MapPin } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -189,6 +189,130 @@ function StatsSection() {
   );
 }
 
+function BrandSection() {
+  const ref = useRef<HTMLElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
+  const pillars = [
+    {
+      icon: Scissors,
+      title: "Fabricación propia",
+      text: "Cada prenda sale de nuestra fábrica en Catamarca. Controlamos cada etapa del proceso, del tejido al acabado.",
+    },
+    {
+      icon: Award,
+      title: "Calidad garantizada",
+      text: "Usamos telas seleccionadas y procesos de costura de alta resistencia. Prendas que duran.",
+    },
+    {
+      icon: MapPin,
+      title: "100% argentino",
+      text: "Nacimos en Catamarca y vestimos a hombres de todo el país. Orgullosamente nacionales.",
+    },
+    {
+      icon: Truck,
+      title: "Envíos a todo el país",
+      text: "Despachamos a las 24 provincias. Tu pedido llega embalado y con seguimiento en tiempo real.",
+    },
+  ];
+
+  return (
+    <section ref={ref} className="py-24 overflow-hidden">
+      <div className="container mx-auto px-4">
+        {/* Header */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center mb-20">
+          {/* Text */}
+          <div>
+            <motion.p
+              className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5 }}
+            >
+              Nuestra historia
+            </motion.p>
+            <motion.h2
+              className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tighter leading-[0.95] mb-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              Hechos en<br />Catamarca.<br />
+              <span className="text-muted-foreground/50">Para todo el país.</span>
+            </motion.h2>
+            <motion.div
+              className="h-[2px] w-16 bg-primary mb-8"
+              initial={{ width: 0 }}
+              animate={isInView ? { width: 64 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            />
+            <motion.p
+              className="text-muted-foreground leading-relaxed mb-4 max-w-md"
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              Alfis Jeans nació en Catamarca con una idea simple: hacer ropa de hombre de verdad. Sin compromisos en la tela, sin atajos en la costura.
+            </motion.p>
+            <motion.p
+              className="text-muted-foreground leading-relaxed max-w-md"
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              Nuestra fábrica opera en la provincia, empleando a personas locales y produciendo bajo estrictos estándares de calidad. Cada pantalón, cada buzo, cada tapado pasa por nuestras manos antes de llegar a las tuyas.
+            </motion.p>
+          </div>
+
+          {/* Image */}
+          <motion.div
+            className="relative"
+            initial={{ opacity: 0, x: 60 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
+          >
+            <div className="relative aspect-[4/5] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80"
+                alt="Fábrica Alfis Jeans"
+                className="w-full h-full object-cover scale-105 hover:scale-100 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
+            </div>
+            {/* Floating badge */}
+            <motion.div
+              className="absolute -bottom-6 -left-6 bg-primary text-primary-foreground p-6 shadow-2xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={isInView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <div className="text-3xl font-display font-black">+10</div>
+              <div className="text-xs font-bold uppercase tracking-widest opacity-80">años vistiendo<br/>al hombre arg.</div>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Pillars */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          {pillars.map((pillar, i) => (
+            <motion.div
+              key={pillar.title}
+              className="bg-background p-8 flex flex-col gap-4"
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
+            >
+              <pillar.icon className="h-6 w-6 text-primary" strokeWidth={1.5} />
+              <h3 className="font-display font-bold uppercase tracking-tight text-lg">{pillar.title}</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">{pillar.text}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MarqueeSection() {
   const words = ["DENIM", "ESTILO", "CATAMARCA", "CALIDAD", "URBAN", "ALFIS", "MODA", "PREMIUM"];
   return (
@@ -221,8 +345,6 @@ export default function Home() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
-
-  const { data: featuredData, isLoading: isLoadingFeatured } = useGetFeaturedProducts();
 
   const effectiveColor = selectedColor === "todos-colores" ? "" : selectedColor;
 
@@ -356,44 +478,8 @@ export default function Home() {
       {/* Marquee */}
       <MarqueeSection />
 
-      {/* Featured Section */}
-      <section className="container mx-auto px-4 py-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4"
-        >
-          <div>
-            <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-2">Lo mejor de la temporada</p>
-            <h2 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-tight">Destacados</h2>
-            <div className="h-1 w-20 bg-primary mt-2" />
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {isLoadingFeatured
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-4">
-                  <Skeleton className="aspect-[3/4] w-full rounded-none" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-4 w-1/3" />
-                </div>
-              ))
-            : featuredData?.products.map((product, i) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08, duration: 0.5 }}
-                >
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
-        </div>
-      </section>
+      {/* Brand Story Section */}
+      <BrandSection />
 
       {/* Stats Band */}
       <StatsSection />
