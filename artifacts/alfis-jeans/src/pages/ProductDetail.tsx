@@ -1,21 +1,234 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { useGetProduct, getGetProductQueryKey } from "@workspace/api-client-react";
+import { useGetProduct, useGetRelatedProducts, useGetProductReviews, useCreateProductReview, getGetProductQueryKey } from "@workspace/api-client-react";
 import { useCart } from "@/context/CartContext";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ShoppingBag } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronLeft, ShoppingBag, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useInView } from "framer-motion";
+import { ProductCard } from "@/components/ProductCard";
+
+function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map(star => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange?.(star)}
+          onMouseEnter={() => !readonly && setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          className={readonly ? "cursor-default" : "cursor-pointer"}
+        >
+          <Star
+            className={`h-5 w-5 transition-colors ${
+              star <= (hovered || value) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+            }`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReviewsSection({ productId }: { productId: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const { toast } = useToast();
+
+  const { data: reviewsData, refetch } = useGetProductReviews(productId);
+  const createReviewMutation = useCreateProductReview();
+
+  const [form, setForm] = useState({ authorName: "", rating: 0, comment: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.authorName || !form.rating || !form.comment) {
+      toast({ title: "Completá todos los campos", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await createReviewMutation.mutateAsync({ id: productId, data: form });
+      toast({ title: "Reseña enviada", description: "Gracias por tu opinión." });
+      setForm({ authorName: "", rating: 0, comment: "" });
+      setShowForm(false);
+      refetch();
+    } catch {
+      toast({ title: "Error al enviar la reseña", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reviews = reviewsData?.reviews ?? [];
+  const avgRating = reviewsData?.avgRating ?? 0;
+
+  return (
+    <div ref={ref} className="mt-16 border-t border-border pt-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-1">Opiniones</p>
+            <h2 className="text-2xl font-display font-bold uppercase tracking-tight">Reseñas</h2>
+            <div className="h-[2px] w-12 bg-primary mt-2" />
+          </div>
+
+          {reviews.length > 0 && (
+            <div className="flex items-center gap-3">
+              <StarRating value={Math.round(avgRating)} readonly />
+              <span className="text-lg font-bold">{avgRating.toFixed(1)}</span>
+              <span className="text-sm text-muted-foreground">({reviews.length} reseña{reviews.length !== 1 ? "s" : ""})</span>
+            </div>
+          )}
+        </div>
+
+        {reviews.length === 0 && !showForm && (
+          <p className="text-muted-foreground text-sm mb-6">Todavía no hay reseñas. ¡Sé el primero en opinar!</p>
+        )}
+
+        <div className="space-y-5 mb-8">
+          {reviews.map((review, i) => (
+            <motion.div
+              key={review.id}
+              className="border border-border p-5 bg-card"
+              initial={{ opacity: 0, y: 15 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: i * 0.07, duration: 0.4 }}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <span className="font-bold text-sm">{review.authorName}</span>
+                  <div className="mt-1">
+                    <StarRating value={review.rating} readonly />
+                  </div>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {new Date(review.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {!showForm ? (
+          <Button
+            variant="outline"
+            className="rounded-none uppercase text-xs font-bold"
+            onClick={() => setShowForm(true)}
+          >
+            Dejar una reseña
+          </Button>
+        ) : (
+          <motion.form
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            onSubmit={handleSubmit}
+            className="border border-border p-6 bg-card space-y-4"
+          >
+            <h3 className="font-display font-bold uppercase tracking-tight text-lg">Tu reseña</h3>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">Calificación</label>
+              <StarRating value={form.rating} onChange={v => setForm(f => ({ ...f, rating: v }))} />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">Tu nombre</label>
+              <Input
+                placeholder="Juan Pérez"
+                value={form.authorName}
+                onChange={e => setForm(f => ({ ...f, authorName: e.target.value }))}
+                className="rounded-none border-border"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">Comentario</label>
+              <Textarea
+                placeholder="Contanos tu experiencia con el producto..."
+                value={form.comment}
+                onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+                className="rounded-none border-border resize-none"
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button type="submit" className="rounded-none uppercase text-xs font-bold" disabled={isSubmitting}>
+                {isSubmitting ? "Enviando..." : "Publicar reseña"}
+              </Button>
+              <Button type="button" variant="ghost" className="rounded-none text-xs" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </motion.form>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+function RelatedProducts({ productId }: { productId: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const { data, isLoading } = useGetRelatedProducts(productId);
+
+  const products = data?.products ?? [];
+  if (!isLoading && products.length === 0) return null;
+
+  return (
+    <div ref={ref} className="mt-16 border-t border-border pt-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.5 }}
+      >
+        <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-1">Descubrí más</p>
+        <h2 className="text-2xl font-display font-bold uppercase tracking-tight mb-2">También te puede gustar</h2>
+        <div className="h-[2px] w-12 bg-primary mb-8" />
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[3/4] w-full rounded-none" />
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              ))
+            : products.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={isInView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ delay: i * 0.07, duration: 0.4 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))
+          }
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { addItem } = useCart();
   const { toast } = useToast();
-  
+
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -86,9 +299,9 @@ export default function ProductDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:py-16">
-      <Button 
-        variant="ghost" 
-        className="mb-8 pl-0 hover:bg-transparent hover:text-primary transition-colors uppercase text-xs font-bold tracking-wider" 
+      <Button
+        variant="ghost"
+        className="mb-8 pl-0 hover:bg-transparent hover:text-primary transition-colors uppercase text-xs font-bold tracking-wider"
         onClick={() => window.history.back()}
         data-testid="button-back"
       >
@@ -101,8 +314,8 @@ export default function ProductDetail() {
         <div className="flex flex-col-reverse md:flex-row gap-4">
           <div className="flex md:flex-col gap-2 overflow-x-auto md:w-24 flex-shrink-0">
             {product.images.map((img, idx) => (
-              <button 
-                key={idx} 
+              <button
+                key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
                 className={`flex-shrink-0 w-20 h-24 md:w-full md:h-32 border-2 transition-all ${
                   currentImageIndex === idx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100'
@@ -113,16 +326,16 @@ export default function ProductDetail() {
               </button>
             ))}
           </div>
-          
+
           <div className="flex-1 bg-muted relative overflow-hidden aspect-[3/4] md:aspect-auto">
             <AnimatePresence mode="wait">
-              <motion.img 
+              <motion.img
                 key={currentImageIndex}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                src={product.images[currentImageIndex] || "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80"} 
+                src={product.images[currentImageIndex] || "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80"}
                 alt={product.name}
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -187,8 +400,8 @@ export default function ProductDetail() {
             )}
           </div>
 
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className="w-full h-14 rounded-none text-base uppercase font-bold tracking-wider mb-8"
             onClick={handleAddToCart}
             disabled={product.stock <= 0}
@@ -212,6 +425,12 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      {/* Related Products */}
+      <RelatedProducts productId={product.id} />
+
+      {/* Reviews */}
+      <ReviewsSection productId={product.id} />
     </div>
   );
 }

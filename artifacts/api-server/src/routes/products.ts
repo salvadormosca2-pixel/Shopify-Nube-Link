@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
-import { eq, ilike, and, sql, type SQL } from "drizzle-orm";
+import { eq, ilike, and, ne, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -79,6 +79,34 @@ router.get("/products/featured", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error fetching featured products");
     res.status(500).json({ error: "internal_error", message: "Error fetching featured products" });
+  }
+});
+
+router.get("/products/:id/related", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "Invalid product ID" });
+      return;
+    }
+
+    const [product] = await db.select({ category: productsTable.category }).from(productsTable).where(eq(productsTable.id, id)).limit(1);
+
+    if (!product) {
+      res.status(404).json({ error: "not_found", message: "Product not found" });
+      return;
+    }
+
+    const related = await db
+      .select()
+      .from(productsTable)
+      .where(and(eq(productsTable.category, product.category), ne(productsTable.id, id)))
+      .limit(4);
+
+    res.json({ products: related.map(p => ({ ...p, price: parseFloat(p.price) })), total: related.length });
+  } catch (err) {
+    req.log.error({ err }, "Error fetching related products");
+    res.status(500).json({ error: "internal_error", message: "Error fetching related products" });
   }
 });
 

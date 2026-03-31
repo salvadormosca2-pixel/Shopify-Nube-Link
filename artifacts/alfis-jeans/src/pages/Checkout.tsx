@@ -4,14 +4,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCart } from "@/context/CartContext";
-import { useGetProvinces, useGetShippingCost, useCreateOrder, useCreatePaymentPreference, getGetShippingCostQueryKey } from "@workspace/api-client-react";
+import { useGetProvinces, useGetShippingCost, useCreateOrder, useCreatePaymentPreference, useValidateCoupon, getGetShippingCostQueryKey } from "@workspace/api-client-react";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Tag, ChevronDown, ChevronUp, CheckCircle, XCircle } from "lucide-react";
 
 const checkoutSchema = z.object({
   firstName: z.string().min(2, "El nombre es requerido"),
@@ -30,17 +30,25 @@ export default function Checkout() {
   const [, setLocation] = useLocation();
   const { items, subtotal, clearCart } = useCart();
   const { toast } = useToast();
-  
+
   const [selectedProvince, setSelectedProvince] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Coupon state
+  const [showCoupon, setShowCoupon] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   const { data: provincesData } = useGetProvinces();
-  
+
   const { data: shippingData, isLoading: isLoadingShipping } = useGetShippingCost(
     { province: selectedProvince },
     { query: { enabled: !!selectedProvince, queryKey: getGetShippingCostQueryKey({ province: selectedProvince }) } }
   );
 
+  const validateCouponMutation = useValidateCoupon();
   const createOrderMutation = useCreateOrder();
   const createPaymentMutation = useCreatePaymentPreference();
 
@@ -58,7 +66,6 @@ export default function Checkout() {
     },
   });
 
-  // Watch province change to trigger shipping cost calc
   const formProvince = form.watch("province");
   useEffect(() => {
     if (formProvince) {
@@ -67,7 +74,34 @@ export default function Checkout() {
   }, [formProvince]);
 
   const shippingCost = shippingData?.cost || 0;
-  const total = subtotal + shippingCost;
+  const discountAmount = appliedCoupon ? Math.round(subtotal * appliedCoupon.discount / 100) : 0;
+  const total = subtotal - discountAmount + shippingCost;
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponError("");
+    setIsValidatingCoupon(true);
+    try {
+      const result = await validateCouponMutation.mutateAsync({ data: { code: couponInput.trim() } });
+      if (result.valid) {
+        setAppliedCoupon({ code: couponInput.toUpperCase().trim(), discount: result.discount });
+        toast({ title: "Cupón aplicado", description: result.message });
+      } else {
+        setCouponError(result.message);
+        setAppliedCoupon(null);
+      }
+    } catch {
+      setCouponError("Error al validar el cupón");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  };
 
   if (items.length === 0) {
     setLocation("/carrito");
@@ -87,7 +121,6 @@ export default function Checkout() {
     setIsProcessing(true);
 
     try {
-      // 1. Create Order
       const orderItems = items.map(i => ({
         productId: i.productId,
         productName: i.productName,
@@ -106,14 +139,20 @@ export default function Checkout() {
         }
       });
 
-      // 2. Create MP Preference
       const mpItems = items.map(i => ({
         title: `${i.productName} - ${i.color} (${i.size})`,
         quantity: i.quantity,
         unit_price: i.price
       }));
 
-      // Add shipping as an item
+      if (discountAmount > 0) {
+        mpItems.push({
+          title: `Descuento cupón ${appliedCoupon!.code} (${appliedCoupon!.discount}%)`,
+          quantity: 1,
+          unit_price: -discountAmount
+        });
+      }
+
       if (shippingCost > 0) {
         mpItems.push({
           title: "Costo de Envío",
@@ -135,10 +174,7 @@ export default function Checkout() {
         }
       });
 
-      // Clear cart before redirecting
       clearCart();
-
-      // Redirect to MP
       window.location.href = preference.initPoint;
 
     } catch (error) {
@@ -155,12 +191,12 @@ export default function Checkout() {
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
       <h1 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-tight mb-10">Checkout</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-7">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" id="checkout-form">
-              
+
               <div className="border border-border p-6 bg-card">
                 <h2 className="text-xl font-display font-bold uppercase mb-6 pb-4 border-b border-border">
                   Datos de Contacto
@@ -299,7 +335,7 @@ export default function Checkout() {
             <h2 className="text-xl font-display font-bold uppercase mb-6 pb-4 border-b border-border">
               Resumen de Compra
             </h2>
-            
+
             <div className="space-y-4 mb-6">
               {items.map((item) => (
                 <div key={`${item.productId}-${item.size}-${item.color}`} className="flex gap-4">
@@ -318,11 +354,82 @@ export default function Checkout() {
               ))}
             </div>
 
-            <div className="space-y-3 text-sm border-t border-border pt-6 mb-6">
+            {/* Coupon section */}
+            <div className="mb-4 border border-border">
+              <button
+                type="button"
+                onClick={() => setShowCoupon(v => !v)}
+                className="w-full flex items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+                data-testid="button-toggle-coupon"
+              >
+                <span className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  {appliedCoupon ? `Cupón: ${appliedCoupon.code}` : "Tengo un cupón de descuento"}
+                </span>
+                {showCoupon ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+
+              {showCoupon && (
+                <div className="p-3 border-t border-border bg-muted/20">
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-green-600 font-medium">{appliedCoupon.discount}% de descuento aplicado</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        data-testid="button-remove-coupon"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Ej: ALFIS10"
+                        value={couponInput}
+                        onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
+                        className="rounded-none border-border flex-1 h-9 text-sm uppercase"
+                        data-testid="input-coupon"
+                        onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleApplyCoupon())}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-none h-9 px-4 text-xs font-bold uppercase"
+                        onClick={handleApplyCoupon}
+                        disabled={isValidatingCoupon || !couponInput.trim()}
+                        data-testid="button-apply-coupon"
+                      >
+                        {isValidatingCoupon ? <Loader2 className="h-3 w-3 animate-spin" /> : "Aplicar"}
+                      </Button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <div className="flex items-center gap-1 mt-2 text-xs text-destructive">
+                      <XCircle className="h-3 w-3" />
+                      {couponError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 text-sm border-t border-border pt-4 mb-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">{formatArs(subtotal)}</span>
               </div>
+              {appliedCoupon && (
+                <div className="flex justify-between text-green-600">
+                  <span>Descuento ({appliedCoupon.discount}%)</span>
+                  <span className="font-medium">-{formatArs(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Envío</span>
                 {isLoadingShipping ? (
@@ -334,16 +441,16 @@ export default function Checkout() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-between items-center mb-8 border-t border-border pt-6">
               <span className="font-bold uppercase tracking-wider text-lg">Total</span>
               <span className="text-2xl font-bold">{formatArs(total)}</span>
             </div>
-            
-            <Button 
-              type="submit" 
+
+            <Button
+              type="submit"
               form="checkout-form"
-              className="w-full h-14 rounded-none uppercase font-bold tracking-wider" 
+              className="w-full h-14 rounded-none uppercase font-bold tracking-wider"
               disabled={isProcessing || !selectedProvince || isLoadingShipping}
               data-testid="button-pay-mercadopago"
             >

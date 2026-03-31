@@ -25,6 +25,9 @@ export function Navbar() {
             <Link href="/" className="hover:text-primary/80 transition-colors" data-testid="link-nav-new">
               Novedades
             </Link>
+            <Link href="/contacto" className="hover:text-primary/80 transition-colors" data-testid="link-nav-contact">
+              Contacto
+            </Link>
           </div>
         </div>
 

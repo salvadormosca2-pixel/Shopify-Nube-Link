@@ -222,6 +222,89 @@ export const CreatePaymentPreferenceResponse = zod.object({
 });
 
 /**
+ * @summary Get related products by category
+ */
+export const GetRelatedProductsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetRelatedProductsResponse = zod.object({
+  products: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      description: zod.string().optional(),
+      price: zod.number(),
+      category: zod.string(),
+      images: zod.array(zod.string()),
+      colors: zod.array(zod.string()),
+      sizes: zod.array(zod.string()),
+      stock: zod.number(),
+      featured: zod.boolean(),
+      createdAt: zod.coerce.date().optional(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get reviews for a product
+ */
+export const GetProductReviewsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProductReviewsResponse = zod.object({
+  reviews: zod.array(
+    zod.object({
+      id: zod.number(),
+      productId: zod.number(),
+      authorName: zod.string(),
+      rating: zod.number(),
+      comment: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+  avgRating: zod.number(),
+});
+
+/**
+ * @summary Create a review for a product
+ */
+export const CreateProductReviewParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateProductReviewBody = zod.object({
+  authorName: zod.string(),
+  rating: zod.number(),
+  comment: zod.string(),
+});
+
+/**
+ * @summary Validate a discount coupon code
+ */
+export const ValidateCouponBody = zod.object({
+  code: zod.string(),
+});
+
+export const ValidateCouponResponse = zod.object({
+  valid: zod.boolean(),
+  discount: zod.number(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Send a contact message
+ */
+export const SendContactMessageBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  message: zod.string(),
+});
+
+/**
  * @summary MercadoPago webhook for payment notifications
  */
 export const PaymentWebhookBody = zod.object({}).passthrough();

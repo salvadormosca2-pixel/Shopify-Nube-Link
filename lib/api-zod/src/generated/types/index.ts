@@ -7,10 +7,15 @@
  */
 
 export * from "./categoriesResponse";
+export * from "./contactRequest";
+export * from "./contactResponse";
+export * from "./couponValidateRequest";
+export * from "./couponValidateResponse";
 export * from "./createOrderRequest";
 export * from "./createPaymentPreferenceRequest";
 export * from "./createPaymentPreferenceRequestItemsItem";
 export * from "./createPaymentPreferenceRequestPayer";
+export * from "./createReviewRequest";
 export * from "./customerInfo";
 export * from "./errorResponse";
 export * from "./getProductsParams";
@@ -24,4 +29,6 @@ export * from "./paymentWebhookBody";
 export * from "./product";
 export * from "./productListResponse";
 export * from "./provincesResponse";
+export * from "./review";
+export * from "./reviewsResponse";
 export * from "./shippingCostResponse";

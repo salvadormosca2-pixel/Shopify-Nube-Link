@@ -18,6 +18,12 @@ tags:
     description: MercadoPago payment integration
   - name: shipping
     description: Shipping cost calculation
+  - name: coupons
+    description: Discount coupon validation
+  - name: reviews
+    description: Product reviews
+  - name: contact
+    description: Contact messages
 paths:
   /healthz:
     get:
@@ -235,6 +241,105 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}/related:
+    get:
+      operationId: getRelatedProducts
+      tags: [products]
+      summary: Get related products by category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Related products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+
+  /products/{id}/reviews:
+    get:
+      operationId: getProductReviews
+      tags: [reviews]
+      summary: Get reviews for a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewsResponse"
+    post:
+      operationId: createProductReview
+      tags: [reviews]
+      summary: Create a review for a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /coupons/validate:
+    post:
+      operationId: validateCoupon
+      tags: [coupons]
+      summary: Validate a discount coupon code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CouponValidateRequest"
+      responses:
+        "200":
+          description: Coupon validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponValidateResponse"
+
+  /contact:
+    post:
+      operationId: sendContactMessage
+      tags: [contact]
+      summary: Send a contact message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactRequest"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactResponse"
 
   /payment/webhook:
     post:
@@ -533,3 +638,104 @@ components:
         - preferenceId
         - initPoint
         - sandboxInitPoint
+
+    CouponValidateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+      required:
+        - code
+
+    CouponValidateResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        discount:
+          type: integer
+        message:
+          type: string
+      required:
+        - valid
+        - discount
+        - message
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        authorName:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - productId
+        - authorName
+        - rating
+        - comment
+        - createdAt
+
+    ReviewsResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+        avgRating:
+          type: number
+      required:
+        - reviews
+        - total
+        - avgRating
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        authorName:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: string
+      required:
+        - authorName
+        - rating
+        - comment
+
+    ContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        message:
+          type: string
+      required:
+        - name
+        - email
+        - message
+
+    ContactResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message

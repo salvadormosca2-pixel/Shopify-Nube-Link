@@ -123,6 +123,48 @@ export interface PaymentPreferenceResponse {
   sandboxInitPoint: string;
 }
 
+export interface CouponValidateRequest {
+  code: string;
+}
+
+export interface CouponValidateResponse {
+  valid: boolean;
+  discount: number;
+  message: string;
+}
+
+export interface Review {
+  id: number;
+  productId: number;
+  authorName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface ReviewsResponse {
+  reviews: Review[];
+  total: number;
+  avgRating: number;
+}
+
+export interface CreateReviewRequest {
+  authorName: string;
+  rating: number;
+  comment: string;
+}
+
+export interface ContactRequest {
+  name: string;
+  email: string;
+  message: string;
+}
+
+export interface ContactResponse {
+  success: boolean;
+  message: string;
+}
+
 export type GetProductsParams = {
   /**
    * Filter by category

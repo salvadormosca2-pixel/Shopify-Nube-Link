@@ -27,7 +27,7 @@ export function Footer() {
             <li><Link href="/seguimiento">Seguimiento de pedidos</Link></li>
             <li><Link href="/">Cambios y devoluciones</Link></li>
             <li><Link href="/">Guía de talles</Link></li>
-            <li><Link href="/">Preguntas frecuentes</Link></li>
+            <li><Link href="/contacto">Contacto</Link></li>
           </ul>
         </div>
         
