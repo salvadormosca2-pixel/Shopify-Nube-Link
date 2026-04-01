@@ -68,7 +68,7 @@ function LoginScreen({ onLogin }: { onLogin: (key: string) => void }) {
     setIsLoading(true);
     setError("");
     try {
-      await adminFetch("/admin/verify", password);
+      await adminFetch("/admin/verify", password, { method: "POST" });
       sessionStorage.setItem("alfis_admin_key", password);
       onLogin(password);
     } catch {
@@ -703,7 +703,7 @@ export default function Admin() {
     const stored = sessionStorage.getItem("alfis_admin_key");
     if (stored) {
       setIsVerifying(true);
-      adminFetch("/admin/verify", stored)
+      adminFetch("/admin/verify", stored, { method: "POST" })
         .then(() => setAdminKey(stored))
         .catch(() => {
           sessionStorage.removeItem("alfis_admin_key");
