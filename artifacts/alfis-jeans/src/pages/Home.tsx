@@ -569,168 +569,173 @@ export default function Home() {
       <MarqueeSection />
 
       {/* Collection Grid */}
-      <section id="coleccion" className="container mx-auto px-4 py-20 scroll-mt-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col md:flex-row justify-between items-start mb-8 gap-6"
-        >
-          <div>
-            <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-2">Explorá todo</p>
-            <h2 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-tight">La Colección</h2>
-          </div>
-
-          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar productos..."
-                className="pl-9 rounded-none border-border"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                data-testid="input-search"
-              />
-            </div>
-            <Button
-              variant={showFilters ? "default" : "outline"}
-              className="rounded-none uppercase text-xs font-bold gap-2"
-              onClick={() => setShowFilters(v => !v)}
-              data-testid="button-toggle-filters"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filtros
-              {hasActiveFilters && (
-                <span className="bg-primary text-primary-foreground rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
-                  !
-                </span>
-              )}
-            </Button>
-          </div>
-        </motion.div>
-
-        {/* Filter Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden"
-            >
-              <div className="border border-border bg-card p-6 mb-8 flex flex-col sm:flex-row gap-6 items-start sm:items-end">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                    Talla
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {SIZES.map(size => (
-                      <button
-                        key={size}
-                        onClick={() => setSelectedSize(prev => prev === size ? "" : size)}
-                        className={`px-3 py-1 text-xs font-bold uppercase border transition-colors ${
-                          selectedSize === size
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "border-border hover:border-primary"
-                        }`}
-                        data-testid={`btn-size-${size}`}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                    Color
-                  </label>
-                  <Select value={selectedColor} onValueChange={setSelectedColor}>
-                    <SelectTrigger className="rounded-none border-border w-full sm:w-48" data-testid="select-color">
-                      <SelectValue placeholder="Todos los colores" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos-colores">Todos los colores</SelectItem>
-                      {COLORS.map(color => (
-                        <SelectItem key={color} value={color}>{color}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    className="rounded-none text-xs uppercase font-bold gap-2 self-end"
-                    onClick={clearFilters}
-                    data-testid="button-clear-filters"
-                  >
-                    <X className="h-3 w-3" />
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Categories */}
-        <div className="flex flex-wrap gap-2 mb-10">
-          <Button
-            variant={activeCategory === "todos" ? "default" : "outline"}
-            className="rounded-none uppercase text-xs font-bold"
-            onClick={() => setActiveCategory("todos")}
-            data-testid="btn-category-todos"
+      <section id="coleccion" className="py-24 scroll-mt-20">
+        {/* Section Header */}
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-14"
           >
-            Todos
-          </Button>
-          {categoriesData?.categories.map((cat) => (
-            <Button
-              key={cat}
-              variant={activeCategory === cat ? "default" : "outline"}
-              className="rounded-none uppercase text-xs font-bold"
-              onClick={() => setActiveCategory(cat)}
-              data-testid={`btn-category-${cat}`}
-            >
-              {cat}
-            </Button>
-          ))}
-        </div>
-
-        {/* Products Grid */}
-        {productsQuery.isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-4">
-                <Skeleton className="aspect-[3/4] w-full rounded-none" />
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-4 w-1/3" />
+            <div className="flex flex-col md:flex-row justify-between items-end gap-8">
+              <div>
+                <p className="text-[10px] font-black tracking-[0.4em] uppercase text-muted-foreground mb-3">
+                  Alfis Jeans — Catamarca
+                </p>
+                <h2 className="text-4xl md:text-6xl font-display font-black uppercase tracking-tight leading-none">
+                  La Colección
+                </h2>
+                <div className="h-[2px] w-16 bg-primary mt-5" />
               </div>
-            ))}
-          </div>
-        ) : productsQuery.data?.products.length === 0 ? (
-          <div className="py-20 text-center text-muted-foreground">
-            <p>No se encontraron productos que coincidan con tu búsqueda.</p>
-            <Button variant="link" onClick={clearFilters} className="mt-2">
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {productsQuery.data?.products.map((product, i) => (
+
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full md:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar productos..."
+                    className="pl-9 rounded-none border-zinc-700 bg-transparent focus:border-white transition-colors"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    data-testid="input-search"
+                  />
+                </div>
+                <Button
+                  variant={showFilters ? "default" : "outline"}
+                  className="rounded-none uppercase text-xs font-bold tracking-widest gap-2"
+                  onClick={() => setShowFilters(v => !v)}
+                  data-testid="button-toggle-filters"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Filtros
+                  {hasActiveFilters && (
+                    <span className="bg-white text-black rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-black">
+                      {String("!")}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Filter Panel */}
+          <AnimatePresence>
+            {showFilters && (
               <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.4 }}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
               >
-                <ProductCard product={product} />
+                <div className="border border-zinc-800 bg-zinc-900/60 p-6 mb-10 flex flex-col sm:flex-row gap-6 items-start sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-3">
+                      Talla
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SIZES.map(size => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(prev => prev === size ? "" : size)}
+                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border transition-all duration-200 ${
+                            selectedSize === size
+                              ? "bg-white text-black border-white"
+                              : "border-zinc-700 text-zinc-400 hover:border-zinc-400 hover:text-white"
+                          }`}
+                          data-testid={`btn-size-${size}`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-3">
+                      Color
+                    </label>
+                    <Select value={selectedColor} onValueChange={setSelectedColor}>
+                      <SelectTrigger className="rounded-none border-zinc-700 bg-transparent w-full sm:w-48 text-xs" data-testid="select-color">
+                        <SelectValue placeholder="Todos los colores" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos-colores">Todos los colores</SelectItem>
+                        {COLORS.map(color => (
+                          <SelectItem key={color} value={color}>{color}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      className="rounded-none text-xs uppercase font-bold tracking-widest gap-2 self-end text-zinc-400 hover:text-white"
+                      onClick={clearFilters}
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-3 w-3" />
+                      Limpiar
+                    </Button>
+                  )}
+                </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Categories — elegant underline style */}
+          <div className="flex flex-wrap gap-0 border-b border-zinc-800 mb-12">
+            {["todos", ...(categoriesData?.categories ?? [])].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                data-testid={cat === "todos" ? "btn-category-todos" : `btn-category-${cat}`}
+                className={`px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-200 border-b-2 -mb-px ${
+                  activeCategory === cat
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {cat === "todos" ? "Todo" : cat}
+              </button>
             ))}
           </div>
-        )}
+
+          {/* Products Grid */}
+          {productsQuery.isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-zinc-800">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-background p-2 space-y-3">
+                  <Skeleton className="aspect-[3/4] w-full rounded-none" />
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              ))}
+            </div>
+          ) : productsQuery.data?.products.length === 0 ? (
+            <div className="py-24 text-center">
+              <p className="text-zinc-500 text-sm uppercase tracking-widest">Sin resultados</p>
+              <Button variant="link" onClick={clearFilters} className="mt-3 text-xs uppercase tracking-widest">
+                Limpiar filtros
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+              {productsQuery.data?.products.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );
