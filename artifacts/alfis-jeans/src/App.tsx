@@ -13,24 +13,30 @@ import Checkout from "@/pages/Checkout";
 import Confirmation from "@/pages/Confirmation";
 import Tracking from "@/pages/Tracking";
 import Contact from "@/pages/Contact";
+import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/productos/:id" component={ProductDetail} />
-        <Route path="/carrito" component={Cart} />
-        <Route path="/checkout" component={Checkout} />
-        <Route path="/confirmacion/:trackingNumber" component={Confirmation} />
-        <Route path="/seguimiento" component={Tracking} />
-        <Route path="/contacto" component={Contact} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/admin" component={Admin} />
+      <Route>
+        <Layout>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/productos/:id" component={ProductDetail} />
+            <Route path="/carrito" component={Cart} />
+            <Route path="/checkout" component={Checkout} />
+            <Route path="/confirmacion/:trackingNumber" component={Confirmation} />
+            <Route path="/seguimiento" component={Tracking} />
+            <Route path="/contacto" component={Contact} />
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </Route>
+    </Switch>
   );
 }
 
