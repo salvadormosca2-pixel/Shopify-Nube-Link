@@ -7,7 +7,7 @@ import {
   Lock, Package, Tag, ShoppingBag, LogOut, Save,
   Plus, Trash2, ToggleLeft, ToggleRight, Loader2,
   TrendingUp, AlertCircle, CheckCircle2, ChevronDown,
-  X, ImagePlus, Pencil
+  X, ImagePlus, Pencil, BarChart2, MapPin, Award, ShoppingCart
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -1102,8 +1102,230 @@ function OrdersTab({ adminKey }: { adminKey: string }) {
   );
 }
 
+// ─── Sales Tab ────────────────────────────────────────────────────────────────
+type StatsData = {
+  kpis: { totalRevenue: number; totalOrders: number; paidOrders: number; avgTicket: number; totalOrdersAllTime: number };
+  byStatus: Record<string, number>;
+  revenueByDay: Array<{ date: string; revenue: number; orders: number }>;
+  topProducts: Array<{ id: number; name: string; units: number; revenue: number }>;
+  revenueByProvince: Array<{ province: string; revenue: number }>;
+};
+
+const SALES_STATUS_CFG: Record<string, { label: string; color: string }> = {
+  pending:   { label: "Pendiente",  color: "bg-amber-500" },
+  paid:      { label: "Pagado",     color: "bg-blue-500" },
+  shipped:   { label: "Enviado",    color: "bg-violet-500" },
+  delivered: { label: "Entregado",  color: "bg-green-500" },
+  cancelled: { label: "Cancelado",  color: "bg-red-600" },
+};
+
+function MiniBar({ value, max, color = "bg-white" }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.max(2, (value / max) * 100) : 2;
+  return (
+    <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+      <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+function SalesTab({ adminKey }: { adminKey: string }) {
+  const { toast } = useToast();
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [chartMode, setChartMode] = useState<"revenue" | "orders">("revenue");
+
+  useEffect(() => {
+    setIsLoading(true);
+    adminFetch("/admin/stats", adminKey)
+      .then(data => setStats(data))
+      .catch(() => toast({ title: "Error al cargar estadísticas", variant: "destructive" }))
+      .finally(() => setIsLoading(false));
+  }, [adminKey]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+      </div>
+    );
+  }
+
+  if (!stats) return null;
+
+  const { kpis, byStatus, revenueByDay, topProducts, revenueByProvince } = stats;
+
+  const chartData = revenueByDay;
+  const chartValues = chartData.map(d => chartMode === "revenue" ? d.revenue : d.orders);
+  const chartMax = Math.max(...chartValues, 1);
+  const totalRevenue30 = revenueByDay.reduce((s, d) => s + d.revenue, 0);
+  const totalOrders30 = revenueByDay.reduce((s, d) => s + d.orders, 0);
+  const maxProvRevenue = Math.max(...revenueByProvince.map(p => p.revenue), 1);
+  const maxProductUnits = Math.max(...topProducts.map(p => p.units), 1);
+  const totalStatusOrders = Object.values(byStatus).reduce((s, v) => s + v, 0);
+
+  const formatDay = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    return `${d.getDate()}/${d.getMonth() + 1}`;
+  };
+
+  return (
+    <div className="space-y-8">
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Facturado (90 días)", value: formatArs(kpis.totalRevenue), icon: <TrendingUp className="h-4 w-4" />, accent: "text-green-400" },
+          { label: "Pedidos (90 días)", value: kpis.totalOrders, icon: <ShoppingCart className="h-4 w-4" />, accent: "text-blue-400" },
+          { label: "Ticket promedio", value: formatArs(kpis.avgTicket), icon: <Award className="h-4 w-4" />, accent: "text-violet-400" },
+          { label: "Pedidos pagados", value: kpis.paidOrders, icon: <CheckCircle2 className="h-4 w-4" />, accent: "text-amber-400" },
+        ].map(kpi => (
+          <div key={kpi.label} className="bg-zinc-900 border border-zinc-800 p-5">
+            <div className={`flex items-center gap-2 mb-2 ${kpi.accent}`}>
+              {kpi.icon}
+              <span className="text-xs font-bold uppercase tracking-wider">{kpi.label}</span>
+            </div>
+            <p className="text-2xl font-black tabular-nums">{kpi.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Revenue chart (last 30 days) */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold uppercase tracking-wider text-sm">Últimos 30 días</h3>
+            <p className="text-zinc-500 text-xs mt-0.5">
+              {chartMode === "revenue"
+                ? `Total facturado: ${formatArs(totalRevenue30)}`
+                : `Total pedidos: ${totalOrders30}`
+              }
+            </p>
+          </div>
+          <div className="flex border border-zinc-700 overflow-hidden">
+            <button
+              onClick={() => setChartMode("revenue")}
+              className={`px-3 py-1 text-xs font-bold uppercase transition-colors ${chartMode === "revenue" ? "bg-white text-black" : "text-zinc-500 hover:text-white"}`}
+            >$ Facturado</button>
+            <button
+              onClick={() => setChartMode("orders")}
+              className={`px-3 py-1 text-xs font-bold uppercase transition-colors ${chartMode === "orders" ? "bg-white text-black" : "text-zinc-500 hover:text-white"}`}
+            >Pedidos</button>
+          </div>
+        </div>
+
+        {/* Bar chart */}
+        <div className="flex items-end gap-px h-32">
+          {chartData.map((d, i) => {
+            const val = chartMode === "revenue" ? d.revenue : d.orders;
+            const pct = chartMax > 0 ? (val / chartMax) * 100 : 0;
+            const isToday = i === chartData.length - 1;
+            return (
+              <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-zinc-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                  {formatDay(d.date)}: {chartMode === "revenue" ? formatArs(val) : `${val} pedidos`}
+                </div>
+                <div className="w-full flex items-end h-28">
+                  <div
+                    className={`w-full rounded-sm transition-all ${isToday ? "bg-white" : "bg-zinc-600 group-hover:bg-zinc-400"}`}
+                    style={{ height: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }}
+                  />
+                </div>
+                {(i % 5 === 0 || isToday) && (
+                  <span className={`text-[9px] ${isToday ? "text-white font-bold" : "text-zinc-600"}`}>
+                    {formatDay(d.date)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Two columns: status breakdown + top provinces */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Orders by status */}
+        <div className="bg-zinc-900 border border-zinc-800 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <ShoppingBag className="h-4 w-4 text-zinc-500" />
+            <h3 className="font-bold uppercase tracking-wider text-sm">Estado de Pedidos</h3>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
+              const cfg = SALES_STATUS_CFG[status] || { label: status, color: "bg-zinc-500" };
+              const pct = totalStatusOrders > 0 ? ((count / totalStatusOrders) * 100).toFixed(0) : "0";
+              return (
+                <div key={status} className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.color}`} />
+                  <span className="text-xs text-zinc-400 w-24 flex-shrink-0">{cfg.label}</span>
+                  <div className="flex-1 bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                    <div className={`h-full ${cfg.color} rounded-full`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs font-bold tabular-nums w-8 text-right">{count}</span>
+                  <span className="text-xs text-zinc-600 w-8 text-right">{pct}%</span>
+                </div>
+              );
+            })}
+            {Object.keys(byStatus).length === 0 && (
+              <p className="text-zinc-600 text-sm">Sin pedidos en los últimos 90 días.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Revenue by province */}
+        <div className="bg-zinc-900 border border-zinc-800 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="h-4 w-4 text-zinc-500" />
+            <h3 className="font-bold uppercase tracking-wider text-sm">Facturado por Provincia</h3>
+          </div>
+          <div className="space-y-3">
+            {revenueByProvince.map(({ province, revenue }) => (
+              <div key={province} className="flex items-center gap-3">
+                <span className="text-xs text-zinc-400 w-32 flex-shrink-0 truncate">{province}</span>
+                <div className="flex-1">
+                  <MiniBar value={revenue} max={maxProvRevenue} color="bg-violet-500" />
+                </div>
+                <span className="text-xs font-bold tabular-nums text-right flex-shrink-0">{formatArs(revenue)}</span>
+              </div>
+            ))}
+            {revenueByProvince.length === 0 && (
+              <p className="text-zinc-600 text-sm">Sin ventas registradas.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Top products */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Award className="h-4 w-4 text-zinc-500" />
+          <h3 className="font-bold uppercase tracking-wider text-sm">Productos más vendidos (90 días)</h3>
+        </div>
+        {topProducts.length === 0 ? (
+          <p className="text-zinc-600 text-sm">Sin ventas registradas.</p>
+        ) : (
+          <div className="space-y-3">
+            {topProducts.map((p, i) => (
+              <div key={p.id} className="flex items-center gap-4">
+                <span className="text-xs text-zinc-600 font-bold tabular-nums w-5 text-right flex-shrink-0">#{i + 1}</span>
+                <span className="text-sm font-medium flex-1 truncate">{p.name}</span>
+                <div className="w-32 flex-shrink-0">
+                  <MiniBar value={p.units} max={maxProductUnits} color="bg-amber-400" />
+                </div>
+                <span className="text-xs text-zinc-400 w-16 text-right flex-shrink-0 tabular-nums">{p.units} und.</span>
+                <span className="text-xs font-bold tabular-nums w-28 text-right flex-shrink-0">{formatArs(p.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Main Admin Panel ─────────────────────────────────────────────────────────
-type Tab = "products" | "coupons" | "orders";
+type Tab = "products" | "coupons" | "orders" | "sales";
 
 export default function Admin() {
   const [adminKey, setAdminKey] = useState<string>(() => {
@@ -1147,6 +1369,7 @@ export default function Admin() {
     { id: "products", label: "Productos", icon: <Package className="h-4 w-4" /> },
     { id: "coupons", label: "Cupones", icon: <Tag className="h-4 w-4" /> },
     { id: "orders", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" /> },
+    { id: "sales", label: "Ventas", icon: <BarChart2 className="h-4 w-4" /> },
   ];
 
   return (
@@ -1203,6 +1426,7 @@ export default function Admin() {
         {tab === "products" && <ProductsTab adminKey={adminKey} />}
         {tab === "coupons" && <CouponsTab adminKey={adminKey} />}
         {tab === "orders" && <OrdersTab adminKey={adminKey} />}
+        {tab === "sales" && <SalesTab adminKey={adminKey} />}
       </div>
     </div>
   );

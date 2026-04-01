@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable, couponsTable, ordersTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, gte } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 
 const router: IRouter = Router();
@@ -335,6 +335,105 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "internal_error", message: "Failed to update order status" });
+  }
+});
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+
+// GET /api/admin/stats - sales analytics
+router.get("/admin/stats", async (_req, res) => {
+  try {
+    // Fetch orders from the last 90 days for performance
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+
+    const orders = await db
+      .select()
+      .from(ordersTable)
+      .where(gte(ordersTable.createdAt, since))
+      .orderBy(desc(ordersTable.createdAt));
+
+    const allOrders = await db.select({ id: ordersTable.id }).from(ordersTable);
+    const totalOrdersAllTime = allOrders.length;
+
+    // Revenue-generating statuses
+    const revenueStatuses = ["paid", "shipped", "delivered"];
+
+    // ── KPIs ────────────────────────────────────────────────────────────────
+    const revenueOrders = orders.filter(o => revenueStatuses.includes(o.status));
+    const totalRevenue = revenueOrders.reduce((s, o) => s + parseFloat(o.total), 0);
+    const totalOrders = orders.length;
+    const paidOrders = revenueOrders.length;
+    const avgTicket = paidOrders > 0 ? totalRevenue / paidOrders : 0;
+
+    // ── Orders by status ────────────────────────────────────────────────────
+    const byStatus: Record<string, number> = {};
+    for (const o of orders) {
+      byStatus[o.status] = (byStatus[o.status] || 0) + 1;
+    }
+
+    // ── Revenue by day (last 30 days) ───────────────────────────────────────
+    const dailyRevenue: Record<string, number> = {};
+    const dailyOrders: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dailyRevenue[key] = 0;
+      dailyOrders[key] = 0;
+    }
+    for (const o of orders) {
+      const key = new Date(o.createdAt).toISOString().slice(0, 10);
+      if (key in dailyRevenue) {
+        if (revenueStatuses.includes(o.status)) {
+          dailyRevenue[key] += parseFloat(o.total);
+        }
+        dailyOrders[key] += 1;
+      }
+    }
+    const revenueByDay = Object.entries(dailyRevenue).map(([date, revenue]) => ({
+      date,
+      revenue,
+      orders: dailyOrders[date] || 0,
+    }));
+
+    // ── Top products by units sold ───────────────────────────────────────────
+    const productUnits: Record<string, { name: string; units: number; revenue: number }> = {};
+    for (const o of orders) {
+      if (!revenueStatuses.includes(o.status)) continue;
+      for (const item of o.items) {
+        const key = String(item.productId);
+        if (!productUnits[key]) {
+          productUnits[key] = { name: item.productName, units: 0, revenue: 0 };
+        }
+        productUnits[key].units += item.quantity;
+        productUnits[key].revenue += item.price * item.quantity;
+      }
+    }
+    const topProducts = Object.entries(productUnits)
+      .map(([id, v]) => ({ id: Number(id), ...v }))
+      .sort((a, b) => b.units - a.units)
+      .slice(0, 8);
+
+    // ── Revenue by province ──────────────────────────────────────────────────
+    const byProvince: Record<string, number> = {};
+    for (const o of revenueOrders) {
+      byProvince[o.customerProvince] = (byProvince[o.customerProvince] || 0) + parseFloat(o.total);
+    }
+    const revenueByProvince = Object.entries(byProvince)
+      .map(([province, revenue]) => ({ province, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    res.json({
+      kpis: { totalRevenue, totalOrders, paidOrders, avgTicket, totalOrdersAllTime },
+      byStatus,
+      revenueByDay,
+      topProducts,
+      revenueByProvince,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "internal_error", message: "Failed to compute stats" });
   }
 });
 
