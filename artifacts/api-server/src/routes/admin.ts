@@ -140,6 +140,68 @@ router.patch("/admin/products/:id", async (req, res) => {
   }
 });
 
+// POST /api/admin/products - create a new product
+router.post("/admin/products", async (req, res) => {
+  try {
+    const { name, category, description, price, stock, featured, images, colors, sizes, salePrice } = req.body;
+
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      res.status(400).json({ error: "invalid_name", message: "Name is required" });
+      return;
+    }
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "invalid_category", message: "Category is required" });
+      return;
+    }
+    const p = parseFloat(price);
+    if (isNaN(p) || p < 0) {
+      res.status(400).json({ error: "invalid_price", message: "Price must be a positive number" });
+      return;
+    }
+    const s = parseInt(stock ?? "0", 10);
+
+    const values: typeof productsTable.$inferInsert = {
+      name: name.trim(),
+      category: category.trim(),
+      description: description ?? "",
+      price: String(p),
+      stock: isNaN(s) ? 0 : s,
+      featured: Boolean(featured),
+      images: Array.isArray(images) ? images : [],
+      colors: Array.isArray(colors) ? colors : [],
+      sizes: Array.isArray(sizes) ? sizes : [],
+      salePrice: salePrice != null && salePrice !== "" ? String(parseFloat(salePrice)) : null,
+    };
+
+    const [created] = await db.insert(productsTable).values(values).returning();
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(500).json({ error: "internal_error", message: "Failed to create product" });
+  }
+});
+
+// DELETE /api/admin/products/:id - delete a product
+router.delete("/admin/products/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "Invalid product ID" });
+      return;
+    }
+    const [deleted] = await db
+      .delete(productsTable)
+      .where(eq(productsTable.id, id))
+      .returning({ id: productsTable.id });
+    if (!deleted) {
+      res.status(404).json({ error: "not_found", message: "Product not found" });
+      return;
+    }
+    res.json({ ok: true, id: deleted.id });
+  } catch (err) {
+    res.status(500).json({ error: "internal_error", message: "Failed to delete product" });
+  }
+});
+
 // ─── COUPONS ─────────────────────────────────────────────────────────────────
 
 // GET /api/admin/coupons

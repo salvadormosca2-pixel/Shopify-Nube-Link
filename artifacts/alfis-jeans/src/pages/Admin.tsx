@@ -134,11 +134,14 @@ type EditForm = {
 const COMMON_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "28", "30", "32", "34", "36", "38", "40", "42"];
 
 function ProductEditModal({
-  product, adminKey, categories, onSave, onClose,
+  product, adminKey, categories, onSave, onCreate, onClose,
 }: {
-  product: Product; adminKey: string; categories: string[];
-  onSave: (updated: Product) => void; onClose: () => void;
+  product: Product | null; adminKey: string; categories: string[];
+  onSave?: (updated: Product) => void;
+  onCreate?: (created: Product) => void;
+  onClose: () => void;
 }) {
+  const isCreate = product === null;
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -149,16 +152,16 @@ function ProductEditModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<EditForm>({
-    name: product.name,
-    category: product.category,
-    description: product.description || "",
-    price: String(parseFloat(product.price)),
-    stock: String(product.stock),
-    salePrice: product.salePrice != null ? String(parseFloat(String(product.salePrice))) : "",
-    featured: product.featured,
-    images: [...product.images],
-    colors: [...(product.colors || [])],
-    sizes: [...(product.sizes || [])],
+    name: product?.name ?? "",
+    category: product?.category ?? "",
+    description: product?.description ?? "",
+    price: product ? String(parseFloat(product.price)) : "",
+    stock: product ? String(product.stock) : "0",
+    salePrice: product?.salePrice != null ? String(parseFloat(String(product.salePrice))) : "",
+    featured: product?.featured ?? false,
+    images: product ? [...product.images] : [],
+    colors: product ? [...(product.colors || [])] : [],
+    sizes: product ? [...(product.sizes || [])] : [],
   });
 
   const set = (key: keyof EditForm, value: unknown) =>
@@ -240,26 +243,36 @@ function ProductEditModal({
     }
     setIsSaving(true);
     try {
-      const updated = await adminFetch(`/admin/products/${product.id}`, adminKey, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: form.name.trim(),
-          category: categoryToSave,
-          description: form.description,
-          price: parseFloat(form.price),
-          stock: parseInt(form.stock, 10),
-          featured: form.featured,
-          images: form.images,
-          colors: form.colors,
-          sizes: form.sizes,
-          salePrice: form.salePrice.trim() !== "" ? parseFloat(form.salePrice) : null,
-        }),
-      });
-      onSave(updated);
-      toast({ title: "Producto guardado" });
+      const payload = {
+        name: form.name.trim(),
+        category: categoryToSave,
+        description: form.description,
+        price: parseFloat(form.price),
+        stock: parseInt(form.stock, 10),
+        featured: form.featured,
+        images: form.images,
+        colors: form.colors,
+        sizes: form.sizes,
+        salePrice: form.salePrice.trim() !== "" ? parseFloat(form.salePrice) : null,
+      };
+      if (isCreate) {
+        const created = await adminFetch("/admin/products", adminKey, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        onCreate?.(created);
+        toast({ title: "Producto creado" });
+      } else {
+        const updated = await adminFetch(`/admin/products/${product!.id}`, adminKey, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        onSave?.(updated);
+        toast({ title: "Producto guardado" });
+      }
       onClose();
     } catch (e: unknown) {
-      toast({ title: "Error al guardar", description: e instanceof Error ? e.message : "", variant: "destructive" });
+      toast({ title: isCreate ? "Error al crear" : "Error al guardar", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -277,8 +290,8 @@ function ProductEditModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
           <div>
-            <h2 className="font-bold uppercase tracking-wider text-sm">Editar Producto</h2>
-            <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-xs">{product.name}</p>
+            <h2 className="font-bold uppercase tracking-wider text-sm">{isCreate ? "Nuevo Producto" : "Editar Producto"}</h2>
+            <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-xs">{isCreate ? "Completá los datos del nuevo producto" : product!.name}</p>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
             <X className="h-5 w-5" />
@@ -520,7 +533,7 @@ function ProductEditModal({
             className="flex-1 rounded-none uppercase font-bold tracking-wider bg-white text-black hover:bg-zinc-200 h-11"
             data-testid="button-save-product">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Guardar cambios
+            {isCreate ? "Crear Producto" : "Guardar cambios"}
           </Button>
           <Button variant="outline" onClick={onClose}
             className="rounded-none border-zinc-700 text-zinc-400 hover:text-white h-11 px-6">
@@ -538,6 +551,8 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
 
@@ -564,6 +579,20 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
       setProducts(prev => prev.map(x => x.id === p.id ? { ...x, featured: updated.featured } : x));
     } catch {
       toast({ title: "Error al actualizar", variant: "destructive" });
+    }
+  };
+
+  const deleteProduct = async (p: Product) => {
+    if (!window.confirm(`¿Eliminar "${p.name}"? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(p.id);
+    try {
+      await adminFetch(`/admin/products/${p.id}`, adminKey, { method: "DELETE" });
+      setProducts(prev => prev.filter(x => x.id !== p.id));
+      toast({ title: "Producto eliminado" });
+    } catch {
+      toast({ title: "Error al eliminar", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -597,6 +626,17 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
         />
       )}
 
+      {/* Create modal */}
+      {showCreateModal && (
+        <ProductEditModal
+          product={null}
+          adminKey={adminKey}
+          categories={allCategories}
+          onCreate={created => setProducts(prev => [created, ...prev])}
+          onClose={() => setShowCreateModal(false)}
+        />
+      )}
+
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
@@ -611,7 +651,7 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters + New button */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <Input
           placeholder="Buscar producto..."
@@ -619,7 +659,7 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
           onChange={e => setSearch(e.target.value)}
           className="rounded-none border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-600 sm:w-64"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 flex-1">
           {categoryOptions.map(cat => (
             <button
               key={cat}
@@ -634,6 +674,13 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors whitespace-nowrap"
+          data-testid="button-new-product"
+        >
+          <Plus className="h-4 w-4" /> Nuevo Producto
+        </button>
       </div>
 
       {/* Product table */}
@@ -700,15 +747,29 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
                     </button>
                   </td>
 
-                  {/* Edit button */}
+                  {/* Actions: Edit + Delete */}
                   <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => setEditingProduct(product)}
-                      className="flex items-center gap-1.5 px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-400 hover:text-white transition-colors mx-auto"
-                      data-testid={`button-edit-${product.id}`}
-                    >
-                      <Pencil className="h-3 w-3" /> Editar
-                    </button>
+                    <div className="flex items-center gap-2 justify-center">
+                      <button
+                        onClick={() => setEditingProduct(product)}
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-400 hover:text-white transition-colors"
+                        data-testid={`button-edit-${product.id}`}
+                      >
+                        <Pencil className="h-3 w-3" /> Editar
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product)}
+                        disabled={deletingId === product.id}
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs border border-zinc-800 text-zinc-600 hover:border-red-700 hover:text-red-400 transition-colors disabled:opacity-40"
+                        data-testid={`button-delete-${product.id}`}
+                        title="Eliminar producto"
+                      >
+                        {deletingId === product.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <Trash2 className="h-3 w-3" />
+                        }
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
