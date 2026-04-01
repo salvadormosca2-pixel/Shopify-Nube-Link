@@ -79,7 +79,7 @@ function BrochurePage({
     >
       {/* Image / Video / Slideshow side */}
       <motion.div
-        className={`relative overflow-hidden bg-black ${isLeft ? "md:order-1" : "md:order-2"}`}
+        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"}`}
         initial={{ opacity: 0, x: isLeft ? -60 : 60 }}
         animate={isInView ? { opacity: 1, x: 0 } : {}}
         transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
@@ -100,7 +100,7 @@ function BrochurePage({
                 key={slideIdx}
                 src={slides[slideIdx]}
                 alt={page.title}
-                className="absolute inset-0 w-full h-full object-contain min-h-[400px] md:min-h-[600px]"
+                className="absolute inset-0 w-full h-full object-cover object-top"
                 custom={dir}
                 initial={{ opacity: 0, x: dir * 80 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -119,7 +119,7 @@ function BrochurePage({
               ))}
             </div>
             {/* spacer so parent has height */}
-            <div className="min-h-[400px] md:min-h-[600px] invisible" />
+            <div className="min-h-[500px] md:min-h-[780px] invisible" />
           </>
         ) : (
           <img
