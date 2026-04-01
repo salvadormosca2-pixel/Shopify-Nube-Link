@@ -29,7 +29,8 @@ const BROCHURE_PAGES = [
     subtitle: "Buzos, remeras y sweaters con actitud. Prendas que dicen algo antes de que vos abras la boca.",
     cta: "Ver Remeras",
     category: "Remeras",
-    image: "https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=1200&q=80",
+    image: "/urban-style.mp4",
+    video: "/urban-style.mp4",
     accent: "#c9d6df",
     align: "right" as const,
   },
@@ -70,13 +71,24 @@ function BrochurePage({
         animate={isInView ? { opacity: 1, x: 0 } : {}}
         transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
       >
-        <img
-          src={page.image}
-          alt={page.title}
-          className="w-full h-full object-cover min-h-[400px] md:min-h-[600px] scale-105 hover:scale-100 transition-transform duration-700"
-          style={"brightness" in page ? { filter: `brightness(${page.brightness})` } : undefined}
-        />
-        <div className="absolute inset-0 bg-black/30" />
+        {"video" in page ? (
+          <video
+            src={page.video}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover min-h-[400px] md:min-h-[600px]"
+          />
+        ) : (
+          <img
+            src={page.image}
+            alt={page.title}
+            className="w-full h-full object-cover min-h-[400px] md:min-h-[600px] scale-105 hover:scale-100 transition-transform duration-700"
+            style={"brightness" in page ? { filter: `brightness(${page.brightness})` } : undefined}
+          />
+        )}
+        <div className="absolute inset-0 bg-black/20" />
         <motion.span
           className="absolute top-6 left-6 text-xs font-bold tracking-[0.3em] uppercase text-white/70"
           initial={{ opacity: 0 }}
