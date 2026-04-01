@@ -40,7 +40,8 @@ const BROCHURE_PAGES = [
     subtitle: "Tapados y sweaters de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
     cta: "Ver Tapados",
     category: "Tapados",
-    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=1200&q=80",
+    image: "/abrigos-1.jpg",
+    slides: ["/abrigos-1.jpg", "/abrigos-2.jpg", "/abrigos-3.jpg"],
     accent: "#d4b896",
     align: "left" as const,
   },
@@ -58,13 +59,25 @@ function BrochurePage({
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const isLeft = page.align === "left";
+  const slides = "slides" in page ? page.slides : null;
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [dir, setDir] = useState(1);
+
+  useEffect(() => {
+    if (!slides || slides.length < 2) return;
+    const t = setInterval(() => {
+      setDir(1);
+      setSlideIdx(i => (i + 1) % slides.length);
+    }, 3500);
+    return () => clearInterval(t);
+  }, [slides]);
 
   return (
     <div
       ref={ref}
       className="grid grid-cols-1 md:grid-cols-2 min-h-[600px] overflow-hidden"
     >
-      {/* Image side */}
+      {/* Image / Video / Slideshow side */}
       <motion.div
         className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"}`}
         initial={{ opacity: 0, x: isLeft ? -60 : 60 }}
@@ -80,6 +93,34 @@ function BrochurePage({
             playsInline
             className="w-full h-full object-cover min-h-[400px] md:min-h-[600px]"
           />
+        ) : slides ? (
+          <>
+            <AnimatePresence initial={false} custom={dir} mode="sync">
+              <motion.img
+                key={slideIdx}
+                src={slides[slideIdx]}
+                alt={page.title}
+                className="absolute inset-0 w-full h-full object-cover min-h-[400px] md:min-h-[600px]"
+                custom={dir}
+                initial={{ opacity: 0, x: dir * 80 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: dir * -80 }}
+                transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              />
+            </AnimatePresence>
+            {/* Dot indicators */}
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setDir(i > slideIdx ? 1 : -1); setSlideIdx(i); }}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === slideIdx ? "bg-white w-5" : "bg-white/40"}`}
+                />
+              ))}
+            </div>
+            {/* spacer so parent has height */}
+            <div className="min-h-[400px] md:min-h-[600px] invisible" />
+          </>
         ) : (
           <img
             src={page.image}
@@ -88,9 +129,9 @@ function BrochurePage({
             style={"brightness" in page ? { filter: `brightness(${page.brightness})` } : undefined}
           />
         )}
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-black/20 pointer-events-none" />
         <motion.span
-          className="absolute top-6 left-6 text-xs font-bold tracking-[0.3em] uppercase text-white/70"
+          className="absolute top-6 left-6 text-xs font-bold tracking-[0.3em] uppercase text-white/70 z-10"
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ delay: 0.4, duration: 0.5 }}
