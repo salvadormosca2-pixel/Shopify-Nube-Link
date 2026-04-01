@@ -29,7 +29,7 @@ router.get("/admin/products", async (_req, res) => {
   }
 });
 
-// PATCH /api/admin/products/:id - update price and/or stock
+// PATCH /api/admin/products/:id - update any product fields
 router.patch("/admin/products/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -38,7 +38,7 @@ router.patch("/admin/products/:id", async (req, res) => {
       return;
     }
 
-    const { price, stock, featured } = req.body;
+    const { price, stock, featured, name, category, description, images, colors, sizes } = req.body;
     const updates: Partial<typeof productsTable.$inferInsert> = {};
 
     if (price !== undefined) {
@@ -59,8 +59,50 @@ router.patch("/admin/products/:id", async (req, res) => {
       updates.stock = s;
     }
 
-    if (featured !== undefined) {
-      updates.featured = Boolean(featured);
+    if (featured !== undefined) updates.featured = Boolean(featured);
+
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.trim() === "") {
+        res.status(400).json({ error: "invalid_name", message: "Name cannot be empty" });
+        return;
+      }
+      updates.name = name.trim();
+    }
+
+    if (category !== undefined) {
+      if (typeof category !== "string" || category.trim() === "") {
+        res.status(400).json({ error: "invalid_category", message: "Category cannot be empty" });
+        return;
+      }
+      updates.category = category.trim();
+    }
+
+    if (description !== undefined) {
+      updates.description = String(description);
+    }
+
+    if (images !== undefined) {
+      if (!Array.isArray(images)) {
+        res.status(400).json({ error: "invalid_images", message: "Images must be an array of URLs" });
+        return;
+      }
+      updates.images = images.map(String).filter(Boolean);
+    }
+
+    if (colors !== undefined) {
+      if (!Array.isArray(colors)) {
+        res.status(400).json({ error: "invalid_colors", message: "Colors must be an array" });
+        return;
+      }
+      updates.colors = colors.map(String).filter(Boolean);
+    }
+
+    if (sizes !== undefined) {
+      if (!Array.isArray(sizes)) {
+        res.status(400).json({ error: "invalid_sizes", message: "Sizes must be an array" });
+        return;
+      }
+      updates.sizes = sizes.map(String).filter(Boolean);
     }
 
     if (Object.keys(updates).length === 0) {

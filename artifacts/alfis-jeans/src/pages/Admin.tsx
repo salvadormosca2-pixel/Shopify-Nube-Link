@@ -1,21 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Lock, Package, Tag, ShoppingBag, LogOut, Save,
   Plus, Trash2, ToggleLeft, ToggleRight, Loader2,
-  TrendingUp, AlertCircle, CheckCircle2, ChevronDown
+  TrendingUp, AlertCircle, CheckCircle2, ChevronDown,
+  X, ImagePlus, Pencil
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = `${BASE}/api`;
 
 type Product = {
-  id: number; name: string; category: string;
-  price: string; stock: number; featured: boolean; images: string[];
+  id: number; name: string; category: string; description: string;
+  price: string; stock: number; featured: boolean;
+  images: string[]; colors: string[]; sizes: string[];
 };
 type Coupon = {
   id: number; code: string; discount: number;
@@ -123,14 +124,326 @@ function LoginScreen({ onLogin }: { onLogin: (key: string) => void }) {
   );
 }
 
+// ─── Product Edit Modal ───────────────────────────────────────────────────────
+type EditForm = {
+  name: string; category: string; description: string;
+  price: string; stock: string; featured: boolean;
+  images: string[]; colors: string[]; sizes: string[];
+};
+
+const COMMON_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "28", "30", "32", "34", "36", "38", "40", "42"];
+
+function ProductEditModal({
+  product, adminKey, categories, onSave, onClose,
+}: {
+  product: Product; adminKey: string; categories: string[];
+  onSave: (updated: Product) => void; onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [newColor, setNewColor] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const [form, setForm] = useState<EditForm>({
+    name: product.name,
+    category: product.category,
+    description: product.description || "",
+    price: String(parseFloat(product.price)),
+    stock: String(product.stock),
+    featured: product.featured,
+    images: [...product.images],
+    colors: [...(product.colors || [])],
+    sizes: [...(product.sizes || [])],
+  });
+
+  const set = (key: keyof EditForm, value: unknown) =>
+    setForm(f => ({ ...f, [key]: value }));
+
+  const addImage = () => {
+    const url = newImageUrl.trim();
+    if (!url) return;
+    set("images", [...form.images, url]);
+    setNewImageUrl("");
+    imageInputRef.current?.focus();
+  };
+
+  const removeImage = (idx: number) =>
+    set("images", form.images.filter((_, i) => i !== idx));
+
+  const moveImage = (idx: number, dir: -1 | 1) => {
+    const arr = [...form.images];
+    const target = idx + dir;
+    if (target < 0 || target >= arr.length) return;
+    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    set("images", arr);
+  };
+
+  const addColor = () => {
+    const c = newColor.trim();
+    if (!c || form.colors.includes(c)) return;
+    set("colors", [...form.colors, c]);
+    setNewColor("");
+  };
+
+  const toggleSize = (size: string) => {
+    if (form.sizes.includes(size)) {
+      set("sizes", form.sizes.filter(s => s !== size));
+    } else {
+      set("sizes", [...form.sizes, size]);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) {
+      toast({ title: "El nombre no puede estar vacío", variant: "destructive" });
+      return;
+    }
+    const categoryToSave = customCategory.trim() || form.category;
+    if (!categoryToSave) {
+      toast({ title: "La categoría no puede estar vacía", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const updated = await adminFetch(`/admin/products/${product.id}`, adminKey, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: form.name.trim(),
+          category: categoryToSave,
+          description: form.description,
+          price: parseFloat(form.price),
+          stock: parseInt(form.stock, 10),
+          featured: form.featured,
+          images: form.images,
+          colors: form.colors,
+          sizes: form.sizes,
+        }),
+      });
+      onSave(updated);
+      toast({ title: "Producto guardado" });
+      onClose();
+    } catch (e: unknown) {
+      toast({ title: "Error al guardar", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputCls = "rounded-none border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-zinc-400";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-xl h-full overflow-y-auto bg-[#111] border-l border-zinc-800 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
+          <div>
+            <h2 className="font-bold uppercase tracking-wider text-sm">Editar Producto</h2>
+            <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-xs">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Form body */}
+        <div className="flex-1 px-6 py-6 space-y-6">
+
+          {/* Nombre */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Nombre del producto</label>
+            <Input value={form.name} onChange={e => set("name", e.target.value)}
+              className={inputCls} data-testid="input-edit-name" />
+          </div>
+
+          {/* Categoría */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Categoría</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {categories.map(cat => (
+                <button key={cat} type="button"
+                  onClick={() => { set("category", cat); setCustomCategory(""); }}
+                  className={`px-3 py-1 text-xs font-bold uppercase border transition-colors ${
+                    form.category === cat && !customCategory
+                      ? "border-white bg-white text-black"
+                      : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                  }`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <Input value={customCategory}
+              onChange={e => { setCustomCategory(e.target.value); if (e.target.value) set("category", e.target.value); }}
+              placeholder="O escribí una categoría nueva..."
+              className={inputCls + " text-sm"} data-testid="input-edit-category" />
+          </div>
+
+          {/* Descripción */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Descripción</label>
+            <textarea
+              value={form.description}
+              onChange={e => set("description", e.target.value)}
+              rows={3}
+              className="w-full rounded-none border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-600 px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 resize-none"
+              placeholder="Descripción del producto..."
+              data-testid="input-edit-description"
+            />
+          </div>
+
+          {/* Precio + Stock */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Precio ($)</label>
+              <Input type="number" min="0" value={form.price}
+                onChange={e => set("price", e.target.value)}
+                className={inputCls} data-testid="input-edit-price" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Stock</label>
+              <Input type="number" min="0" value={form.stock}
+                onChange={e => set("stock", e.target.value)}
+                className={inputCls} data-testid="input-edit-stock" />
+            </div>
+          </div>
+
+          {/* Destacado */}
+          <div className="flex items-center justify-between border border-zinc-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-bold">Producto destacado</p>
+              <p className="text-xs text-zinc-500">Aparece en la sección de destacados en el inicio</p>
+            </div>
+            <button type="button" onClick={() => set("featured", !form.featured)}>
+              {form.featured
+                ? <ToggleRight className="h-7 w-7 text-green-400" />
+                : <ToggleLeft className="h-7 w-7 text-zinc-600" />
+              }
+            </button>
+          </div>
+
+          {/* Imágenes */}
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold flex items-center gap-2">
+              <ImagePlus className="h-3.5 w-3.5" /> Imágenes ({form.images.length})
+            </label>
+
+            {/* Current images */}
+            {form.images.length > 0 && (
+              <div className="space-y-2">
+                {form.images.map((url, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 p-2">
+                    <img src={url} alt="" className="w-10 h-12 object-cover flex-shrink-0 opacity-90"
+                      onError={e => { (e.target as HTMLImageElement).style.opacity = "0.2"; }} />
+                    <p className="flex-1 text-xs text-zinc-400 truncate min-w-0">{url}</p>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button type="button" onClick={() => moveImage(idx, -1)} disabled={idx === 0}
+                        className="px-1.5 py-1 text-zinc-500 hover:text-white disabled:opacity-20 text-xs">▲</button>
+                      <button type="button" onClick={() => moveImage(idx, 1)} disabled={idx === form.images.length - 1}
+                        className="px-1.5 py-1 text-zinc-500 hover:text-white disabled:opacity-20 text-xs">▼</button>
+                      <button type="button" onClick={() => removeImage(idx)}
+                        className="px-1.5 py-1 text-zinc-600 hover:text-red-400">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new image URL */}
+            <div className="flex gap-2">
+              <Input
+                ref={imageInputRef}
+                value={newImageUrl}
+                onChange={e => setNewImageUrl(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addImage(); } }}
+                placeholder="https://... URL de imagen"
+                className={inputCls + " text-sm flex-1"}
+                data-testid="input-edit-image-url"
+              />
+              <button type="button" onClick={addImage}
+                className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-bold transition-colors flex-shrink-0">
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Talles */}
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Talles disponibles</label>
+            <div className="flex flex-wrap gap-2">
+              {COMMON_SIZES.map(size => (
+                <button key={size} type="button" onClick={() => toggleSize(size)}
+                  className={`px-3 py-1.5 text-xs font-bold border transition-colors ${
+                    form.sizes.includes(size)
+                      ? "border-white bg-white text-black"
+                      : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                  }`}>
+                  {size}
+                </button>
+              ))}
+            </div>
+            {form.sizes.length > 0 && (
+              <p className="text-xs text-zinc-500">Seleccionados: {form.sizes.join(", ")}</p>
+            )}
+          </div>
+
+          {/* Colores */}
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Colores</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {form.colors.map((c, i) => (
+                <span key={i} className="flex items-center gap-1 px-2 py-1 bg-zinc-800 border border-zinc-700 text-xs">
+                  {c}
+                  <button type="button" onClick={() => set("colors", form.colors.filter((_, j) => j !== i))}
+                    className="text-zinc-500 hover:text-red-400 ml-0.5">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input value={newColor} onChange={e => setNewColor(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addColor(); } }}
+                placeholder="Ej: Negro, Azul..."
+                className={inputCls + " text-sm flex-1"} />
+              <button type="button" onClick={addColor}
+                className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-bold transition-colors">
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-[#111] border-t border-zinc-800 px-6 py-4 flex gap-3">
+          <Button onClick={handleSave} disabled={isSaving}
+            className="flex-1 rounded-none uppercase font-bold tracking-wider bg-white text-black hover:bg-zinc-200 h-11"
+            data-testid="button-save-product">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Guardar cambios
+          </Button>
+          <Button variant="outline" onClick={onClose}
+            className="rounded-none border-zinc-700 text-zinc-400 hover:text-white h-11 px-6">
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Products Tab ─────────────────────────────────────────────────────────────
 function ProductsTab({ adminKey }: { adminKey: string }) {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editValues, setEditValues] = useState<{ price: string; stock: string }>({ price: "", stock: "" });
-  const [savingId, setSavingId] = useState<number | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
 
@@ -148,33 +461,6 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
-  const startEdit = (p: Product) => {
-    setEditingId(p.id);
-    setEditValues({ price: String(parseFloat(p.price)), stock: String(p.stock) });
-  };
-
-  const cancelEdit = () => { setEditingId(null); };
-
-  const saveEdit = async (id: number) => {
-    setSavingId(id);
-    try {
-      const updated = await adminFetch(`/admin/products/${id}`, adminKey, {
-        method: "PATCH",
-        body: JSON.stringify({
-          price: parseFloat(editValues.price),
-          stock: parseInt(editValues.stock, 10),
-        }),
-      });
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, price: updated.price, stock: updated.stock } : p));
-      setEditingId(null);
-      toast({ title: "Producto actualizado" });
-    } catch (e: unknown) {
-      toast({ title: "Error al guardar", description: e instanceof Error ? e.message : "", variant: "destructive" });
-    } finally {
-      setSavingId(null);
-    }
-  };
-
   const toggleFeatured = async (p: Product) => {
     try {
       const updated = await adminFetch(`/admin/products/${p.id}`, adminKey, {
@@ -187,7 +473,8 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
     }
   };
 
-  const categories = ["todos", ...Array.from(new Set(products.map(p => p.category))).sort()];
+  const allCategories = Array.from(new Set(products.map(p => p.category))).sort();
+  const categoryOptions = ["todos", ...allCategories];
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -205,6 +492,17 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
 
   return (
     <div>
+      {/* Edit modal */}
+      {editingProduct && (
+        <ProductEditModal
+          product={editingProduct}
+          adminKey={adminKey}
+          categories={allCategories}
+          onSave={updated => setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))}
+          onClose={() => setEditingProduct(null)}
+        />
+      )}
+
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
@@ -228,7 +526,7 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
           className="rounded-none border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-600 sm:w-64"
         />
         <div className="flex flex-wrap gap-2">
-          {categories.map(cat => (
+          {categoryOptions.map(cat => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
@@ -254,18 +552,18 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
                 <th className="text-left px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Categoría</th>
                 <th className="text-right px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Precio</th>
                 <th className="text-right px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Stock</th>
-                <th className="text-center px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Destacado</th>
+                <th className="text-center px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Dest.</th>
                 <th className="text-center px-4 py-3 text-zinc-500 font-bold uppercase text-xs tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {filtered.map(product => (
-                <tr key={product.id} className={`hover:bg-zinc-900/50 transition-colors ${editingId === product.id ? "bg-zinc-900/80" : ""}`}>
+                <tr key={product.id} className="hover:bg-zinc-900/50 transition-colors">
                   {/* Name + image */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {product.images[0] && (
-                        <img src={product.images[0]} alt={product.name} className="w-10 h-12 object-cover flex-shrink-0 opacity-80" />
+                        <img src={product.images[0]} alt={product.name} className="w-9 h-11 object-cover flex-shrink-0 opacity-80" />
                       )}
                       <div>
                         <p className="font-medium text-sm leading-tight">{product.name}</p>
@@ -275,43 +573,23 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
                         {product.stock > 0 && product.stock <= 5 && (
                           <span className="text-xs text-amber-400 font-bold">STOCK BAJO</span>
                         )}
+                        {(product.sizes?.length > 0) && (
+                          <p className="text-xs text-zinc-600 mt-0.5">{product.sizes.join(" · ")}</p>
+                        )}
                       </div>
                     </div>
                   </td>
 
                   <td className="px-4 py-3 text-zinc-400 text-xs uppercase">{product.category}</td>
 
-                  {/* Price */}
-                  <td className="px-4 py-3 text-right">
-                    {editingId === product.id ? (
-                      <Input
-                        type="number"
-                        value={editValues.price}
-                        onChange={e => setEditValues(v => ({ ...v, price: e.target.value }))}
-                        className="w-28 rounded-none border-zinc-600 bg-zinc-800 text-right h-8 text-sm ml-auto"
-                        data-testid={`input-price-${product.id}`}
-                      />
-                    ) : (
-                      <span className="font-medium">{formatArs(parseFloat(product.price))}</span>
-                    )}
+                  <td className="px-4 py-3 text-right font-medium">
+                    {formatArs(parseFloat(product.price))}
                   </td>
 
-                  {/* Stock */}
                   <td className="px-4 py-3 text-right">
-                    {editingId === product.id ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        value={editValues.stock}
-                        onChange={e => setEditValues(v => ({ ...v, stock: e.target.value }))}
-                        className="w-20 rounded-none border-zinc-600 bg-zinc-800 text-right h-8 text-sm ml-auto"
-                        data-testid={`input-stock-${product.id}`}
-                      />
-                    ) : (
-                      <span className={`font-bold tabular-nums ${product.stock === 0 ? "text-red-400" : product.stock <= 5 ? "text-amber-400" : "text-green-400"}`}>
-                        {product.stock}
-                      </span>
-                    )}
+                    <span className={`font-bold tabular-nums ${product.stock === 0 ? "text-red-400" : product.stock <= 5 ? "text-amber-400" : "text-green-400"}`}>
+                      {product.stock}
+                    </span>
                   </td>
 
                   {/* Featured toggle */}
@@ -328,35 +606,15 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
                     </button>
                   </td>
 
-                  {/* Actions */}
+                  {/* Edit button */}
                   <td className="px-4 py-3 text-center">
-                    {editingId === product.id ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => saveEdit(product.id)}
-                          disabled={savingId === product.id}
-                          className="flex items-center gap-1 px-2 py-1 bg-white text-black text-xs font-bold hover:bg-zinc-200 transition-colors"
-                          data-testid={`button-save-${product.id}`}
-                        >
-                          {savingId === product.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                          Guardar
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="px-2 py-1 text-xs text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEdit(product)}
-                        className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white transition-colors"
-                        data-testid={`button-edit-${product.id}`}
-                      >
-                        Editar
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setEditingProduct(product)}
+                      className="flex items-center gap-1.5 px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-400 hover:text-white transition-colors mx-auto"
+                      data-testid={`button-edit-${product.id}`}
+                    >
+                      <Pencil className="h-3 w-3" /> Editar
+                    </button>
                   </td>
                 </tr>
               ))}
