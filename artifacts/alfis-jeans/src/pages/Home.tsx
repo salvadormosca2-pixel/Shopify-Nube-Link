@@ -18,7 +18,8 @@ const BROCHURE_PAGES = [
     subtitle: "La línea denim de Alfis Jeans combina resistencia industrial con corte urbano. Cada costura pensada para durar.",
     cta: "Ver Pantalones",
     category: "Pantalones",
-    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=1200&q=80",
+    image: "/denim-puro.jpg",
+    brightness: 0.7,
     accent: "#e8d5b7",
     align: "left" as const,
   },
@@ -73,6 +74,7 @@ function BrochurePage({
           src={page.image}
           alt={page.title}
           className="w-full h-full object-cover min-h-[400px] md:min-h-[600px] scale-105 hover:scale-100 transition-transform duration-700"
+          style={"brightness" in page ? { filter: `brightness(${page.brightness})` } : undefined}
         />
         <div className="absolute inset-0 bg-black/30" />
         <motion.span
