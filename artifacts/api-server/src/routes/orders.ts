@@ -58,11 +58,14 @@ router.post("/orders", async (req, res) => {
     // Recompute totals server-side from DB prices
     const productIds: number[] = items.map((i: { productId: number }) => i.productId);
     const dbProducts = await db
-      .select({ id: productsTable.id, price: productsTable.price })
+      .select({ id: productsTable.id, price: productsTable.price, salePrice: productsTable.salePrice })
       .from(productsTable)
       .where(inArray(productsTable.id, productIds));
 
-    const priceMap = new Map(dbProducts.map(p => [p.id, parseFloat(p.price)]));
+    const priceMap = new Map(dbProducts.map(p => [
+      p.id,
+      p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price)
+    ]));
 
     let subtotal = 0;
     for (const item of items as { productId: number; quantity: number }[]) {

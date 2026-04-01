@@ -268,7 +268,7 @@ export default function ProductDetail() {
     addItem({
       productId: product.id,
       productName: product.name,
-      price: product.price,
+      price: product.salePrice != null ? product.salePrice : product.price,
       image: product.images[0] || "",
       color: selectedColor,
       size: selectedSize,
@@ -374,9 +374,19 @@ export default function ProductDetail() {
             {product.name}
           </h1>
 
-          <p className="text-2xl md:text-3xl font-bold mb-8">
-            {formatArs(product.price)}
-          </p>
+          {product.salePrice != null ? (
+            <div className="flex items-center gap-3 mb-8">
+              <p className="text-2xl md:text-3xl font-bold text-red-500">{formatArs(product.salePrice)}</p>
+              <p className="text-lg text-muted-foreground line-through">{formatArs(product.price)}</p>
+              <span className="text-xs font-bold uppercase bg-red-500 text-white px-2 py-1">
+                -{Math.round((1 - product.salePrice / product.price) * 100)}% OFF
+              </span>
+            </div>
+          ) : (
+            <p className="text-2xl md:text-3xl font-bold mb-8">
+              {formatArs(product.price)}
+            </p>
+          )}
 
           <div className="space-y-6 mb-10">
             {/* Color selector */}

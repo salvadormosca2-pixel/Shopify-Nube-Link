@@ -17,5 +17,6 @@ export interface Product {
   sizes: string[];
   stock: number;
   featured: boolean;
+  salePrice?: number | null;
   createdAt?: Date;
 }

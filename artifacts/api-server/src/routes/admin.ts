@@ -38,7 +38,7 @@ router.patch("/admin/products/:id", async (req, res) => {
       return;
     }
 
-    const { price, stock, featured, name, category, description, images, colors, sizes } = req.body;
+    const { price, stock, featured, name, category, description, images, colors, sizes, salePrice } = req.body;
     const updates: Partial<typeof productsTable.$inferInsert> = {};
 
     if (price !== undefined) {
@@ -103,6 +103,19 @@ router.patch("/admin/products/:id", async (req, res) => {
         return;
       }
       updates.sizes = sizes.map(String).filter(Boolean);
+    }
+
+    if (salePrice !== undefined) {
+      if (salePrice === null || salePrice === "") {
+        updates.salePrice = null;
+      } else {
+        const sp = parseFloat(salePrice);
+        if (isNaN(sp) || sp < 0) {
+          res.status(400).json({ error: "invalid_sale_price", message: "Sale price must be a positive number" });
+          return;
+        }
+        updates.salePrice = String(sp);
+      }
     }
 
     if (Object.keys(updates).length === 0) {

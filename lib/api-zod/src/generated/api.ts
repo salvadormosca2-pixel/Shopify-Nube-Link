@@ -46,6 +46,7 @@ export const GetProductsResponse = zod.object({
       sizes: zod.array(zod.string()),
       stock: zod.number(),
       featured: zod.boolean(),
+      salePrice: zod.number().nullish(),
       createdAt: zod.coerce.date().optional(),
     }),
   ),
@@ -75,6 +76,7 @@ export const GetFeaturedProductsResponse = zod.object({
       sizes: zod.array(zod.string()),
       stock: zod.number(),
       featured: zod.boolean(),
+      salePrice: zod.number().nullish(),
       createdAt: zod.coerce.date().optional(),
     }),
   ),
@@ -99,6 +101,7 @@ export const GetProductResponse = zod.object({
   sizes: zod.array(zod.string()),
   stock: zod.number(),
   featured: zod.boolean(),
+  salePrice: zod.number().nullish(),
   createdAt: zod.coerce.date().optional(),
 });
 
@@ -240,6 +243,7 @@ export const GetRelatedProductsResponse = zod.object({
       sizes: zod.array(zod.string()),
       stock: zod.number(),
       featured: zod.boolean(),
+      salePrice: zod.number().nullish(),
       createdAt: zod.coerce.date().optional(),
     }),
   ),

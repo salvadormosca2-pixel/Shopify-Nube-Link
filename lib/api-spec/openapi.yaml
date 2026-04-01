@@ -409,6 +409,9 @@ components:
           type: integer
         featured:
           type: boolean
+        salePrice:
+          type: number
+          nullable: true
         createdAt:
           type: string
           format: date-time

@@ -23,7 +23,12 @@ export function ProductCard({ product }: { product: Product }) {
               loading="lazy"
             />
           </AspectRatio>
-          {product.featured && (
+          {product.salePrice != null && (
+            <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 uppercase tracking-wider">
+              -{Math.round((1 - product.salePrice / product.price) * 100)}%
+            </div>
+          )}
+          {product.salePrice == null && product.featured && (
             <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 uppercase tracking-wider">
               Nuevo
             </div>
@@ -31,7 +36,14 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         <div className="pt-4 flex flex-col gap-1">
           <h3 className="font-medium text-sm md:text-base line-clamp-1">{product.name}</h3>
-          <p className="font-bold text-base md:text-lg">{formatArs(product.price)}</p>
+          {product.salePrice != null ? (
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-base md:text-lg text-red-500">{formatArs(product.salePrice)}</p>
+              <p className="text-sm text-muted-foreground line-through">{formatArs(product.price)}</p>
+            </div>
+          ) : (
+            <p className="font-bold text-base md:text-lg">{formatArs(product.price)}</p>
+          )}
           <div className="text-xs text-muted-foreground capitalize mt-1">
             {product.category}
           </div>

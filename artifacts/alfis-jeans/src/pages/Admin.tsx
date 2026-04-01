@@ -15,7 +15,7 @@ const API = `${BASE}/api`;
 
 type Product = {
   id: number; name: string; category: string; description: string;
-  price: string; stock: number; featured: boolean;
+  price: string; stock: number; featured: boolean; salePrice?: string | null;
   images: string[]; colors: string[]; sizes: string[];
 };
 type Coupon = {
@@ -127,7 +127,7 @@ function LoginScreen({ onLogin }: { onLogin: (key: string) => void }) {
 // ─── Product Edit Modal ───────────────────────────────────────────────────────
 type EditForm = {
   name: string; category: string; description: string;
-  price: string; stock: string; featured: boolean;
+  price: string; stock: string; salePrice: string; featured: boolean;
   images: string[]; colors: string[]; sizes: string[];
 };
 
@@ -141,10 +141,12 @@ function ProductEditModal({
 }) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [newColor, setNewColor] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<EditForm>({
     name: product.name,
@@ -152,6 +154,7 @@ function ProductEditModal({
     description: product.description || "",
     price: String(parseFloat(product.price)),
     stock: String(product.stock),
+    salePrice: product.salePrice != null ? String(parseFloat(String(product.salePrice))) : "",
     featured: product.featured,
     images: [...product.images],
     colors: [...(product.colors || [])],
@@ -167,6 +170,36 @@ function ProductEditModal({
     set("images", [...form.images, url]);
     setNewImageUrl("");
     imageInputRef.current?.focus();
+  };
+
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Solo se permiten imágenes", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const metaRes = await adminFetch("/storage/uploads/request-url", adminKey, {
+        method: "POST",
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      const { uploadURL, objectPath } = metaRes;
+
+      await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      const servingUrl = `${API}/storage${objectPath}`;
+      set("images", [...form.images, servingUrl]);
+      toast({ title: "Imagen subida correctamente" });
+    } catch {
+      toast({ title: "Error al subir la imagen", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const removeImage = (idx: number) =>
@@ -219,6 +252,7 @@ function ProductEditModal({
           images: form.images,
           colors: form.colors,
           sizes: form.sizes,
+          salePrice: form.salePrice.trim() !== "" ? parseFloat(form.salePrice) : null,
         }),
       });
       onSave(updated);
@@ -312,6 +346,41 @@ function ProductEditModal({
             </div>
           </div>
 
+          {/* Descuento / Precio de oferta */}
+          <div className="border border-zinc-800 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-red-400 uppercase tracking-wider">Precio de Oferta</p>
+                <p className="text-xs text-zinc-500">Dejá vacío para quitar el descuento</p>
+              </div>
+              {form.salePrice && !isNaN(parseFloat(form.salePrice)) && parseFloat(form.price) > 0 && (
+                <span className="text-xs font-bold bg-red-500 text-white px-2 py-1">
+                  -{Math.round((1 - parseFloat(form.salePrice) / parseFloat(form.price)) * 100)}% OFF
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="number"
+                min="0"
+                placeholder="Precio con descuento..."
+                value={form.salePrice}
+                onChange={e => set("salePrice", e.target.value)}
+                className={inputCls + " flex-1"}
+                data-testid="input-edit-sale-price"
+              />
+              {form.salePrice && (
+                <button type="button" onClick={() => set("salePrice", "")}
+                  className="px-3 py-2 text-zinc-500 hover:text-red-400 border border-zinc-700 text-xs transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {form.salePrice && parseFloat(form.salePrice) >= parseFloat(form.price) && (
+              <p className="text-xs text-amber-400">El precio de oferta debe ser menor al precio original.</p>
+            )}
+          </div>
+
           {/* Destacado */}
           <div className="flex items-center justify-between border border-zinc-800 px-4 py-3">
             <div>
@@ -355,14 +424,39 @@ function ProductEditModal({
               </div>
             )}
 
+            {/* File upload */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); }}
+                data-testid="input-edit-image-file"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-zinc-600 hover:border-zinc-400 text-zinc-400 hover:text-white text-sm transition-colors disabled:opacity-50"
+                data-testid="button-upload-image"
+              >
+                {isUploading
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Subiendo...</>
+                  : <><ImagePlus className="h-4 w-4" /> Subir desde archivo</>
+                }
+              </button>
+            </div>
+
             {/* Add new image URL */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <span className="text-xs text-zinc-600 flex-shrink-0">o URL:</span>
               <Input
                 ref={imageInputRef}
                 value={newImageUrl}
                 onChange={e => setNewImageUrl(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addImage(); } }}
-                placeholder="https://... URL de imagen"
+                placeholder="https://..."
                 className={inputCls + " text-sm flex-1"}
                 data-testid="input-edit-image-url"
               />
