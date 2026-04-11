@@ -1,388 +1,203 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "wouter";
 import { useGetProducts, useGetCategories, getGetProductsQueryKey } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/ProductCard";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, X, ArrowRight, Scissors, Truck, Award, MapPin } from "lucide-react";
+import { Search, SlidersHorizontal, X, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const SIZES = ["S", "M", "L", "XL", "XXL", "38", "40", "42", "44", "46", "48", "50"];
 const COLORS = ["NEGRO", "BLANCO", "GRIS", "AZUL", "MARINO", "BEIGE", "CAMEL", "BORDO", "VERDE", "CRUDO", "TOSTADO"];
 
-const BROCHURE_PAGES = [
+const MARQUEE_WORDS = [
+  "HOMBRE", "·", "DENIM", "·", "ALFIS JEANS", "·", "CATAMARCA", "·",
+  "URBAN", "·", "PREMIUM", "·", "COLECCIÓN", "·", "ESTILO", "·",
+];
+
+const CATEGORIES_GRID = [
   {
-    label: "01 — DENIM PURO",
+    label: "Pantalones",
+    tag: "Pantalones",
+    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=85&fit=crop",
+  },
+  {
+    label: "Remeras",
+    tag: "Remeras",
+    image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=85&fit=crop",
+  },
+  {
+    label: "Camperas",
+    tag: "Camperas",
+    image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=85&fit=crop",
+  },
+  {
+    label: "Accesorios",
+    tag: "Accesorios",
+    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=85&fit=crop",
+  },
+];
+
+const VALUES = [
+  { num: "+40", label: "Modelos disponibles" },
+  { num: "6", label: "Categorías" },
+  { num: "24", label: "Provincias con envío" },
+  { num: "100%", label: "Marca argentina" },
+];
+
+const EDITORIAL_SECTIONS = [
+  {
+    id: "denim",
+    number: "01",
+    label: "DENIM PURO",
     title: "Sin\nConcesiones.",
-    subtitle: "La línea denim de Alfis Jeans combina resistencia industrial con corte urbano. Cada costura pensada para durar.",
+    body: "Denim de alta resistencia con corte urbano. Cada costura pensada para durar.",
     cta: "Ver Pantalones",
     category: "Pantalones",
-    image: "/denim-puro.jpg",
-    brightness: 0.7,
+    image: `${BASE}/denim-puro.jpg`,
     accent: "#e8d5b7",
     align: "left" as const,
   },
   {
-    label: "02 — URBAN STYLE",
+    id: "urban",
+    number: "02",
+    label: "URBAN STYLE",
     title: "Hecho para\nla calle.",
-    subtitle: "Buzos, remeras y sweaters con actitud. Prendas que dicen algo antes de que vos abras la boca.",
+    body: "Buzos, remeras y sweaters con actitud. Prendas que hablan antes que vos.",
     cta: "Ver Remeras",
     category: "Remeras",
-    image: "/urban-style.mp4",
-    video: "/urban-style.mp4",
+    image: "https://images.unsplash.com/photo-1516826957135-700dedea698c?w=1200&q=90&fit=crop",
     accent: "#c9d6df",
     align: "right" as const,
   },
   {
-    label: "03 — TEMPORADA",
+    id: "temporada",
+    number: "03",
+    label: "TEMPORADA",
     title: "Abrigos que\nimpactan.",
-    subtitle: "Tapados y sweaters de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
+    body: "Tapados y sweaters de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
     cta: "Ver Tapados",
     category: "Tapados",
-    image: "/abrigos-1.jpg",
-    slides: ["/abrigos-1.jpg", "/abrigos-2.jpg", "/abrigos-3.jpg"],
+    image: `${BASE}/abrigos-1.jpg`,
     accent: "#d4b896",
     align: "left" as const,
   },
 ];
 
-function BrochurePage({
-  page,
-  index,
-  onCategoryClick,
-}: {
-  page: typeof BROCHURE_PAGES[number];
-  index: number;
-  onCategoryClick: (cat: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const isLeft = page.align === "left";
-  const slides = "slides" in page ? page.slides : null;
-  const [slideIdx, setSlideIdx] = useState(0);
-  const [dir, setDir] = useState(1);
-
-  useEffect(() => {
-    if (!slides || slides.length < 2) return;
-    const t = setInterval(() => {
-      setDir(1);
-      setSlideIdx(i => (i + 1) % slides.length);
-    }, 3500);
-    return () => clearInterval(t);
-  }, [slides]);
-
+function Marquee() {
   return (
-    <div
-      ref={ref}
-      className="grid grid-cols-1 md:grid-cols-2 min-h-[600px] overflow-hidden"
-    >
-      {/* Image / Video / Slideshow side */}
+    <div className="overflow-hidden border-y border-zinc-800 bg-black py-4 select-none">
       <motion.div
-        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"}`}
-        initial={{ opacity: 0, x: isLeft ? -60 : 60 }}
-        animate={isInView ? { opacity: 1, x: 0 } : {}}
-        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+        className="flex gap-8 whitespace-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
       >
-        {"video" in page ? (
-          <video
-            src={page.video}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover min-h-[400px] md:min-h-[600px]"
-          />
-        ) : slides ? (
-          <>
-            <AnimatePresence initial={false} custom={dir} mode="sync">
-              <motion.img
-                key={slideIdx}
-                src={slides[slideIdx]}
-                alt={page.title}
-                className="absolute inset-0 w-full h-full object-cover object-top"
-                custom={dir}
-                initial={{ opacity: 0, x: dir * 80 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: dir * -80 }}
-                transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-              />
-            </AnimatePresence>
-            {/* Dot indicators */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-              {slides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setDir(i > slideIdx ? 1 : -1); setSlideIdx(i); }}
-                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === slideIdx ? "bg-white w-5" : "bg-white/40"}`}
-                />
-              ))}
-            </div>
-            {/* spacer so parent has height */}
-            <div className="min-h-[500px] md:min-h-[780px] invisible" />
-          </>
-        ) : (
-          <img
-            src={page.image}
-            alt={page.title}
-            className="w-full h-full object-cover min-h-[400px] md:min-h-[600px] scale-105 hover:scale-100 transition-transform duration-700"
-            style={"brightness" in page ? { filter: `brightness(${page.brightness})` } : undefined}
-          />
-        )}
-        <div className="absolute inset-0 bg-black/20 pointer-events-none" />
-        <motion.span
-          className="absolute top-6 left-6 text-xs font-bold tracking-[0.3em] uppercase text-white/70 z-10"
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.4, duration: 0.5 }}
-        >
-          {page.label}
-        </motion.span>
-      </motion.div>
-
-      {/* Text side */}
-      <motion.div
-        className={`flex flex-col justify-center px-10 md:px-16 py-16 bg-card ${isLeft ? "md:order-2" : "md:order-1"}`}
-        initial={{ opacity: 0, x: isLeft ? 60 : -60 }}
-        animate={isInView ? { opacity: 1, x: 0 } : {}}
-        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
-      >
-        <motion.div
-          className="w-12 h-[3px] mb-8"
-          style={{ backgroundColor: page.accent }}
-          initial={{ width: 0 }}
-          animate={isInView ? { width: 48 } : {}}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        />
-
-        <motion.p
-          className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-4"
-          initial={{ opacity: 0, y: 10 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          {page.label}
-        </motion.p>
-
-        <motion.h3
-          className="text-5xl md:text-6xl font-display font-bold uppercase tracking-tighter leading-[0.9] mb-6 whitespace-pre-line"
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.35, duration: 0.6 }}
-        >
-          {page.title}
-        </motion.h3>
-
-        <motion.p
-          className="text-muted-foreground leading-relaxed mb-10 max-w-sm"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.45, duration: 0.5 }}
-        >
-          {page.subtitle}
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.55, duration: 0.5 }}
-        >
-          <Button
-            className="rounded-none uppercase font-bold tracking-wider gap-2 group w-fit"
-            onClick={() => {
-              onCategoryClick(page.category);
-              document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-            }}
+        {[...MARQUEE_WORDS, ...MARQUEE_WORDS].map((word, i) => (
+          <span
+            key={i}
+            className={`text-xs font-bold uppercase tracking-[0.35em] ${
+              word === "·" ? "text-zinc-700" : "text-zinc-500"
+            }`}
           >
-            {page.cta}
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </motion.div>
-
-        <motion.div
-          className="mt-16 text-[120px] md:text-[160px] font-display font-black leading-none text-border/30 select-none -mb-8"
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.6, duration: 0.8 }}
-        >
-          {String(index + 1).padStart(2, "0")}
-        </motion.div>
+            {word}
+          </span>
+        ))}
       </motion.div>
     </div>
   );
 }
 
-function StatsSection() {
+function EditorialSection({
+  section,
+  onCategoryClick,
+}: {
+  section: typeof EDITORIAL_SECTIONS[number];
+  onCategoryClick: (cat: string) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
-
-  const stats = [
-    { value: "+40", label: "Modelos disponibles" },
-    { value: "6", label: "Categorías" },
-    { value: "24", label: "Provincias con envío" },
-    { value: "100%", label: "Marca argentina" },
-  ];
+  const isLeft = section.align === "left";
 
   return (
-    <section ref={ref} className="bg-primary text-primary-foreground py-16">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 30 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: i * 0.1, duration: 0.5 }}
-            >
-              <div className="text-4xl md:text-5xl font-display font-black mb-2">{stat.value}</div>
-              <div className="text-xs font-bold uppercase tracking-widest opacity-70">{stat.label}</div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BrandSection() {
-  const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-
-  const pillars = [
-    {
-      icon: Scissors,
-      title: "Fabricación propia",
-      text: "Cada prenda sale de nuestra fábrica en Catamarca. Controlamos cada etapa del proceso, del tejido al acabado.",
-    },
-    {
-      icon: Award,
-      title: "Calidad garantizada",
-      text: "Usamos telas seleccionadas y procesos de costura de alta resistencia. Prendas que duran.",
-    },
-    {
-      icon: MapPin,
-      title: "100% argentino",
-      text: "Nacimos en Catamarca y vestimos a hombres de todo el país. Orgullosamente nacionales.",
-    },
-    {
-      icon: Truck,
-      title: "Envíos a todo el país",
-      text: "Despachamos a las 24 provincias. Tu pedido llega embalado y con seguimiento en tiempo real.",
-    },
-  ];
-
-  return (
-    <section ref={ref} className="py-24 overflow-hidden">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center mb-20">
-          {/* Text */}
-          <div>
-            <motion.p
-              className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5 }}
-            >
-              Nuestra historia
-            </motion.p>
-            <motion.h2
-              className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tighter leading-[0.95] mb-6"
-              initial={{ opacity: 0, y: 30 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              Hechos en<br />Catamarca.<br />
-              <span className="text-muted-foreground/50">Para todo el país.</span>
-            </motion.h2>
-            <motion.div
-              className="h-[2px] w-16 bg-primary mb-8"
-              initial={{ width: 0 }}
-              animate={isInView ? { width: 64 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            />
-            <motion.p
-              className="text-muted-foreground leading-relaxed mb-4 max-w-md"
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              Alfis Jeans nació en Catamarca con una idea simple: hacer ropa de hombre de verdad. Sin compromisos en la tela, sin atajos en la costura.
-            </motion.p>
-            <motion.p
-              className="text-muted-foreground leading-relaxed max-w-md"
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              Nuestra fábrica opera en la provincia, empleando a personas locales y produciendo bajo estrictos estándares de calidad. Cada pantalón, cada buzo, cada tapado pasa por nuestras manos antes de llegar a las tuyas.
-            </motion.p>
-          </div>
-
-          {/* Image */}
-          <motion.div
-            className="relative"
-            initial={{ opacity: 0, x: 60 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
-          >
-            <div className="relative aspect-[4/5] overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80"
-                alt="Fábrica Alfis Jeans"
-                className="w-full h-full object-cover scale-105 hover:scale-100 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
-            </div>
-            {/* Floating badge */}
-            <motion.div
-              className="absolute -bottom-6 -left-6 bg-primary text-primary-foreground p-6 shadow-2xl"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={isInView ? { opacity: 1, scale: 1 } : {}}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <div className="text-3xl font-display font-black">+10</div>
-              <div className="text-xs font-bold uppercase tracking-widest opacity-80">años vistiendo<br/>al hombre arg.</div>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Pillars */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          {pillars.map((pillar, i) => (
-            <motion.div
-              key={pillar.title}
-              className="bg-background p-8 flex flex-col gap-4"
-              initial={{ opacity: 0, y: 30 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
-            >
-              <pillar.icon className="h-6 w-6 text-primary" strokeWidth={1.5} />
-              <h3 className="font-display font-bold uppercase tracking-tight text-lg">{pillar.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{pillar.text}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function MarqueeSection() {
-  const words = ["DENIM", "ESTILO", "CATAMARCA", "CALIDAD", "URBAN", "ALFIS", "MODA", "PREMIUM"];
-  return (
-    <div className="overflow-hidden bg-black py-4 border-y border-white/10">
-      <motion.div
-        className="flex gap-10 whitespace-nowrap"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ repeat: Infinity, duration: 18, ease: "linear" }}
+    <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 min-h-[700px] overflow-hidden">
+      {/* Image side */}
+      <div
+        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
       >
-        {[...words, ...words, ...words, ...words].map((w, i) => (
-          <span key={i} className="text-xs font-black uppercase tracking-[0.4em] text-white/40">
-            {w} <span className="text-white/20">·</span>
+        <motion.img
+          src={section.image}
+          alt={section.label}
+          className="absolute inset-0 w-full h-full object-cover"
+          initial={{ scale: 1.08 }}
+          animate={isInView ? { scale: 1 } : { scale: 1.08 }}
+          transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        <motion.div
+          className="absolute bottom-6 left-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/50">
+            {section.number} — {section.label}
           </span>
-        ))}
-      </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Text side */}
+      <div
+        className={`bg-black flex flex-col justify-center px-10 py-16 md:px-16 ${
+          isLeft ? "md:order-2" : "md:order-1"
+        }`}
+      >
+        <motion.p
+          className="text-[10px] font-bold uppercase tracking-[0.4em] mb-6"
+          style={{ color: section.accent }}
+          initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
+          animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isLeft ? -20 : 20 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          {section.label}
+        </motion.p>
+
+        <motion.h2
+          className="text-5xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter mb-6 whitespace-pre-line"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+        >
+          {section.title}
+        </motion.h2>
+
+        <motion.p
+          className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={{ duration: 0.6, delay: 0.35 }}
+        >
+          {section.body}
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
+          <button
+            onClick={() => {
+              onCategoryClick(section.category);
+              document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-white border-b border-zinc-700 pb-1 hover:border-white transition-colors duration-300 group"
+          >
+            {section.cta}
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+          </button>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -398,8 +213,9 @@ export default function Home() {
 
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "28%"]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.06]);
 
   const effectiveColor = selectedColor === "todos-colores" ? "" : selectedColor;
 
@@ -434,309 +250,447 @@ export default function Home() {
     setDebouncedSearch("");
   };
 
-  const handleBrochureCategoryClick = (cat: string) => {
+  const handleCategoryClick = (cat: string) => {
     setActiveCategory(cat);
     clearFilters();
   };
 
+  const categories = ["todos", ...(categoriesData?.categories ?? [])];
+  const products = productsQuery.data?.products ?? [];
+
   return (
-    <div className="pb-20">
-      {/* Hero Section — video background */}
-      <section ref={heroRef} className="relative h-[90vh] min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-black">
-        <motion.div className="absolute inset-0 z-0" style={{ y: heroY }}>
+    <div className="bg-black text-white">
+
+      {/* ── HERO ──────────────────────────────────────────────────────────────── */}
+      <section
+        ref={heroRef}
+        className="relative h-[100dvh] min-h-[700px] w-full flex flex-col justify-end overflow-hidden bg-black pb-20"
+      >
+        {/* Parallax image */}
+        <motion.div
+          className="absolute inset-0 z-0"
+          style={{ y: heroY, scale: heroScale }}
+        >
           <img
-            src={`${import.meta.env.BASE_URL}hero-alfis.jpg`}
-            alt="Alfis Jeans — estilo urbano"
-            className="w-full h-full object-cover object-[center_20%] opacity-75"
+            src={`${BASE}/hero-alfis.jpg`}
+            alt="Alfis Jeans — Hombre"
+            className="w-full h-full object-cover object-[center_20%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
         </motion.div>
 
+        {/* Brand tag — top left */}
         <motion.div
-          className="relative z-10 container px-4 flex flex-col items-center text-center"
+          className="absolute top-8 left-6 md:left-10 z-10"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/40">
+            Alfis Jeans — Catamarca
+          </span>
+        </motion.div>
+
+        {/* Vertical watermark — right */}
+        <motion.div
+          className="absolute top-0 right-8 md:right-14 z-10 h-full flex items-center"
+          style={{ opacity: heroOpacity }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.2 }}
+        >
+          <span className="text-[11px] font-black uppercase tracking-[0.8em] text-white/20 rotate-90 origin-center whitespace-nowrap">
+            Colección Hombre
+          </span>
+        </motion.div>
+
+        {/* Main text — bottom left */}
+        <motion.div
+          className="relative z-10 w-full px-6 md:px-12"
           style={{ opacity: heroOpacity }}
         >
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
+          <motion.p
+            className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-xs font-bold tracking-[0.4em] uppercase text-white/60 mb-6"
+            transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Alfis Jeans — Catamarca
-          </motion.div>
+            Colección Hombre
+          </motion.p>
+
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            className="font-black uppercase text-white leading-[0.85] tracking-tighter mb-2"
+            style={{ fontSize: "clamp(4.5rem, 14vw, 11rem)" }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-6xl md:text-8xl lg:text-9xl font-display font-bold text-white tracking-tighter uppercase mb-2 leading-[0.9]"
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           >
             ACTITUD
           </motion.h1>
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            className="font-black uppercase text-white/30 leading-[0.85] tracking-tighter mb-8"
+            style={{ fontSize: "clamp(4.5rem, 14vw, 11rem)" }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-6xl md:text-8xl lg:text-9xl font-display font-bold text-white/40 tracking-tighter uppercase mb-8 leading-[0.9]"
+            transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
           >
             URBANA.
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-base md:text-lg text-white/70 max-w-md mb-10 font-light"
-          >
-            Denim premium diseñado para el hombre argentino. Corte perfecto, resistencia absoluta.
-          </motion.p>
+
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            className="flex flex-wrap gap-4"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="flex gap-4"
+            transition={{ duration: 0.6, delay: 0.65 }}
           >
-            <Button
-              size="lg"
-              className="text-sm px-8 h-12 bg-white text-black hover:bg-white/90 rounded-none uppercase font-bold tracking-wider"
-              asChild
+            <a
+              href="#coleccion"
               data-testid="button-shop-now"
+              className="inline-flex items-center gap-3 bg-white text-black px-8 py-3.5 text-xs font-black uppercase tracking-[0.25em] hover:bg-zinc-200 transition-colors"
             >
-              <a href="#coleccion">Ver Colección</a>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="text-sm px-8 h-12 rounded-none uppercase font-bold tracking-wider border-white/30 text-white hover:bg-white/10"
-              asChild
+              Ver Colección <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+            <a
+              href="#editorial"
+              className="inline-flex items-center gap-3 border border-white/30 text-white px-8 py-3.5 text-xs font-bold uppercase tracking-[0.25em] hover:border-white transition-colors"
             >
-              <a href="#brochure">Lookbook</a>
-            </Button>
+              Lookbook
+            </a>
           </motion.div>
         </motion.div>
 
-        {/* scroll indicator */}
+        {/* Scroll indicator */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
         >
           <motion.div
-            className="w-[1px] h-12 bg-white/40"
-            animate={{ scaleY: [1, 0.3, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-            style={{ transformOrigin: "top" }}
-          />
-          <span className="text-[10px] tracking-[0.3em] uppercase text-white/40">Scroll</span>
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <ChevronDown className="h-5 w-5 text-white/30" />
+          </motion.div>
         </motion.div>
       </section>
 
-      {/* Marquee */}
-      <MarqueeSection />
+      {/* ── MARQUEE ──────────────────────────────────────────────────────────── */}
+      <Marquee />
 
-      {/* Brand Story Section */}
-      <BrandSection />
-
-      {/* Stats Band */}
-      <StatsSection />
-
-      {/* Brochure / Lookbook Section */}
-      <section id="brochure" className="scroll-mt-20">
-        <motion.div
-          className="container mx-auto px-4 pt-20 pb-10"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-2">Editorial</p>
-          <h2 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-tight mb-1">Brochure</h2>
-          <div className="h-1 w-20 bg-primary" />
-        </motion.div>
-
-        <div className="divide-y divide-border">
-          {BROCHURE_PAGES.map((page, i) => (
-            <BrochurePage
-              key={i}
-              page={page}
-              index={i}
-              onCategoryClick={handleBrochureCategoryClick}
-            />
+      {/* ── VALUES STRIP ─────────────────────────────────────────────────────── */}
+      <section className="bg-zinc-950 border-b border-zinc-800 py-10 px-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {VALUES.map((v, i) => (
+            <motion.div
+              key={v.label}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.08 }}
+            >
+              <p className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-1">
+                {v.num}
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">
+                {v.label}
+              </p>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Marquee 2 */}
-      <MarqueeSection />
-
-      {/* Collection Grid */}
-      <section id="coleccion" className="py-24 scroll-mt-20">
-        {/* Section Header */}
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="mb-14"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-end gap-8">
-              <div>
-                <p className="text-[10px] font-black tracking-[0.4em] uppercase text-muted-foreground mb-3">
-                  Alfis Jeans — Catamarca
-                </p>
-                <h2 className="text-4xl md:text-6xl font-display font-black uppercase tracking-tight leading-none">
-                  La Colección
-                </h2>
-                <div className="h-[2px] w-16 bg-primary mt-5" />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full md:w-auto">
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar productos..."
-                    className="pl-9 rounded-none border-zinc-700 bg-transparent focus:border-white transition-colors"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    data-testid="input-search"
-                  />
-                </div>
-                <Button
-                  variant={showFilters ? "default" : "outline"}
-                  className="rounded-none uppercase text-xs font-bold tracking-widest gap-2"
-                  onClick={() => setShowFilters(v => !v)}
-                  data-testid="button-toggle-filters"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filtros
-                  {hasActiveFilters && (
-                    <span className="bg-white text-black rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-black">
-                      {String("!")}
-                    </span>
-                  )}
-                </Button>
-              </div>
+      {/* ── CATEGORY GRID ─────────────────────────────────────────────────────── */}
+      <section className="bg-black py-20 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-2">
+                Alfis Jeans — Hombre
+              </p>
+              <h2 className="text-3xl md:text-4xl font-black uppercase text-white tracking-tighter">
+                Encontrá tu estilo
+              </h2>
             </div>
-          </motion.div>
+            <a
+              href="#coleccion"
+              className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
+            >
+              Ver todo <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
 
-          {/* Filter Panel */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className="overflow-hidden"
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {CATEGORIES_GRID.map((cat, i) => (
+              <motion.button
+                key={cat.label}
+                onClick={() => {
+                  handleCategoryClick(cat.tag);
+                  document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="group relative overflow-hidden aspect-[3/4] block text-left"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: i * 0.1 }}
               >
-                <div className="border border-zinc-800 bg-zinc-900/60 p-6 mb-10 flex flex-col sm:flex-row gap-6 items-start sm:items-end">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-3">
-                      Talla
-                    </label>
+                <img
+                  src={cat.image}
+                  alt={cat.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                  <p className="text-white font-black text-lg uppercase tracking-tight">
+                    {cat.label}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                      Ver todo
+                    </span>
+                    <ArrowUpRight className="h-3 w-3 text-white/60" />
+                  </div>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRODUCT CATALOG ──────────────────────────────────────────────────── */}
+      <section id="coleccion" className="bg-[#0a0a0a] py-24 px-4 scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          {/* Heading */}
+          <div className="mb-12">
+            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-3">
+              Alfis Jeans — Catamarca
+            </p>
+            <h2 className="text-6xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-4">
+              La Colección
+            </h2>
+            <div className="w-12 h-0.5 bg-white mb-8" />
+
+            {/* Category tabs + filter toggle */}
+            <div className="flex items-center gap-0 border-b border-zinc-800 overflow-x-auto">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryClick(cat)}
+                  data-testid={cat === "todos" ? "btn-category-todos" : `btn-category-${cat}`}
+                  className={`px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-all duration-200 border-b-2 -mb-px ${
+                    activeCategory === cat
+                      ? "border-white text-white"
+                      : "border-transparent text-zinc-600 hover:text-zinc-300"
+                  }`}
+                >
+                  {cat === "todos" ? "Todos" : cat}
+                </button>
+              ))}
+
+              <button
+                data-testid="button-toggle-filters"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`ml-auto px-5 py-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                  showFilters || hasActiveFilters
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-600 hover:text-zinc-300"
+                }`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                )}
+              </button>
+            </div>
+
+            {/* Collapsable advanced filters */}
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-4 pb-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap border-b border-zinc-800">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                      <input
+                        data-testid="input-search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar producto..."
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white text-xs pl-9 pr-4 py-2.5 outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors"
+                      />
+                    </div>
+
+                    {/* Size filter */}
                     <div className="flex flex-wrap gap-1.5">
-                      {SIZES.map(size => (
+                      {SIZES.map((size) => (
                         <button
                           key={size}
-                          onClick={() => setSelectedSize(prev => prev === size ? "" : size)}
-                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border transition-all duration-200 ${
-                            selectedSize === size
-                              ? "bg-white text-black border-white"
-                              : "border-zinc-700 text-zinc-400 hover:border-zinc-400 hover:text-white"
-                          }`}
                           data-testid={`btn-size-${size}`}
+                          onClick={() => setSelectedSize(selectedSize === size ? "" : size)}
+                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+                            selectedSize === size
+                              ? "border-white bg-white text-black"
+                              : "border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-white"
+                          }`}
                         >
                           {size}
                         </button>
                       ))}
                     </div>
-                  </div>
 
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-3">
-                      Color
-                    </label>
-                    <Select value={selectedColor} onValueChange={setSelectedColor}>
-                      <SelectTrigger className="rounded-none border-zinc-700 bg-transparent w-full sm:w-48 text-xs" data-testid="select-color">
-                        <SelectValue placeholder="Todos los colores" />
+                    {/* Color filter */}
+                    <Select
+                      value={selectedColor || "todos-colores"}
+                      onValueChange={(v) => setSelectedColor(v === "todos-colores" ? "" : v)}
+                    >
+                      <SelectTrigger
+                        data-testid="select-color"
+                        className="rounded-none border-zinc-700 bg-zinc-900 text-white text-xs w-48 focus:ring-0"
+                      >
+                        <span>{selectedColor || "Color"}</span>
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos-colores">Todos los colores</SelectItem>
-                        {COLORS.map(color => (
-                          <SelectItem key={color} value={color}>{color}</SelectItem>
+                      <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                        <SelectItem value="todos-colores" className="text-xs">Todos los colores</SelectItem>
+                        {COLORS.map((c) => (
+                          <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+
+                    {/* Clear */}
+                    {hasActiveFilters && (
+                      <button
+                        data-testid="button-clear-filters"
+                        onClick={clearFilters}
+                        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                        Limpiar
+                      </button>
+                    )}
                   </div>
-
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      className="rounded-none text-xs uppercase font-bold tracking-widest gap-2 self-end text-zinc-400 hover:text-white"
-                      onClick={clearFilters}
-                      data-testid="button-clear-filters"
-                    >
-                      <X className="h-3 w-3" />
-                      Limpiar
-                    </Button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Categories — elegant underline style */}
-          <div className="flex flex-wrap gap-0 border-b border-zinc-800 mb-12">
-            {["todos", ...(categoriesData?.categories ?? [])].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                data-testid={cat === "todos" ? "btn-category-todos" : `btn-category-${cat}`}
-                className={`px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-200 border-b-2 -mb-px ${
-                  activeCategory === cat
-                    ? "border-white text-white"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {cat === "todos" ? "Todo" : cat}
-              </button>
-            ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Products Grid */}
+          {/* Products grid */}
           {productsQuery.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-zinc-800">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-background p-2 space-y-3">
-                  <Skeleton className="aspect-[3/4] w-full rounded-none" />
-                  <Skeleton className="h-3 w-1/3" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
+                <div key={i} className="bg-zinc-900 animate-pulse aspect-[3/4]" />
               ))}
             </div>
-          ) : productsQuery.data?.products.length === 0 ? (
-            <div className="py-24 text-center">
-              <p className="text-zinc-500 text-sm uppercase tracking-widest">Sin resultados</p>
-              <Button variant="link" onClick={clearFilters} className="mt-3 text-xs uppercase tracking-widest">
+          ) : products.length === 0 ? (
+            <div className="text-center py-24">
+              <p className="text-zinc-600 text-sm uppercase tracking-widest mb-2">Sin resultados</p>
+              <button
+                onClick={clearFilters}
+                className="text-xs text-zinc-500 hover:text-white transition-colors"
+              >
                 Limpiar filtros
-              </Button>
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-              {productsQuery.data?.products.map((product, i) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-                >
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeCategory + debouncedSearch + selectedSize + selectedColor}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.35 }}
+                className="grid grid-cols-2 md:grid-cols-3 gap-5"
+              >
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       </section>
+
+      {/* ── MARQUEE 2 ────────────────────────────────────────────────────────── */}
+      <Marquee />
+
+      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
+      <div id="editorial" className="divide-y divide-zinc-900">
+        {EDITORIAL_SECTIONS.map((section) => (
+          <EditorialSection
+            key={section.id}
+            section={section}
+            onCategoryClick={handleCategoryClick}
+          />
+        ))}
+      </div>
+
+      {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
+      <section className="relative h-[60vh] min-h-[400px] overflow-hidden flex items-center justify-center">
+        <img
+          src="https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=1600&q=90&fit=crop"
+          alt="Alfis Jeans Hombre"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-black/65" />
+        <div className="relative z-10 text-center px-4">
+          <motion.p
+            className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            Alfis Jeans — Catamarca
+          </motion.p>
+          <motion.h2
+            className="text-5xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-6"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+          >
+            Tu look.<br />Tu actitud.
+          </motion.h2>
+          <motion.p
+            className="text-zinc-300 text-sm mb-8 max-w-sm mx-auto"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+          >
+            ¿Dudas sobre talle o stock? Escribinos directamente por WhatsApp.
+          </motion.p>
+          <motion.div
+            className="flex flex-wrap gap-4 justify-center"
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+          >
+            <a
+              href="https://wa.me/5493834000000?text=Hola!%20Quiero%20consultar%20sobre%20la%20colección%20Hombre%20de%20Alfis%20Jeans."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-white text-black px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] hover:bg-zinc-100 transition-colors"
+            >
+              Consultanos
+            </a>
+            <Link
+              href="/priority"
+              className="inline-flex items-center gap-3 border border-white/30 text-white px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] hover:border-white transition-colors"
+            >
+              Ver línea mujer
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
     </div>
   );
 }
