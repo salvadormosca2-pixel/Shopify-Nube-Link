@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useGetProducts, useGetCategories, getGetProductsQueryKey } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/ProductCard";
-import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, X, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -171,15 +170,6 @@ function EditorialSection({
         >
           {section.title}
         </motion.h2>
-
-        <motion.p
-          className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.6, delay: 0.35 }}
-        >
-          {section.body}
-        </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -350,12 +340,6 @@ export default function Home() {
             >
               Ver Colección <ArrowRight className="h-3.5 w-3.5" />
             </a>
-            <a
-              href="#editorial"
-              className="inline-flex items-center gap-3 border border-white/30 text-white px-8 py-3.5 text-xs font-bold uppercase tracking-[0.25em] hover:border-white transition-colors"
-            >
-              Lookbook
-            </a>
           </motion.div>
         </motion.div>
 
@@ -379,22 +363,19 @@ export default function Home() {
       <Marquee />
 
       {/* ── VALUES STRIP ─────────────────────────────────────────────────────── */}
-      <section className="bg-zinc-950 border-b border-zinc-800 py-10 px-4">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <section className="bg-zinc-950 border-b border-zinc-800 py-6 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:divide-x divide-zinc-800 gap-4 sm:gap-0">
           {VALUES.map((v, i) => (
             <motion.div
               key={v.label}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.45, delay: i * 0.08 }}
+              transition={{ duration: 0.4, delay: i * 0.07 }}
+              className="flex items-center gap-3 sm:flex-1 sm:justify-center px-4"
             >
-              <p className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-1">
-                {v.num}
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">
-                {v.label}
-              </p>
+              <span className="text-2xl font-black text-white tracking-tighter">{v.num}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{v.label}</span>
             </motion.div>
           ))}
         </div>
@@ -685,7 +666,7 @@ export default function Home() {
               href="/priority"
               className="inline-flex items-center gap-3 border border-white/30 text-white px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] hover:border-white transition-colors"
             >
-              Ver línea mujer
+              Ver Priority
             </Link>
           </motion.div>
         </div>
