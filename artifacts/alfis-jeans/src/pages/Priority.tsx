@@ -14,12 +14,6 @@ const MARQUEE_WORDS = [
   "PREMIUM", "·", "COLECCIÓN", "·", "DENIM", "·", "ESTILO", "·",
 ];
 
-const VALUES = [
-  { num: "XS–XXL", label: "Talles inclusivos" },
-  { num: "3", label: "Colecciones mujer" },
-  { num: "24", label: "Provincias con envío" },
-  { num: "100%", label: "Diseño argentino" },
-];
 
 const CATEGORIES_GRID = [
   {
@@ -360,29 +354,6 @@ export default function Priority() {
 
       {/* ── MARQUEE ──────────────────────────────────────────────────────────── */}
       <Marquee />
-
-      {/* ── VALUES STRIP ─────────────────────────────────────────────────────── */}
-      <section className="bg-zinc-950 border-b border-zinc-800 py-6 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:divide-x divide-zinc-800 gap-4 sm:gap-0">
-          {VALUES.map((v, i) => (
-            <motion.div
-              key={v.label}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.07 }}
-              className="flex items-center gap-3 sm:flex-1 sm:justify-center px-4"
-            >
-              <span className="text-2xl font-black tracking-tighter" style={{ color: "#d4b896" }}>
-                {v.num}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                {v.label}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
       {/* ── CATEGORY GRID ─────────────────────────────────────────────────────── */}
       <section className="bg-black py-20 px-4">
