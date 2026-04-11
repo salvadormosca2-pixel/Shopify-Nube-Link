@@ -257,11 +257,15 @@ export default function Priority() {
           style={{ y: heroY, scale: heroScale }}
         >
           <img
-            src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1800&q=90&fit=crop&crop=center"
+            src="/priority-hero.jpg"
             alt="Priority — Colección Mujer Alfis Jeans"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover"
+            style={{ objectPosition: "center 20%" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
+          {/* Gradiente dual: bottom→top para proteger texto inferior */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+          {/* Gradiente left→right: oscurece zona de texto sin tapar a la modelo */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/25 to-transparent" />
         </motion.div>
 
         {/* Brand tag — top left */}
