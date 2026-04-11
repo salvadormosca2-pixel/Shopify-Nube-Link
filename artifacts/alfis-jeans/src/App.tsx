@@ -13,6 +13,7 @@ import Checkout from "@/pages/Checkout";
 import Confirmation from "@/pages/Confirmation";
 import Tracking from "@/pages/Tracking";
 import Contact from "@/pages/Contact";
+import Priority from "@/pages/Priority";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
@@ -32,6 +33,7 @@ function Router() {
             <Route path="/confirmacion/:trackingNumber" component={Confirmation} />
             <Route path="/seguimiento" component={Tracking} />
             <Route path="/contacto" component={Contact} />
+            <Route path="/priority" component={Priority} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

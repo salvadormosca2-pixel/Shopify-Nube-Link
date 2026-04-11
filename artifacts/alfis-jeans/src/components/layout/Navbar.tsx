@@ -20,10 +20,15 @@ export function Navbar() {
           
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
             <Link href="/" className="hover:text-primary/80 transition-colors" data-testid="link-nav-denim">
-              Denim
+              Hombre
             </Link>
-            <Link href="/" className="hover:text-primary/80 transition-colors" data-testid="link-nav-new">
-              Novedades
+            <Link
+              href="/priority"
+              className="font-bold tracking-wide transition-colors hover:opacity-80"
+              style={{ color: "#d4b896" }}
+              data-testid="link-nav-priority"
+            >
+              Priority
             </Link>
             <Link href="/contacto" className="hover:text-primary/80 transition-colors" data-testid="link-nav-contact">
               Contacto
