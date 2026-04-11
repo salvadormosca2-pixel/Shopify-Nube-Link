@@ -19,22 +19,30 @@ const CATEGORIES_GRID = [
   {
     label: "Jeans",
     tag: "Jeans Mujer",
-    image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=85&fit=crop",
+    image: "/cat-jeans.jpg",
+    objectPos: "center top",
+    studio: true,
   },
   {
     label: "Remeras",
     tag: "Remeras Mujer",
-    image: "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=85&fit=crop",
+    image: "/cat-remeras.jpg",
+    objectPos: "center 15%",
+    studio: true,
   },
   {
     label: "Abrigos",
     tag: "Abrigos Mujer",
-    image: "https://images.unsplash.com/photo-1548624313-0396c75e4b1a?w=800&q=85&fit=crop",
+    image: "/cat-abrigos.jpg",
+    objectPos: "center 20%",
+    studio: true,
   },
   {
     label: "Accesorios",
     tag: "Accesorios",
-    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=85&fit=crop",
+    image: "/priority-hero.jpg",
+    objectPos: "center center",
+    studio: false,
   },
 ];
 
@@ -411,8 +419,18 @@ export default function Priority() {
                   src={cat.image}
                   alt={cat.label}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  style={{ objectPosition: (cat as any).objectPos ?? "center center" }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {(cat as any).studio && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse 80% 85% at 50% 40%, transparent 35%, rgba(0,0,0,0.5) 65%, rgba(0,0,0,0.92) 90%)",
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                   <p className="text-white font-black text-lg uppercase tracking-tight">
                     {cat.label}
