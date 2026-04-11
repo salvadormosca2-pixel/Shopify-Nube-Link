@@ -46,7 +46,9 @@ const EDITORIAL_SECTIONS = [
     title: "El jean\nque te\ndefine.",
     cta: "Ver Jeans",
     category: "Jeans Mujer",
-    image: "https://images.unsplash.com/photo-1541101767792-f9b2b1c4f127?w=1200&q=90&fit=crop",
+    image: "/editorial-jeans.jpg",
+    objectPos: "center top",
+    studio: true,
     accent: "#d4b896",
     align: "left" as const,
   },
@@ -57,7 +59,9 @@ const EDITORIAL_SECTIONS = [
     title: "Básicos\nque no\nfallan.",
     cta: "Ver Remeras",
     category: "Remeras Mujer",
-    image: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1200&q=90&fit=crop",
+    image: "/editorial-remeras.jpg",
+    objectPos: "center 25%",
+    studio: true,
     accent: "#c9d6df",
     align: "right" as const,
   },
@@ -68,7 +72,9 @@ const EDITORIAL_SECTIONS = [
     title: "Calor\ncon\ncarácter.",
     cta: "Ver Abrigos",
     category: "Abrigos Mujer",
-    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1200&q=90&fit=crop",
+    image: "/editorial-abrigos.jpg",
+    objectPos: "center 20%",
+    studio: true,
     accent: "#e8d5b7",
     align: "left" as const,
   },
@@ -112,17 +118,29 @@ function EditorialSection({
     <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 min-h-[700px] overflow-hidden">
       {/* Image side */}
       <div
-        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
+        className={`relative overflow-hidden bg-black ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
       >
         <motion.img
           src={section.image}
           alt={section.label}
           className="absolute inset-0 w-full h-full object-cover"
-          initial={{ scale: 1.08 }}
-          animate={isInView ? { scale: 1 } : { scale: 1.08 }}
-          transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+          style={{ objectPosition: (section as any).objectPos ?? "center center" }}
+          initial={{ scale: 1.05 }}
+          animate={isInView ? { scale: 1 } : { scale: 1.05 }}
+          transition={{ duration: 1.4, ease: [0.25, 0.1, 0.25, 1] }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        {/* Viñeta radial — disuelve el fondo blanco de estudio en negro */}
+        {(section as any).studio && (
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 82% 88% at 50% 42%, transparent 38%, rgba(0,0,0,0.55) 68%, rgba(0,0,0,0.93) 90%)",
+            }}
+          />
+        )}
+        {/* Gradiente base bottom→top para el label */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <motion.div
           className="absolute bottom-6 left-6"
           initial={{ opacity: 0, y: 10 }}
