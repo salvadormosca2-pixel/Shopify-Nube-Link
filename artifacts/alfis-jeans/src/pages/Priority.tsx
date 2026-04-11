@@ -9,13 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "36", "38", "40", "42", "44"];
 const COLORS = ["NEGRO", "BLANCO", "GRIS", "ROSA", "BEIGE", "CAMEL", "BORDO", "VERDE", "CRUDO", "TOSTADO", "AZUL"];
 
+type CategoryGridItem = {
+  label: string;
+  tag: string;
+  image: string;
+  objectPos: string;
+  studio: boolean;
+};
+
 const MARQUEE_WORDS = [
   "PRIORITY", "·", "MUJER", "·", "ALFIS JEANS", "·", "CATAMARCA", "·",
   "PREMIUM", "·", "COLECCIÓN", "·", "DENIM", "·", "ESTILO", "·",
 ];
 
 
-const CATEGORIES_GRID = [
+const CATEGORIES_GRID: CategoryGridItem[] = [
   {
     label: "Jeans",
     tag: "Jeans Mujer",
@@ -419,9 +427,9 @@ export default function Priority() {
                   src={cat.image}
                   alt={cat.label}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  style={{ objectPosition: (cat as any).objectPos ?? "center center" }}
+                  style={{ objectPosition: cat.objectPos }}
                 />
-                {(cat as any).studio && (
+                {cat.studio && (
                   <div
                     className="absolute inset-0"
                     style={{
@@ -430,7 +438,7 @@ export default function Priority() {
                     }}
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                   <p className="text-white font-black text-lg uppercase tracking-tight">
                     {cat.label}
