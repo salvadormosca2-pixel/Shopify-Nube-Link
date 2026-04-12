@@ -45,7 +45,11 @@ router.post("/payment/create-preference", async (req, res) => {
     }
 
     const trackingNumber = existingOrder.trackingNumber;
-    const baseUrl = process.env["APP_URL"] || "https://alfis-jeans.replit.app";
+
+    // FRONTEND_URL → URL de Netlify (a donde redirige MercadoPago al cliente)
+    // API_URL      → URL de Railway (a donde MercadoPago envía el webhook)
+    const frontendUrl = (process.env["FRONTEND_URL"] || process.env["APP_URL"] || "https://alfis-jeans.replit.app").replace(/\/$/, "");
+    const apiUrl = (process.env["API_URL"] || process.env["APP_URL"] || "https://alfis-jeans.replit.app").replace(/\/$/, "");
 
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
@@ -65,13 +69,13 @@ router.post("/payment/create-preference", async (req, res) => {
           email: payer.email,
         },
         back_urls: {
-          success: `${baseUrl}/confirmacion/${trackingNumber}`,
-          failure: `${baseUrl}/checkout`,
-          pending: `${baseUrl}/confirmacion/${trackingNumber}`,
+          success: `${frontendUrl}/confirmacion/${trackingNumber}`,
+          failure: `${frontendUrl}/checkout`,
+          pending: `${frontendUrl}/confirmacion/${trackingNumber}`,
         },
         auto_return: "approved",
         external_reference: String(orderId),
-        notification_url: `${baseUrl}/api/payment/webhook`,
+        notification_url: `${apiUrl}/api/payment/webhook`,
       },
     });
 

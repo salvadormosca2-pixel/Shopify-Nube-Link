@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "corepack enable && pnpm install && pnpm --filter @workspace/api-server run build"
 
 [deploy]
-startCommand = "pnpm --filter @workspace/api-server run start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+startCommand = "pnpm --filter @workspace/db run push-force && pnpm --filter @workspace/api-server run start"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 60
 restartPolicyType = "on_failure"
