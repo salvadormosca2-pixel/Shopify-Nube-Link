@@ -402,7 +402,7 @@ export default function Priority() {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {CATEGORIES_GRID.map((cat, i) => (
               <motion.button
                 key={cat.label}
