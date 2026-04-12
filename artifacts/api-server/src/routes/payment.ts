@@ -7,6 +7,12 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 
 const router: IRouter = Router();
 
+if (process.env["MP_ACCESS_TOKEN"]) {
+  logger.info("MercadoPago payment gateway configured");
+} else {
+  logger.warn("MP_ACCESS_TOKEN not set — MercadoPago payments unavailable");
+}
+
 router.post("/payment/create-preference", async (req, res) => {
   try {
     const { orderId, items, payer, total } = req.body;
