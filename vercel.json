@@ -1,5 +1,5 @@
 {
-  "installCommand": "pnpm install",
+  "installCommand": "corepack enable && pnpm install",
   "buildCommand": "pnpm --filter @workspace/alfis-jeans run build",
   "outputDirectory": "artifacts/alfis-jeans/dist/public",
   "framework": null,
