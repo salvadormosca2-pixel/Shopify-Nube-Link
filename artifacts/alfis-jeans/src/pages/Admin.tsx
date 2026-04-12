@@ -144,6 +144,7 @@ function ProductEditModal({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [newColor, setNewColor] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -175,33 +176,48 @@ function ProductEditModal({
     imageInputRef.current?.focus();
   };
 
-  const uploadFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
+  const uploadSingleFile = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API}/storage/upload`, {
+      method: "POST",
+      headers: { "X-Admin-Key": adminKey },
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const { url } = await res.json() as { url: string };
+    return url;
+  };
+
+  const uploadFiles = async (files: FileList) => {
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
       toast({ title: "Solo se permiten imágenes", variant: "destructive" });
       return;
     }
     setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch(`${API}/storage/upload`, {
-        method: "POST",
-        headers: { "X-Admin-Key": adminKey },
-        body: formData,
-      });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}));
-        throw new Error((err as { message?: string }).message || `HTTP ${uploadRes.status}`);
-      }
-      const { url } = await uploadRes.json() as { url: string };
-      set("images", [...form.images, url]);
-      toast({ title: "Imagen subida correctamente" });
-    } catch {
-      toast({ title: "Error al subir la imagen", variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    setUploadProgress({ done: 0, total: imageFiles.length });
+    let done = 0;
+    let failed = 0;
+    const uploaded: string[] = [];
+    await Promise.all(
+      imageFiles.map(async file => {
+        const url = await uploadSingleFile(file).catch(() => null);
+        if (url) uploaded.push(url);
+        else failed++;
+        done++;
+        setUploadProgress({ done, total: imageFiles.length });
+      })
+    );
+    set("images", [...form.images, ...uploaded]);
+    if (failed === 0) {
+      toast({ title: `${uploaded.length} imagen${uploaded.length !== 1 ? "es" : ""} subida${uploaded.length !== 1 ? "s" : ""} correctamente` });
+    } else {
+      toast({ title: `${uploaded.length} subidas, ${failed} fallaron`, variant: "destructive" });
     }
+    setIsUploading(false);
+    setUploadProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (idx: number) =>
@@ -463,8 +479,9 @@ function ProductEditModal({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); }}
+                onChange={e => { if (e.target.files?.length) uploadFiles(e.target.files); }}
                 data-testid="input-edit-image-file"
               />
               <button
@@ -474,9 +491,9 @@ function ProductEditModal({
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-zinc-600 hover:border-zinc-400 text-zinc-400 hover:text-white text-sm transition-colors disabled:opacity-50"
                 data-testid="button-upload-image"
               >
-                {isUploading
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Subiendo...</>
-                  : <><ImagePlus className="h-4 w-4" /> Subir desde archivo</>
+                {isUploading && uploadProgress
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Subiendo {uploadProgress.done}/{uploadProgress.total}...</>
+                  : <><ImagePlus className="h-4 w-4" /> Subir fotos (podés elegir varias)</>
                 }
               </button>
             </div>
