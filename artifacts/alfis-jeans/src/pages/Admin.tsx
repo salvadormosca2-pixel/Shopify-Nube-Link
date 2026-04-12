@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { formatArs } from "@/lib/utils";
+import { API } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -9,10 +10,6 @@ import {
   TrendingUp, AlertCircle, CheckCircle2, ChevronDown,
   X, ImagePlus, Pencil, BarChart2, MapPin, Award, ShoppingCart
 } from "lucide-react";
-
-const _viteApiUrl = import.meta.env.VITE_API_URL as string | undefined;
-const BASE = _viteApiUrl ?? import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = `${BASE}/api`;
 
 type Product = {
   id: number; name: string; category: string; description: string;
