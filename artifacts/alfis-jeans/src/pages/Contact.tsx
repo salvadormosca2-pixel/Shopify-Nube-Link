@@ -1,36 +1,28 @@
-import { useState } from "react";
-import { useSendContactMessage } from "@workspace/api-client-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { Mail, MapPin, Phone, CheckCircle, Loader2 } from "lucide-react";
+import { Mail, MapPin, Phone, Clock, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
+const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
+const WHATSAPP_URL = `https://wa.me/5493834000000?text=${WHATSAPP_MSG}`;
+
+const INFO_ITEMS = [
+  {
+    icon: <MapPin className="h-5 w-5" />,
+    title: "Ubicación",
+    lines: ["Rivadavia 817", "Catamarca (Capital)"],
+  },
+  {
+    icon: <Phone className="h-5 w-5" />,
+    title: "WhatsApp",
+    lines: ["+54 9 383 400-0000"],
+  },
+  {
+    icon: <Mail className="h-5 w-5" />,
+    title: "Email",
+    lines: ["hola@alfisjeans.com.ar"],
+  },
+];
+
 export default function Contact() {
-  const { toast } = useToast();
-  const sendMessage = useSendContactMessage();
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
-  const [sent, setSent] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.email || !form.message) {
-      toast({ title: "Completá todos los campos", variant: "destructive" });
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await sendMessage.mutateAsync({ data: form });
-      setSent(true);
-    } catch {
-      toast({ title: "Error al enviar el mensaje", description: "Intentá nuevamente más tarde.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
       <div className="mb-12">
@@ -40,31 +32,16 @@ export default function Contact() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+
         {/* Info */}
         <div className="space-y-10">
           <p className="text-muted-foreground text-lg leading-relaxed">
-            ¿Tenés alguna consulta sobre tus pedidos, talles o nuestra colección? 
+            ¿Tenés alguna consulta sobre tus pedidos, talles o nuestra colección?
             Estamos disponibles para ayudarte.
           </p>
 
           <div className="space-y-6">
-            {[
-              {
-                icon: <MapPin className="h-5 w-5" />,
-                title: "Ubicación",
-                lines: ["San Martín 123, K5000", "San Fernando del Valle de Catamarca", "Catamarca, Argentina"]
-              },
-              {
-                icon: <Phone className="h-5 w-5" />,
-                title: "WhatsApp",
-                lines: ["+54 9 383 400-0000"]
-              },
-              {
-                icon: <Mail className="h-5 w-5" />,
-                title: "Email",
-                lines: ["hola@alfisjeans.com.ar"]
-              }
-            ].map((item, i) => (
+            {INFO_ITEMS.map((item, i) => (
               <motion.div
                 key={i}
                 className="flex gap-4 items-start"
@@ -85,18 +62,27 @@ export default function Contact() {
             ))}
           </div>
 
-          <div className="border border-border p-6 bg-card">
-            <p className="text-xs font-bold uppercase tracking-wider mb-2">Horario de atención</p>
-            <p className="text-muted-foreground text-sm">Lunes a Viernes: 9:00 – 18:00 hs</p>
-            <p className="text-muted-foreground text-sm">Sábados: 9:00 – 13:00 hs</p>
-          </div>
+          {/* Horarios */}
+          <motion.div
+            className="border border-border p-6 bg-card"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.4 }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs font-bold uppercase tracking-wider">Horario de atención</p>
+            </div>
+            <p className="text-muted-foreground text-sm">Lunes a sábados</p>
+            <p className="font-semibold text-sm mt-1">9:00 – 13:00 hs &nbsp;·&nbsp; 17:30 – 21:30 hs</p>
+          </motion.div>
 
-          {/* Static map */}
+          {/* Mapa */}
           <div className="border border-border overflow-hidden" data-testid="contact-map">
             <p className="text-xs font-bold uppercase tracking-wider p-3 border-b border-border">Encontranos aquí</p>
             <iframe
-              title="Alfis Jeans Catamarca — Mapa"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-65.7950%2C-28.4780%2C-65.7750%2C-28.4580&layer=mapnik&marker=-28.4680%2C-65.7850"
+              title="Alfis Jeans Catamarca — Rivadavia 817"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-65.7900%2C-28.4740%2C-65.7780%2C-28.4640&layer=mapnik&marker=-28.4694%2C-65.7848"
               width="100%"
               height="220"
               style={{ border: 0 }}
@@ -106,91 +92,46 @@ export default function Contact() {
           </div>
         </div>
 
-        {/* Form */}
+        {/* WhatsApp CTA */}
         <div>
-          {sent ? (
-            <motion.div
-              className="border border-border p-10 text-center bg-card"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              data-testid="contact-success"
+          <motion.div
+            className="border border-border p-8 md:p-10 bg-card space-y-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <h2 className="font-display font-bold uppercase text-xl tracking-tight">Envianos tu consulta</h2>
+
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Escribinos directamente por WhatsApp y te respondemos a la brevedad.
+              Estamos disponibles durante el horario de atención para ayudarte con
+              talles, productos, pedidos y todo lo que necesites.
+            </p>
+
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="whatsapp-contact-button"
+              className="flex items-center justify-center gap-3 w-full h-14 bg-foreground text-background font-bold uppercase tracking-[0.15em] text-sm transition-opacity hover:opacity-80"
             >
-              <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-4" />
-              <h2 className="font-display font-bold uppercase text-2xl mb-3">Mensaje enviado</h2>
-              <p className="text-muted-foreground mb-6">
-                Gracias por contactarnos. Te responderemos a la brevedad.
-              </p>
-              <Button
-                variant="outline"
-                className="rounded-none uppercase text-xs font-bold"
-                onClick={() => { setSent(false); setForm({ name: "", email: "", message: "" }); }}
-                data-testid="button-send-another"
+              <MessageCircle className="h-5 w-5 fill-background" />
+              Escribinos por WhatsApp
+            </a>
+
+            <div className="border-t border-border pt-6 space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">También podés contactarnos por</p>
+              <a
+                href="mailto:hola@alfisjeans.com.ar"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Enviar otro mensaje
-              </Button>
-            </motion.div>
-          ) : (
-            <motion.form
-              onSubmit={handleSubmit}
-              className="border border-border p-6 md:p-8 bg-card space-y-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <h2 className="font-display font-bold uppercase text-xl tracking-tight">Envianos tu consulta</h2>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">Nombre completo</label>
-                <Input
-                  placeholder="Juan Pérez"
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="rounded-none border-border"
-                  data-testid="input-contact-name"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">Email</label>
-                <Input
-                  type="email"
-                  placeholder="juan@ejemplo.com"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="rounded-none border-border"
-                  data-testid="input-contact-email"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">Mensaje</label>
-                <Textarea
-                  placeholder="Contanos en qué te podemos ayudar..."
-                  value={form.message}
-                  onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                  className="rounded-none border-border resize-none"
-                  rows={6}
-                  data-testid="input-contact-message"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-12 rounded-none uppercase font-bold tracking-wider"
-                disabled={isSubmitting}
-                data-testid="button-contact-submit"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : "Enviar mensaje"}
-              </Button>
-            </motion.form>
-          )}
+                <Mail className="h-4 w-4" />
+                hola@alfisjeans.com.ar
+              </a>
+            </div>
+          </motion.div>
         </div>
+
       </div>
     </div>
   );
