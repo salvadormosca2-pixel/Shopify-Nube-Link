@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @workspace/alfis-jeans run build",
+  "outputDirectory": "artifacts/alfis-jeans/dist/public",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

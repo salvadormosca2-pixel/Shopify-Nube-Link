@@ -10,7 +10,8 @@ import {
   X, ImagePlus, Pencil, BarChart2, MapPin, Award, ShoppingCart
 } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const _viteApiUrl = import.meta.env.VITE_API_URL as string | undefined;
+const BASE = _viteApiUrl ?? import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = `${BASE}/api`;
 
 type Product = {
