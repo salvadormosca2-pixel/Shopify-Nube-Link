@@ -15,7 +15,6 @@ import Tracking from "@/pages/Tracking";
 import Contact from "@/pages/Contact";
 import Priority from "@/pages/Priority";
 import Admin from "@/pages/Admin";
-import Priority from "@/pages/Priority";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();

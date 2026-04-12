@@ -1,4 +1,4 @@
-import { Mail, MapPin, Phone, Clock, MessageCircle } from "lucide-react";
+import { MapPin, Phone, Clock, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
@@ -14,11 +14,6 @@ const INFO_ITEMS = [
     icon: <Phone className="h-5 w-5" />,
     title: "WhatsApp",
     lines: ["+54 9 383 400-0000"],
-  },
-  {
-    icon: <Mail className="h-5 w-5" />,
-    title: "Email",
-    lines: ["hola@alfisjeans.com.ar"],
   },
 ];
 
@@ -118,17 +113,6 @@ export default function Contact() {
               <MessageCircle className="h-5 w-5 fill-background" />
               Escribinos por WhatsApp
             </a>
-
-            <div className="border-t border-border pt-6 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">También podés contactarnos por</p>
-              <a
-                href="mailto:hola@alfisjeans.com.ar"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-                hola@alfisjeans.com.ar
-              </a>
-            </div>
           </motion.div>
         </div>
 
