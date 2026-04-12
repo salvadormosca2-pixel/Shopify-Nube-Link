@@ -7,9 +7,13 @@ const router: IRouter = Router();
 
 router.get("/products", async (req, res) => {
   try {
-    const { category, search, size, color, limit = "100", offset = "0" } = req.query as Record<string, string>;
+    const { category, search, size, color, section, limit = "100", offset = "0" } = req.query as Record<string, string>;
 
     const conditions: SQL[] = [];
+
+    if (section) {
+      conditions.push(eq(productsTable.section, section));
+    }
 
     if (category) {
       conditions.push(eq(productsTable.category, category));

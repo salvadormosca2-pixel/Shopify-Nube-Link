@@ -12,6 +12,7 @@ export const productsTable = pgTable("products", {
   colors: json("colors").$type<string[]>().notNull().default([]),
   sizes: json("sizes").$type<string[]>().notNull().default([]),
   stock: integer("stock").notNull().default(0),
+  section: text("section").notNull().default("hombre"),
   featured: boolean("featured").notNull().default(false),
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -38,7 +38,7 @@ router.patch("/admin/products/:id", async (req, res) => {
       return;
     }
 
-    const { price, stock, featured, name, category, description, images, colors, sizes, salePrice } = req.body;
+    const { price, stock, featured, name, category, description, images, colors, sizes, salePrice, section } = req.body;
     const updates: Partial<typeof productsTable.$inferInsert> = {};
 
     if (price !== undefined) {
@@ -118,6 +118,14 @@ router.patch("/admin/products/:id", async (req, res) => {
       }
     }
 
+    if (section !== undefined) {
+      if (section !== "hombre" && section !== "priority") {
+        res.status(400).json({ error: "invalid_section", message: "Section must be 'hombre' or 'priority'" });
+        return;
+      }
+      updates.section = section;
+    }
+
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: "no_changes", message: "No valid fields to update" });
       return;
@@ -143,7 +151,7 @@ router.patch("/admin/products/:id", async (req, res) => {
 // POST /api/admin/products - create a new product
 router.post("/admin/products", async (req, res) => {
   try {
-    const { name, category, description, price, stock, featured, images, colors, sizes, salePrice } = req.body;
+    const { name, category, description, price, stock, featured, images, colors, sizes, salePrice, section } = req.body;
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       res.status(400).json({ error: "invalid_name", message: "Name is required" });
@@ -160,12 +168,15 @@ router.post("/admin/products", async (req, res) => {
     }
     const s = parseInt(stock ?? "0", 10);
 
+    const sectionValue = section === "priority" ? "priority" : "hombre";
+
     const values: typeof productsTable.$inferInsert = {
       name: name.trim(),
       category: category.trim(),
       description: description ?? "",
       price: String(p),
       stock: isNaN(s) ? 0 : s,
+      section: sectionValue,
       featured: Boolean(featured),
       images: Array.isArray(images) ? images : [],
       colors: Array.isArray(colors) ? colors : [],

@@ -15,6 +15,7 @@ const API = `${BASE}/api`;
 
 type Product = {
   id: number; name: string; category: string; description: string;
+  section: string;
   price: string; stock: number; featured: boolean; salePrice?: string | null;
   images: string[]; colors: string[]; sizes: string[];
 };
@@ -126,7 +127,7 @@ function LoginScreen({ onLogin }: { onLogin: (key: string) => void }) {
 
 // ─── Product Edit Modal ───────────────────────────────────────────────────────
 type EditForm = {
-  name: string; category: string; description: string;
+  name: string; category: string; description: string; section: string;
   price: string; stock: string; salePrice: string; featured: boolean;
   images: string[]; colors: string[]; sizes: string[];
 };
@@ -154,6 +155,7 @@ function ProductEditModal({
   const [form, setForm] = useState<EditForm>({
     name: product?.name ?? "",
     category: product?.category ?? "",
+    section: product?.section ?? "hombre",
     description: product?.description ?? "",
     price: product ? String(parseFloat(product.price)) : "",
     stock: product ? String(product.stock) : "0",
@@ -246,6 +248,7 @@ function ProductEditModal({
       const payload = {
         name: form.name.trim(),
         category: categoryToSave,
+        section: form.section,
         description: form.description,
         price: parseFloat(form.price),
         stock: parseInt(form.stock, 10),
@@ -306,6 +309,26 @@ function ProductEditModal({
             <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Nombre del producto</label>
             <Input value={form.name} onChange={e => set("name", e.target.value)}
               className={inputCls} data-testid="input-edit-name" />
+          </div>
+
+          {/* Sección */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Sección</label>
+            <div className="flex gap-2">
+              {(["hombre", "priority"] as const).map(sec => (
+                <button key={sec} type="button"
+                  onClick={() => set("section", sec)}
+                  className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider border transition-colors ${
+                    form.section === sec
+                      ? sec === "priority"
+                        ? "border-[#d4b896] bg-[#d4b896]/10 text-[#d4b896]"
+                        : "border-white bg-white text-black"
+                      : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                  }`}>
+                  {sec === "hombre" ? "Hombre" : "Priority — Mujer"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Categoría */}
@@ -554,6 +577,7 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [sectionFilter, setSectionFilter] = useState<"todos" | "hombre" | "priority">("todos");
   const [categoryFilter, setCategoryFilter] = useState("todos");
 
   const loadProducts = useCallback(async () => {
@@ -601,8 +625,9 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSection = sectionFilter === "todos" || (p.section || "hombre") === sectionFilter;
     const matchCategory = categoryFilter === "todos" || p.category === categoryFilter;
-    return matchSearch && matchCategory;
+    return matchSearch && matchSection && matchCategory;
   });
 
   if (isLoading) {
@@ -648,6 +673,29 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">{stat.label}</p>
             <p className="text-2xl font-bold">{stat.value}</p>
           </div>
+        ))}
+      </div>
+
+      {/* Section tabs */}
+      <div className="flex gap-2 mb-4">
+        {([
+          { key: "todos", label: "Todos" },
+          { key: "hombre", label: "Hombre" },
+          { key: "priority", label: "Priority — Mujer" },
+        ] as const).map(({ key, label }) => (
+          <button key={key} onClick={() => { setSectionFilter(key); setCategoryFilter("todos"); }}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border transition-colors ${
+              sectionFilter === key
+                ? key === "priority"
+                  ? "border-[#d4b896] bg-[#d4b896]/10 text-[#d4b896]"
+                  : "border-white bg-white text-black"
+                : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+            }`}>
+            {label}
+            <span className="ml-2 opacity-60">
+              {key === "todos" ? products.length : products.filter(p => (p.section || "hombre") === key).length}
+            </span>
+          </button>
         ))}
       </div>
 
@@ -707,7 +755,16 @@ function ProductsTab({ adminKey }: { adminKey: string }) {
                         <img src={product.images[0]} alt={product.name} className="w-9 h-11 object-cover flex-shrink-0 opacity-80" />
                       )}
                       <div>
-                        <p className="font-medium text-sm leading-tight">{product.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm leading-tight">{product.name}</p>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${
+                            (product.section || "hombre") === "priority"
+                              ? "border-[#d4b896]/40 text-[#d4b896]"
+                              : "border-zinc-700 text-zinc-500"
+                          }`}>
+                            {(product.section || "hombre") === "priority" ? "Priority" : "Hombre"}
+                          </span>
+                        </div>
                         {product.stock === 0 && (
                           <span className="text-xs text-red-400 font-bold">SIN STOCK</span>
                         )}

@@ -20,6 +20,7 @@ export interface Product {
   description?: string;
   price: number;
   category: string;
+  section: string;
   images: string[];
   colors: string[];
   sizes: string[];
@@ -190,6 +191,10 @@ export type GetProductsParams = {
    * Filter by color (e.g. NEGRO, BLANCO)
    */
   color?: string;
+  /**
+   * Filter by section (hombre or priority)
+   */
+  section?: string;
 };
 
 export type GetShippingCostParams = {

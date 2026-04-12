@@ -226,6 +226,7 @@ export default function Priority() {
   const effectiveColor = selectedColor === "todos-colores" ? "" : selectedColor;
 
   const queryParams = {
+    section: "priority" as const,
     category: activeCategory !== "todas" ? activeCategory : undefined,
     search: debouncedSearch || undefined,
     size: selectedSize || undefined,

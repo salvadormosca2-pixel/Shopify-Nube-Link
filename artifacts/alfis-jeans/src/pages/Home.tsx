@@ -210,6 +210,7 @@ export default function Home() {
   const effectiveColor = selectedColor === "todos-colores" ? "" : selectedColor;
 
   const queryParams = {
+    section: "hombre" as const,
     category: activeCategory !== "todos" ? activeCategory : undefined,
     search: debouncedSearch || undefined,
     size: selectedSize || undefined,
