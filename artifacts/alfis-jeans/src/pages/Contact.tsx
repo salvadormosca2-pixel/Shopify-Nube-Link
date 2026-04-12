@@ -74,7 +74,7 @@ export default function Contact() {
               <p className="text-xs font-bold uppercase tracking-wider">Horario de atención</p>
             </div>
             <p className="text-muted-foreground text-sm">Lunes a sábados</p>
-            <p className="font-semibold text-sm mt-1">9:00 – 13:00 hs &nbsp;·&nbsp; 17:30 – 21:30 hs</p>
+            <p className="font-semibold text-sm mt-1">9:00 – 13:00hs &nbsp;/&nbsp; 17:30 – 21:30hs</p>
           </motion.div>
 
           {/* Mapa */}
@@ -113,7 +113,7 @@ export default function Contact() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="whatsapp-contact-button"
-              className="flex items-center justify-center gap-3 w-full h-14 bg-foreground text-background font-bold uppercase tracking-[0.15em] text-sm transition-opacity hover:opacity-80"
+              className="flex items-center justify-center gap-3 w-full h-14 bg-foreground text-background border border-foreground font-bold uppercase tracking-[0.15em] text-sm transition-opacity hover:opacity-80"
             >
               <MessageCircle className="h-5 w-5 fill-background" />
               Escribinos por WhatsApp
