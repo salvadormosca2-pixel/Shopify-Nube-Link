@@ -15,6 +15,7 @@ import Tracking from "@/pages/Tracking";
 import Contact from "@/pages/Contact";
 import Priority from "@/pages/Priority";
 import Admin from "@/pages/Admin";
+import Priority from "@/pages/Priority";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ function Router() {
         <Layout>
           <Switch>
             <Route path="/" component={Home} />
+            <Route path="/mujer/priority" component={Priority} />
             <Route path="/productos/:id" component={ProductDetail} />
             <Route path="/carrito" component={Cart} />
             <Route path="/checkout" component={Checkout} />
