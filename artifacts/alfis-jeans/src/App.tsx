@@ -27,7 +27,6 @@ function Router() {
         <Layout>
           <Switch>
             <Route path="/" component={Home} />
-            <Route path="/mujer/priority" component={Priority} />
             <Route path="/productos/:id" component={ProductDetail} />
             <Route path="/carrito" component={Cart} />
             <Route path="/checkout" component={Checkout} />
