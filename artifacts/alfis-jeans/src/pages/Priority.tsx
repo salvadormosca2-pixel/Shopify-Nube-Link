@@ -78,7 +78,7 @@ const EDITORIAL_SECTIONS = [
     id: "abrigos",
     number: "03",
     label: "ABRIGOS PRIORITY",
-    title: "Calor\ncon\ncarácter.",
+    title: "El invierno\nte queda\nbien.",
     cta: "Ver Abrigos",
     category: "Abrigos Mujer",
     image: "/editorial-abrigos.jpg",
