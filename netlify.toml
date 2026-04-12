@@ -1,0 +1,11 @@
+[build]
+  command = "corepack enable && pnpm install && pnpm --filter @workspace/alfis-jeans run build"
+  publish = "artifacts/alfis-jeans/dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
