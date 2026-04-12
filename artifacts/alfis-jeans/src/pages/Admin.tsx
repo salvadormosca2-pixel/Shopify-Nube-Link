@@ -182,20 +182,19 @@ function ProductEditModal({
     }
     setIsUploading(true);
     try {
-      const metaRes = await adminFetch("/storage/uploads/request-url", adminKey, {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch(`${API}/storage/upload`, {
         method: "POST",
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+        headers: { "X-Admin-Key": adminKey },
+        body: formData,
       });
-      const { uploadURL, objectPath } = metaRes;
-
-      await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      const servingUrl = `${API}/storage${objectPath}`;
-      set("images", [...form.images, servingUrl]);
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message || `HTTP ${uploadRes.status}`);
+      }
+      const { url } = await uploadRes.json() as { url: string };
+      set("images", [...form.images, url]);
       toast({ title: "Imagen subida correctamente" });
     } catch {
       toast({ title: "Error al subir la imagen", variant: "destructive" });
