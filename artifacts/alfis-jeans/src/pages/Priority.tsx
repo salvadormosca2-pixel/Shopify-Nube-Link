@@ -45,13 +45,6 @@ const CATEGORIES_GRID: CategoryGridItem[] = [
     objectPos: "center 20%",
     studio: true,
   },
-  {
-    label: "Accesorios",
-    tag: "Accesorios",
-    image: "/priority-hero.jpg",
-    objectPos: "center center",
-    studio: false,
-  },
 ];
 
 const EDITORIAL_SECTIONS = [
