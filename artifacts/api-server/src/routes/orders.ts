@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, productsTable, couponsTable } from "@workspace/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql, and, gte } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -55,8 +55,19 @@ router.post("/orders", async (req, res) => {
       return;
     }
 
-    // Recompute totals server-side from DB prices and validate stock
-    const productIds: number[] = items.map((i: { productId: number }) => i.productId);
+    // Aggregate quantities by productId — handles duplicate entries (same product, different size/color)
+    type CartItem = { productId: number; quantity: number; productName?: string };
+    const qtyByProduct = new Map<number, { qty: number; name: string }>();
+    for (const item of items as CartItem[]) {
+      const existing = qtyByProduct.get(item.productId);
+      qtyByProduct.set(item.productId, {
+        qty: (existing?.qty ?? 0) + item.quantity,
+        name: item.productName ?? existing?.name ?? `Producto #${item.productId}`,
+      });
+    }
+    const productIds = [...qtyByProduct.keys()];
+
+    // Fetch product data for price + pre-validation stock check
     const dbProducts = await db
       .select({ id: productsTable.id, price: productsTable.price, salePrice: productsTable.salePrice, stock: productsTable.stock })
       .from(productsTable)
@@ -64,28 +75,29 @@ router.post("/orders", async (req, res) => {
 
     const priceMap = new Map(dbProducts.map(p => [
       p.id,
-      p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price)
+      p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price),
     ]));
     const stockMap = new Map(dbProducts.map(p => [p.id, p.stock]));
 
+    // Pre-validate stock (friendly early rejection before hitting the DB transaction)
     let subtotal = 0;
-    for (const item of items as { productId: number; quantity: number; productName?: string }[]) {
-      const price = priceMap.get(item.productId);
+    for (const [productId, { qty, name }] of qtyByProduct) {
+      const price = priceMap.get(productId);
       if (price === undefined) {
-        res.status(400).json({ error: "invalid_product", message: `Product ${item.productId} not found` });
+        res.status(400).json({ error: "invalid_product", message: `Product ${productId} not found` });
         return;
       }
-      const available = stockMap.get(item.productId) ?? 0;
-      if (available < item.quantity) {
+      const available = stockMap.get(productId) ?? 0;
+      if (available < qty) {
         res.status(409).json({
           error: "insufficient_stock",
           message: available === 0
-            ? `"${item.productName ?? `Producto #${item.productId}`}" está sin stock`
-            : `Solo quedan ${available} unidades de "${item.productName ?? `Producto #${item.productId}`}"`,
+            ? `"${name}" está sin stock`
+            : `Solo quedan ${available} unidades de "${name}"`,
         });
         return;
       }
-      subtotal += price * item.quantity;
+      subtotal += price * qty;
     }
 
     const shippingCost = PROVINCES_SHIPPING[customer.province];
@@ -106,35 +118,55 @@ router.post("/orders", async (req, res) => {
 
     const discountAmount = Math.round(subtotal * discountPct / 100);
     const total = subtotal - discountAmount + shippingCost;
-
     const trackingNumber = generateTrackingNumber();
 
-    const [order] = await db.insert(ordersTable).values({
-      trackingNumber,
-      status: "pending",
-      customerFirstName: customer.firstName,
-      customerLastName: customer.lastName,
-      customerEmail: customer.email,
-      customerPhone: customer.phone,
-      customerAddress: customer.address,
-      customerCity: customer.city,
-      customerProvince: customer.province,
-      customerPostalCode: customer.postalCode,
-      items,
-      shippingCost: String(shippingCost),
-      total: String(total),
-      paymentId: null,
-    }).returning();
+    // Atomic transaction: insert order + conditionally decrement stock
+    let order: typeof ordersTable.$inferSelect;
+    try {
+      order = await db.transaction(async (tx) => {
+        const [newOrder] = await tx.insert(ordersTable).values({
+          trackingNumber,
+          status: "pending",
+          customerFirstName: customer.firstName,
+          customerLastName: customer.lastName,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          customerAddress: customer.address,
+          customerCity: customer.city,
+          customerProvince: customer.province,
+          customerPostalCode: customer.postalCode,
+          items,
+          shippingCost: String(shippingCost),
+          total: String(total),
+          paymentId: null,
+        }).returning();
 
-    // Decrement stock for each item sold
-    await Promise.all(
-      (items as { productId: number; quantity: number }[]).map(item =>
-        db
-          .update(productsTable)
-          .set({ stock: sql`GREATEST(${productsTable.stock} - ${item.quantity}, 0)` })
-          .where(eq(productsTable.id, item.productId))
-      )
-    );
+        // Decrement stock atomically — WHERE stock >= qty prevents oversell on concurrent requests
+        for (const [productId, { qty, name }] of qtyByProduct) {
+          const updated = await tx
+            .update(productsTable)
+            .set({ stock: sql`${productsTable.stock} - ${qty}` })
+            .where(and(eq(productsTable.id, productId), gte(productsTable.stock, qty)))
+            .returning({ id: productsTable.id });
+
+          if (updated.length === 0) {
+            throw Object.assign(new Error("insufficient_stock"), { productName: name });
+          }
+        }
+
+        return newOrder;
+      });
+    } catch (txErr: unknown) {
+      if (txErr instanceof Error && txErr.message === "insufficient_stock") {
+        const productName = (txErr as Error & { productName?: string }).productName;
+        res.status(409).json({
+          error: "insufficient_stock",
+          message: `"${productName}" se agotó mientras procesabas el pedido. Actualizá el carrito.`,
+        });
+        return;
+      }
+      throw txErr;
+    }
 
     res.status(201).json({
       ...formatOrder(order),
