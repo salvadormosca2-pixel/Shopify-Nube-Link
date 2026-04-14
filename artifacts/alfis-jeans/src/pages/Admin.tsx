@@ -478,7 +478,7 @@ function ProductEditModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/webp,image/jpeg,image/png,image/gif,image/heic,image/*"
                 multiple
                 className="hidden"
                 onChange={e => { if (e.target.files?.length) uploadFiles(e.target.files); }}

@@ -28,7 +28,9 @@ export async function uploadToCloudinary(
       {
         public_id: publicId,
         resource_type: "image",
-        format: contentType.split("/")[1] || "jpg",
+        format: "webp",
+        quality: "auto:good",
+        transformation: [{ width: 1200, crop: "limit" }],
         overwrite: false,
       },
       (error, result) => {
