@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, productsTable, couponsTable } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -55,10 +55,10 @@ router.post("/orders", async (req, res) => {
       return;
     }
 
-    // Recompute totals server-side from DB prices
+    // Recompute totals server-side from DB prices and validate stock
     const productIds: number[] = items.map((i: { productId: number }) => i.productId);
     const dbProducts = await db
-      .select({ id: productsTable.id, price: productsTable.price, salePrice: productsTable.salePrice })
+      .select({ id: productsTable.id, price: productsTable.price, salePrice: productsTable.salePrice, stock: productsTable.stock })
       .from(productsTable)
       .where(inArray(productsTable.id, productIds));
 
@@ -66,12 +66,23 @@ router.post("/orders", async (req, res) => {
       p.id,
       p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price)
     ]));
+    const stockMap = new Map(dbProducts.map(p => [p.id, p.stock]));
 
     let subtotal = 0;
-    for (const item of items as { productId: number; quantity: number }[]) {
+    for (const item of items as { productId: number; quantity: number; productName?: string }[]) {
       const price = priceMap.get(item.productId);
       if (price === undefined) {
         res.status(400).json({ error: "invalid_product", message: `Product ${item.productId} not found` });
+        return;
+      }
+      const available = stockMap.get(item.productId) ?? 0;
+      if (available < item.quantity) {
+        res.status(409).json({
+          error: "insufficient_stock",
+          message: available === 0
+            ? `"${item.productName ?? `Producto #${item.productId}`}" está sin stock`
+            : `Solo quedan ${available} unidades de "${item.productName ?? `Producto #${item.productId}`}"`,
+        });
         return;
       }
       subtotal += price * item.quantity;
@@ -114,6 +125,16 @@ router.post("/orders", async (req, res) => {
       total: String(total),
       paymentId: null,
     }).returning();
+
+    // Decrement stock for each item sold
+    await Promise.all(
+      (items as { productId: number; quantity: number }[]).map(item =>
+        db
+          .update(productsTable)
+          .set({ stock: sql`GREATEST(${productsTable.stock} - ${item.quantity}, 0)` })
+          .where(eq(productsTable.id, item.productId))
+      )
+    );
 
     res.status(201).json({
       ...formatOrder(order),

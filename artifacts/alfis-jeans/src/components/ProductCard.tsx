@@ -48,12 +48,17 @@ export function ProductCard({ product }: { product: Product }) {
           </AspectRatio>
 
           {/* Badges */}
-          {discountPct != null && (
+          {product.stock <= 0 && (
+            <div className="absolute top-3 left-3 bg-zinc-700 text-zinc-300 text-[10px] font-black px-2 py-0.5 uppercase tracking-widest">
+              Sin stock
+            </div>
+          )}
+          {product.stock > 0 && discountPct != null && (
             <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-black px-2 py-0.5 uppercase tracking-widest">
               -{discountPct}%
             </div>
           )}
-          {discountPct == null && product.featured && (
+          {product.stock > 0 && discountPct == null && product.featured && (
             <div className="absolute top-3 left-3 border border-white/60 text-white text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest backdrop-blur-sm">
               Nuevo
             </div>
