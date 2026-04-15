@@ -104,6 +104,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdmin = location.startsWith("/admin");
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [location]);
+
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans">
       {!isAdmin && <TrustBar />}
