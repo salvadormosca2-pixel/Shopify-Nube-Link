@@ -1399,6 +1399,7 @@ function SalesTab({ adminKey }: { adminKey: string }) {
 type Tab = "products" | "coupons" | "orders" | "sales";
 
 export default function Admin() {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
   const [adminKey, setAdminKey] = useState<string>(() => {
     return sessionStorage.getItem("alfis_admin_key") || "";
   });
