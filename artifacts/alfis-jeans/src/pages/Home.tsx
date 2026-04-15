@@ -5,6 +5,9 @@ import { ProductCard } from "@/components/ProductCard";
 import { Search, SlidersHorizontal, X, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import imgPantalones from "@assets/11682_7_1776277692687.jpg";
+import imgRemeras from "@assets/33433_10_1776277692687.jpg";
+import imgCamperas from "@assets/16221_12_1776277692686.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -20,22 +23,23 @@ const CATEGORIES_GRID = [
   {
     label: "Pantalones",
     tag: "Pantalones",
-    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=85&fit=crop",
+    image: imgPantalones,
+    objectPos: "center top",
+    studio: true,
   },
   {
     label: "Remeras",
     tag: "Remeras",
-    image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=85&fit=crop",
+    image: imgRemeras,
+    objectPos: "center 20%",
+    studio: true,
   },
   {
     label: "Camperas",
     tag: "Camperas",
-    image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=85&fit=crop",
-  },
-  {
-    label: "Accesorios",
-    tag: "Accesorios",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=85&fit=crop",
+    image: imgCamperas,
+    objectPos: "center top",
+    studio: true,
   },
 ];
 
@@ -402,7 +406,7 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {CATEGORIES_GRID.map((cat, i) => (
               <motion.button
                 key={cat.label}
@@ -420,7 +424,17 @@ export default function Home() {
                   src={cat.image}
                   alt={cat.label}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  style={{ objectPosition: cat.objectPos }}
                 />
+                {cat.studio && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse 80% 85% at 50% 40%, transparent 35%, rgba(0,0,0,0.5) 65%, rgba(0,0,0,0.92) 90%)",
+                    }}
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                   <p className="text-white font-black text-lg uppercase tracking-tight">
