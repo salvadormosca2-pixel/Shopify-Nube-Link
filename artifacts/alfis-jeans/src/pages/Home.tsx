@@ -628,13 +628,7 @@ export default function Home() {
       </div>
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
-      <section className="relative h-[60vh] min-h-[400px] overflow-hidden flex items-center justify-center">
-        <img
-          src="https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=1600&q=90&fit=crop"
-          alt="Alfis Jeans Hombre"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-black/65" />
+      <section className="relative h-[60vh] min-h-[400px] bg-black flex items-center justify-center">
         <div className="relative z-10 text-center px-4">
           <motion.p
             className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
