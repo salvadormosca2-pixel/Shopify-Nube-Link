@@ -616,13 +616,7 @@ export default function Priority() {
       </div>
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
-      <section className="relative h-[60vh] min-h-[400px] overflow-hidden flex items-center justify-center">
-        <img
-          src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1600&q=90&fit=crop"
-          alt="Priority Alfis Jeans"
-          className="absolute inset-0 w-full h-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-black/65" />
+      <section className="relative h-[60vh] min-h-[400px] bg-black flex items-center justify-center">
         <div className="relative z-10 text-center px-4">
           <motion.p
             className="text-[10px] font-bold uppercase tracking-[0.5em] mb-4"
