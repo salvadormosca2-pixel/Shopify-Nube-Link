@@ -77,6 +77,15 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
 - Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
+
+**Image storage (Replit App Storage / GCS):**
+- `src/lib/objectStorage.ts` — `ObjectStorageService` class (GCS client via Replit sidecar auth)
+- `src/lib/objectAcl.ts` — ACL framework (currently unused, all product images are public)
+- `src/routes/storage.ts` — storage endpoints:
+  - `POST /api/storage/uploads/request-url` (admin-only) → returns presigned PUT URL for direct-to-GCS upload
+  - `GET /api/storage/objects/*` → serves uploaded product images from GCS
+  - `GET /api/storage/public-objects/*` → serves public assets
+- **Note:** GCS sidecar auth works in Replit environment only. For Railway production deployment, configure Cloudinary env vars (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`) or another cloud storage provider.
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
 - `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
 - Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest

@@ -1,60 +1,120 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import multer from "multer";
-import { uploadToCloudinary, isCloudinaryConfigured } from "../lib/objectStorage";
+import { Readable } from "stream";
+import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { adminAuth } from "../middleware/admin";
 
 const router: IRouter = Router();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Solo se permiten imágenes"));
-    }
-  },
-});
+const objectStorageService = new ObjectStorageService();
 
 /**
- * POST /storage/upload
+ * POST /storage/uploads/request-url
  *
- * Admin-only: upload a product image to Cloudinary.
- * Accepts multipart/form-data with a "file" field.
- * Returns { url } — the permanent Cloudinary CDN URL.
+ * Admin-only: request a presigned PUT URL for direct-to-GCS file upload.
+ * Client sends JSON metadata (name, size, contentType) — NOT the file.
+ * Client then PUTs the file directly to the returned presigned URL.
+ * Returns { uploadURL, objectPath } where objectPath is the serving path.
  */
 router.post(
-  "/storage/upload",
+  "/storage/uploads/request-url",
   adminAuth,
-  upload.single("file"),
   async (req: Request, res: Response) => {
-    if (!isCloudinaryConfigured()) {
-      res.status(503).json({
-        error: "storage_unavailable",
-        message:
-          "El almacenamiento de imágenes no está configurado. " +
-          "Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET.",
-      });
-      return;
-    }
+    const { name, size, contentType } = req.body as {
+      name?: unknown;
+      size?: unknown;
+      contentType?: unknown;
+    };
 
-    if (!req.file) {
-      res.status(400).json({ error: "No se recibió ningún archivo" });
+    if (
+      typeof name !== "string" ||
+      typeof contentType !== "string" ||
+      !name.trim() ||
+      !contentType.trim()
+    ) {
+      res.status(400).json({ error: "Missing or invalid required fields: name, contentType" });
       return;
     }
 
     try {
-      const url = await uploadToCloudinary(
-        req.file.buffer,
-        req.file.mimetype,
-        req.file.originalname,
-      );
-      res.json({ url });
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+
+      res.json({
+        uploadURL,
+        objectPath,
+        metadata: { name, size, contentType },
+      });
     } catch (error) {
-      console.error("Error uploading to Cloudinary", error);
-      res.status(500).json({ error: "Error al subir la imagen" });
+      req.log.error({ err: error }, "Error generating upload URL");
+      res.status(500).json({ error: "Failed to generate upload URL" });
     }
-  },
+  }
 );
+
+/**
+ * GET /storage/public-objects/*
+ *
+ * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
+ * Unconditionally public — no authentication or ACL checks.
+ */
+router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
+  try {
+    const raw = req.params.filePath;
+    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
+    const file = await objectStorageService.searchPublicObject(filePath);
+    if (!file) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    const response = await objectStorageService.downloadObject(file);
+
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+
+    if (response.body) {
+      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    req.log.error({ err: error }, "Error serving public object");
+    res.status(500).json({ error: "Failed to serve public object" });
+  }
+});
+
+/**
+ * GET /storage/objects/*
+ *
+ * Serve object entities from PRIVATE_OBJECT_DIR (product images).
+ * Public access — product images need to be visible to all users.
+ */
+router.get("/storage/objects/*path", async (req: Request, res: Response) => {
+  try {
+    const raw = req.params.path;
+    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath = `/objects/${wildcardPath}`;
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+
+    const response = await objectStorageService.downloadObject(objectFile, 86400);
+
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+
+    if (response.body) {
+      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Image not found" });
+      return;
+    }
+    req.log.error({ err: error }, "Error serving object");
+    res.status(500).json({ error: "Failed to serve image" });
+  }
+});
 
 export default router;

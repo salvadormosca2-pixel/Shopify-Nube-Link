@@ -177,16 +177,33 @@ function ProductEditModal({
   };
 
   const uploadSingleFile = async (file: File): Promise<string | null> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(`${API}/storage/upload`, {
-      method: "POST",
-      headers: { "X-Admin-Key": adminKey },
-      body: formData,
-    });
-    if (!res.ok) return null;
-    const { url } = await res.json() as { url: string };
-    return url;
+    try {
+      const metaRes = await fetch(`${API}/storage/uploads/request-url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
+        }),
+      });
+      if (!metaRes.ok) return null;
+      const { uploadURL, objectPath } = await metaRes.json() as { uploadURL: string; objectPath: string };
+
+      const uploadRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) return null;
+
+      return `${API}/storage${objectPath}`;
+    } catch {
+      return null;
+    }
   };
 
   const uploadFiles = async (files: FileList) => {
