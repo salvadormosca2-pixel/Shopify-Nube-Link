@@ -6,7 +6,7 @@ buildCommand = "corepack enable && pnpm install && pnpm --filter @workspace/api-
 NIXPACKS_NODE_VERSION = "20"
 
 [deploy]
-releaseCommand = "pnpm --filter @workspace/db run push-force"
+releaseCommand = "[ -n \"$DATABASE_URL\" ] && pnpm --filter @workspace/db run push-force || echo 'DATABASE_URL no configurada, saltando migraciones'"
 startCommand = "pnpm --filter @workspace/api-server run start"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 300
