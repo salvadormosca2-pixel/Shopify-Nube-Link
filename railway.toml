@@ -6,7 +6,8 @@ buildCommand = "corepack enable && pnpm install && pnpm --filter @workspace/api-
 NIXPACKS_NODE_VERSION = "20"
 
 [deploy]
-startCommand = "pnpm --filter @workspace/db run push-force && pnpm --filter @workspace/api-server run start"
+releaseCommand = "pnpm --filter @workspace/db run push-force"
+startCommand = "pnpm --filter @workspace/api-server run start"
 healthcheckPath = "/api/healthz"
-healthcheckTimeout = 60
+healthcheckTimeout = 300
 restartPolicyType = "on_failure"
