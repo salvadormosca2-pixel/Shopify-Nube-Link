@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import imgPantalones from "@assets/11682_7_1776277692687.jpg";
 import imgRemeras from "@assets/33433_10_1776277692687.jpg";
 import imgCamperas from "@assets/16221_12_1776277692686.jpg";
+import heroImg from "@assets/ALFIES-PRIORITY_11-03-2612666_1776366025116.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -267,9 +268,9 @@ export default function Home() {
           style={{ y: heroY, scale: heroScale }}
         >
           <img
-            src={`${BASE}/hero-alfis.jpg`}
+            src={heroImg}
             alt="Alfis Jeans — Hombre"
-            className="w-full h-full object-cover object-[center_20%]"
+            className="w-full h-full object-cover object-[center_30%]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
         </motion.div>
