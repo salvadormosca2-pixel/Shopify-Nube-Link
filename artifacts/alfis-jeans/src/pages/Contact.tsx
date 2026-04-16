@@ -77,13 +77,23 @@ export default function Contact() {
             <p className="text-xs font-bold uppercase tracking-wider p-3 border-b border-border">Encontranos aquí</p>
             <iframe
               title="Alfis Jeans Catamarca — Rivadavia 817"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-65.7900%2C-28.4740%2C-65.7780%2C-28.4640&layer=mapnik&marker=-28.4694%2C-65.7848"
+              src="https://maps.google.com/maps?q=-28.4710711,-65.7783891&z=17&output=embed"
               width="100%"
-              height="220"
+              height="260"
               style={{ border: 0 }}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
             />
+            <a
+              href="https://www.google.com/maps/dir//ALFIS+JEANS,+Rivadavia+817,+K4700+San+Fernando+del+Valle+de+Catamarca,+Catamarca/@-28.4607558,-65.7906828,14z/data=!4m8!4m7!1m0!1m5!1m1!1s0x942429998fc12d27:0x4f30e5634bb9d59c!2m2!1d-65.7783891!2d-28.4710711"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2.5 border-t border-border text-xs font-bold uppercase tracking-wider hover:bg-muted transition-colors"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              Cómo llegar — Google Maps
+            </a>
           </div>
         </div>
 
