@@ -1,0 +1,101 @@
+[2026-04-17T22:04:56.479409866Z] [info] 
+[2026-04-17T22:04:56.479413285Z] [info] > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+[2026-04-17T22:04:56.479418944Z] [info] > node --enable-source-maps ./dist/index.mjs
+[2026-04-17T22:04:56.479421802Z] [info] 
+[2026-04-17T22:04:56.527428322Z] [info] MP_ACCESS_TOKEN not set — MercadoPago payments unavailable
+[2026-04-17T22:04:56.540639937Z] [info] Server listening
+[2026-04-17T22:04:56.597196134Z] [info] request completed
+[2026-04-17T22:04:57.448757788Z] [info] Starting Container
+[2026-04-17T22:21:24.067695137Z] [info] Error fetching products
+[2026-04-17T22:21:24.067703704Z] [info] request errored
+[2026-04-17T22:21:24.068668734Z] [info] Error fetching categories
+[2026-04-17T22:21:24.068672652Z] [info] request errored
+[2026-04-17T22:21:24.070585737Z] [info] Error fetching products
+[2026-04-17T22:21:24.070593722Z] [info] request errored
+[2026-04-17T22:21:24.072645518Z] [info] Error fetching categories
+[2026-04-17T22:21:24.072651045Z] [info] request errored
+[2026-04-17T22:32:38.325376252Z] [info] Error fetching categories
+[2026-04-17T22:32:38.325384588Z] [info] request errored
+[2026-04-17T22:32:38.326374104Z] [info] Error fetching products
+[2026-04-17T22:32:38.326380715Z] [info] request errored
+[2026-04-17T22:32:38.328150920Z] [info] Error fetching categories
+[2026-04-17T22:32:38.328156077Z] [info] request errored
+[2026-04-17T22:32:38.330003511Z] [info] Error fetching products
+[2026-04-17T22:32:38.330007367Z] [info] request errored
+[2026-04-17T22:32:38.331960283Z] [info] Error fetching categories
+[2026-04-17T22:32:38.331964088Z] [info] request errored
+[2026-04-17T22:32:38.333785558Z] [info] Error fetching products
+[2026-04-17T22:32:38.333788615Z] [info] request errored
+[2026-04-17T22:32:38.653293980Z] [info] Error fetching categories
+[2026-04-17T22:32:38.653297896Z] [info] request errored
+[2026-04-17T22:32:38.864200220Z] [info] Error fetching products
+[2026-04-17T22:32:38.864209060Z] [info] request errored
+[2026-04-17T22:32:40.878606017Z] [info] Error fetching categories
+[2026-04-17T22:32:40.878609637Z] [info] request errored
+[2026-04-17T22:32:40.880553064Z] [info] Error fetching products
+[2026-04-17T22:32:40.880559889Z] [info] request errored
+[2026-04-17T22:32:42.408911595Z] [info] Error fetching categories
+[2026-04-17T22:32:42.408915209Z] [info] request errored
+[2026-04-17T22:32:42.409805084Z] [info] Error fetching products
+[2026-04-17T22:32:42.409808433Z] [info] request errored
+[2026-04-17T22:32:44.352878015Z] [info] Error fetching categories
+[2026-04-17T22:32:44.352881232Z] [info] request errored
+[2026-04-17T22:32:44.354150734Z] [info] Error fetching products
+[2026-04-17T22:32:44.354157301Z] [info] request errored
+[2026-04-17T22:32:48.404572295Z] [info] Error fetching categories
+[2026-04-17T22:32:48.404584595Z] [info] request errored
+[2026-04-17T22:32:48.417105679Z] [info] Error fetching products
+[2026-04-17T22:32:48.417110113Z] [info] request errored
+[2026-04-17T22:34:38.357593383Z] [info] Error fetching categories
+[2026-04-17T22:34:38.357597347Z] [info] request errored
+[2026-04-17T22:34:38.358870224Z] [info] Error fetching products
+[2026-04-17T22:34:38.358873673Z] [info] request errored
+[2026-04-17T22:34:38.361094512Z] [info] Error fetching categories
+[2026-04-17T22:34:38.361099248Z] [info] request errored
+[2026-04-17T22:34:38.363099448Z] [info] Error fetching products
+[2026-04-17T22:34:38.363103761Z] [info] request errored
+[2026-04-17T22:34:41.542105455Z] [info] Error fetching categories
+[2026-04-17T22:34:41.542110421Z] [info] request errored
+[2026-04-17T22:34:41.543893442Z] [info] Error fetching products
+[2026-04-17T22:34:41.543896549Z] [info] request errored
+[2026-04-17T22:34:42.854407735Z] [info] Error fetching products
+[2026-04-17T22:34:42.854410425Z] [info] request errored
+[2026-04-17T22:34:42.856539845Z] [info] Error fetching categories
+[2026-04-17T22:34:42.858559674Z] [info] request errored
+[2026-04-17T22:34:45.305598878Z] [info] Error fetching products
+[2026-04-17T22:34:45.305602051Z] [info] request errored
+[2026-04-17T22:34:45.306812362Z] [info] Error fetching categories
+[2026-04-17T22:34:45.306815162Z] [info] request errored
+[2026-04-17T22:34:49.315991679Z] [info] Error fetching products
+[2026-04-17T22:34:49.315997055Z] [info] request errored
+[2026-04-17T22:34:49.316598847Z] [info] Error fetching categories
+[2026-04-17T22:34:49.316602516Z] [info] request errored
+[2026-04-17T22:35:09.092000011Z] [info] Error fetching categories
+[2026-04-17T22:35:09.092004334Z] [info] request errored
+[2026-04-17T22:35:09.094004460Z] [info] Error fetching products
+[2026-04-17T22:35:09.094009531Z] [info] request errored
+[2026-04-17T22:35:09.096017788Z] [info] Error fetching products
+[2026-04-17T22:35:09.096021531Z] [info] request errored
+[2026-04-17T22:35:09.098242497Z] [info] Error fetching categories
+[2026-04-17T22:35:09.098247155Z] [info] request errored
+[2026-04-17T22:35:09.100575515Z] [info] Error fetching products
+[2026-04-17T22:35:09.100581698Z] [info] request errored
+[2026-04-17T22:35:09.102876034Z] [info] Error fetching categories
+[2026-04-17T22:35:09.102880483Z] [info] request errored
+[2026-04-17T22:35:11.451471753Z] [info] Error fetching products
+[2026-04-17T22:35:11.451475165Z] [info] request errored
+[2026-04-17T22:35:11.453129265Z] [info] Error fetching categories
+[2026-04-17T22:35:11.453132439Z] [info] request errored
+[2026-04-17T22:35:17.107286745Z] [info] request completed
+[2026-04-17T22:35:17.495221762Z] [info] request completed
+[2026-04-17T22:35:17.495226240Z] [info] request completed
+[2026-04-17T22:35:17.627846302Z] [info] request errored
+[2026-04-17T22:35:20.873224326Z] [info] request completed
+[2026-04-17T22:35:21.040762069Z] [info] request errored
+[2026-04-17T22:35:21.885976816Z] [info] request completed
+[2026-04-17T22:35:22.060993164Z] [info] request errored
+[2026-04-17T22:35:22.819702116Z] [info] request completed
+[2026-04-17T22:35:22.989742809Z] [info] request errored
+[2026-04-17T22:35:23.526329733Z] [info] request completed
+[2026-04-17T22:35:23.682753484Z] [info] request errored
+... (31 more lines)
