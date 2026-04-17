@@ -559,7 +559,7 @@ router.post("/admin/migrate-images", async (req, res) => {
           const buffer = Buffer.from(arrayBuffer);
 
           const uuid = imgUrl.split("/").pop() ?? `img-${Date.now()}`;
-          const cloudinaryUrl = await uploadBufferToCloudinary(buffer, `migrated-${uuid}`);
+          const cloudinaryUrl = await uploadBufferToCloudinary(buffer, `migrated-p${product.id}-${uuid}`);
 
           newImages.push(cloudinaryUrl);
           migratedImages++;
