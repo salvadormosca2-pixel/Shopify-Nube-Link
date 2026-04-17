@@ -464,16 +464,44 @@ router.get("/admin/stats", async (_req, res) => {
  */
 router.post("/admin/migrate-images", async (req, res) => {
   const port = process.env["PORT"] || "8080";
-  const baseUrl = `http://localhost:${port}/api`;
-
-  const GCS_PREFIX = "/api/storage/objects/";
   const CLOUDINARY_HOST = "res.cloudinary.com";
+  const GCS_PATH_SEGMENTS = ["/api/storage/objects/", "/storage/objects/"];
 
-  const isGcsUrl = (url: string) =>
-    url.startsWith(GCS_PREFIX) || url.startsWith("/storage/objects/");
+  const isCloudinaryUrl = (url: string) => url.includes(CLOUDINARY_HOST);
 
-  const isCloudinaryUrl = (url: string) =>
-    url.includes(CLOUDINARY_HOST);
+  /**
+   * Returns true if the URL (relative or absolute) points to a GCS-backed object.
+   * Handles both relative paths (/api/storage/objects/...) and full absolute URLs
+   * (https://any-host/api/storage/objects/...).
+   */
+  const isGcsUrl = (url: string): boolean => {
+    let pathname: string;
+    try {
+      pathname = url.startsWith("http") ? new URL(url).pathname : url;
+    } catch {
+      pathname = url;
+    }
+    return GCS_PATH_SEGMENTS.some(seg => pathname.includes(seg));
+  };
+
+  /**
+   * Normalizes any GCS URL (relative or absolute) into an internal fetch URL
+   * pointing to localhost so the existing GCS proxy route handles it.
+   */
+  const toFetchUrl = (url: string): string => {
+    let pathname: string;
+    try {
+      pathname = url.startsWith("http") ? new URL(url).pathname : url;
+    } catch {
+      pathname = url;
+    }
+    // Ensure path starts with /api/storage/objects/
+    if (!pathname.startsWith("/api/")) {
+      // e.g. /storage/objects/... → /api/storage/objects/...
+      pathname = `/api${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+    }
+    return `http://localhost:${port}${pathname}`;
+  };
 
   async function uploadBufferToCloudinary(buffer: Buffer, filename: string): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -507,22 +535,21 @@ router.post("/admin/migrate-images", async (req, res) => {
 
       for (const imgUrl of images) {
         if (isCloudinaryUrl(imgUrl)) {
+          req.log.info({ productId: product.id, imgUrl }, "Image skipped (already Cloudinary)");
           newImages.push(imgUrl);
           skippedImages++;
           continue;
         }
 
         if (!isGcsUrl(imgUrl)) {
+          req.log.info({ productId: product.id, imgUrl }, "Image skipped (non-GCS URL)");
           newImages.push(imgUrl);
           skippedImages++;
           continue;
         }
 
         try {
-          const fetchUrl = imgUrl.startsWith("/api/")
-            ? `http://localhost:${port}${imgUrl}`
-            : `${baseUrl}${imgUrl}`;
-
+          const fetchUrl = toFetchUrl(imgUrl);
           const imgRes = await fetch(fetchUrl, { signal: AbortSignal.timeout(30_000) });
           if (!imgRes.ok) {
             throw new Error(`HTTP ${imgRes.status} fetching ${fetchUrl}`);
