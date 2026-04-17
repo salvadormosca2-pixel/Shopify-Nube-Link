@@ -3,6 +3,13 @@ import { db } from "@workspace/db";
 import { productsTable, couponsTable, ordersTable } from "@workspace/db/schema";
 import { eq, desc, gte } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env["CLOUDINARY_CLOUD_NAME"],
+  api_key: process.env["CLOUDINARY_API_KEY"],
+  api_secret: process.env["CLOUDINARY_API_SECRET"],
+});
 
 const router: IRouter = Router();
 
@@ -445,6 +452,122 @@ router.get("/admin/stats", async (_req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: "internal_error", message: "Failed to compute stats" });
+  }
+});
+
+// ─── IMAGE MIGRATION ─────────────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/migrate-images
+ * One-time migration: re-uploads all GCS-hosted product images to Cloudinary.
+ * Idempotent: skips images that are already Cloudinary URLs.
+ */
+router.post("/admin/migrate-images", async (req, res) => {
+  const port = process.env["PORT"] || "8080";
+  const baseUrl = `http://localhost:${port}/api`;
+
+  const GCS_PREFIX = "/api/storage/objects/";
+  const CLOUDINARY_HOST = "res.cloudinary.com";
+
+  const isGcsUrl = (url: string) =>
+    url.startsWith(GCS_PREFIX) || url.startsWith("/storage/objects/");
+
+  const isCloudinaryUrl = (url: string) =>
+    url.includes(CLOUDINARY_HOST);
+
+  async function uploadBufferToCloudinary(buffer: Buffer, filename: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "alfis-jeans",
+          resource_type: "image",
+          public_id: filename,
+          transformation: [{ quality: "auto", fetch_format: "auto" }],
+        },
+        (error, result) => {
+          if (error || !result) reject(error ?? new Error("Cloudinary upload failed"));
+          else resolve(result.secure_url);
+        }
+      );
+      stream.end(buffer);
+    });
+  }
+
+  try {
+    const products = await db.select().from(productsTable);
+    let migratedImages = 0;
+    let skippedImages = 0;
+    let failedImages = 0;
+    const failedDetails: string[] = [];
+
+    for (const product of products) {
+      const images: string[] = Array.isArray(product.images) ? product.images : [];
+      let changed = false;
+      const newImages: string[] = [];
+
+      for (const imgUrl of images) {
+        if (isCloudinaryUrl(imgUrl)) {
+          newImages.push(imgUrl);
+          skippedImages++;
+          continue;
+        }
+
+        if (!isGcsUrl(imgUrl)) {
+          newImages.push(imgUrl);
+          skippedImages++;
+          continue;
+        }
+
+        try {
+          const fetchUrl = imgUrl.startsWith("/api/")
+            ? `http://localhost:${port}${imgUrl}`
+            : `${baseUrl}${imgUrl}`;
+
+          const imgRes = await fetch(fetchUrl, { signal: AbortSignal.timeout(30_000) });
+          if (!imgRes.ok) {
+            throw new Error(`HTTP ${imgRes.status} fetching ${fetchUrl}`);
+          }
+
+          const arrayBuffer = await imgRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          const uuid = imgUrl.split("/").pop() ?? `img-${Date.now()}`;
+          const cloudinaryUrl = await uploadBufferToCloudinary(buffer, `migrated-${uuid}`);
+
+          newImages.push(cloudinaryUrl);
+          migratedImages++;
+          req.log.info({ productId: product.id, uuid, cloudinaryUrl }, "Image migrated");
+          changed = true;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          failedImages++;
+          failedDetails.push(`product ${product.id} — ${imgUrl}: ${msg}`);
+          newImages.push(imgUrl);
+          req.log.error({ productId: product.id, imgUrl, err }, "Image migration failed");
+        }
+      }
+
+      if (changed) {
+        await db
+          .update(productsTable)
+          .set({ images: newImages })
+          .where(eq(productsTable.id, product.id));
+      }
+    }
+
+    res.json({
+      ok: true,
+      summary: {
+        products: products.length,
+        migratedImages,
+        skippedImages,
+        failedImages,
+      },
+      ...(failedDetails.length > 0 ? { failures: failedDetails } : {}),
+    });
+  } catch (err) {
+    req.log.error({ err }, "migrate-images error");
+    res.status(500).json({ error: "internal_error", message: "Migration failed" });
   }
 });
 
