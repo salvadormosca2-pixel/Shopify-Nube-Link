@@ -21,11 +21,22 @@ type Coupon = {
   id: number; code: string; discount: number;
   active: boolean; createdAt: string;
 };
+type OrderItem = {
+  productId: number;
+  productName: string;
+  size: string;
+  color: string;
+  quantity: number;
+  price: number;
+};
 type Order = {
   id: number; trackingNumber: string; status: string;
   customerFirstName: string; customerLastName: string;
-  customerEmail: string; customerProvince: string;
-  total: string; createdAt: string; items: unknown[];
+  customerEmail: string; customerPhone: string;
+  customerAddress: string; customerCity: string;
+  customerProvince: string; customerPostalCode: string;
+  total: string; shippingCost: string; createdAt: string;
+  items: OrderItem[];
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1136,14 +1147,57 @@ function OrdersTab({ adminKey }: { adminKey: string }) {
 
             {/* Expanded detail */}
             {expandedId === order.id && (
-              <div className="border-t border-zinc-800 p-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Cliente</p>
-                    <p className="font-medium">{order.customerFirstName} {order.customerLastName}</p>
-                    <p className="text-zinc-400">{order.customerEmail}</p>
-                    <p className="text-zinc-400">{order.customerProvince}</p>
+              <div className="border-t border-zinc-800 p-4 space-y-5 text-sm">
+
+                {/* Customer info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Datos del cliente</p>
+                    <p className="font-semibold text-white">{order.customerFirstName} {order.customerLastName}</p>
+                    <p className="text-zinc-400">📧 {order.customerEmail}</p>
+                    <p className="text-zinc-400">📱 {order.customerPhone}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Dirección de envío</p>
+                    <p className="text-zinc-300">{order.customerAddress}</p>
+                    <p className="text-zinc-400">{order.customerCity}, {order.customerProvince}</p>
+                    <p className="text-zinc-400">CP: {order.customerPostalCode}</p>
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Productos del pedido</p>
+                  <div className="space-y-2">
+                    {order.items.map((item, i) => (
+                      <div key={i} className="flex items-start justify-between gap-3 border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                        <div>
+                          <p className="font-medium text-white">{item.productName}</p>
+                          <p className="text-xs text-zinc-400 mt-0.5">
+                            {item.color && <span className="mr-2">Color: <span className="text-zinc-300">{item.color}</span></span>}
+                            {item.size && <span>Talle: <span className="text-zinc-300">{item.size}</span></span>}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-zinc-300">x{item.quantity}</p>
+                          <p className="text-zinc-400 text-xs">{formatArs(item.price)} c/u</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Totals + date */}
+                <div className="flex flex-wrap justify-between gap-3 border-t border-zinc-800 pt-3">
+                  <div className="space-y-1 text-xs text-zinc-400">
+                    <p>Envío: <span className="text-zinc-300">{formatArs(parseFloat(order.shippingCost))}</span></p>
+                    <p className="text-base font-bold text-white">Total: {formatArs(parseFloat(order.total))}</p>
+                    <p className="text-zinc-500">
+                      {new Date(order.createdAt).toLocaleString("es-AR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+
+                  {/* Status buttons */}
                   <div>
                     <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Cambiar estado</p>
                     <div className="flex flex-wrap gap-2">
@@ -1168,6 +1222,7 @@ function OrdersTab({ adminKey }: { adminKey: string }) {
                     </div>
                   </div>
                 </div>
+
               </div>
             )}
           </div>
