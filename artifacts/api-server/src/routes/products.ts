@@ -55,9 +55,11 @@ router.get("/products", async (req, res) => {
 
 router.get("/products/categories", async (req, res) => {
   try {
-    const results = await db
-      .selectDistinct({ category: productsTable.category })
-      .from(productsTable);
+    const { section } = req.query as Record<string, string>;
+    const query = section
+      ? db.selectDistinct({ category: productsTable.category }).from(productsTable).where(eq(productsTable.section, section))
+      : db.selectDistinct({ category: productsTable.category }).from(productsTable);
+    const results = await query;
     const categories = results.map(r => r.category);
     res.json({ categories });
   } catch (err) {

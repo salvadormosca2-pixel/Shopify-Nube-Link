@@ -227,7 +227,7 @@ export default function Home() {
     { query: { queryKey: getGetProductsQueryKey(queryParams) } }
   );
 
-  const { data: categoriesData } = useGetCategories();
+  const { data: categoriesData } = useGetCategories({ section: "hombre" });
 
   const hasActiveFilters = !!selectedSize || !!effectiveColor || !!debouncedSearch;
 

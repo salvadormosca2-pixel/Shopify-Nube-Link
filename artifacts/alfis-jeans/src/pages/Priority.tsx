@@ -238,7 +238,7 @@ export default function Priority() {
     { query: { queryKey: getGetProductsQueryKey(queryParams) } }
   );
 
-  const { data: categoriesData } = useGetCategories();
+  const { data: categoriesData } = useGetCategories({ section: "priority" });
 
   const hasActiveFilters = !!selectedSize || !!effectiveColor || !!debouncedSearch;
 

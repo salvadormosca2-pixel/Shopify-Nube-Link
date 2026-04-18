@@ -26,6 +26,7 @@ import type {
   CreatePaymentPreferenceRequest,
   CreateReviewRequest,
   ErrorResponse,
+  GetCategoriesParams,
   GetProductsParams,
   GetShippingCostParams,
   HealthStatus,
@@ -222,41 +223,54 @@ export function useGetProducts<
 /**
  * @summary Get available categories
  */
-export const getGetCategoriesUrl = () => {
-  return `/api/products/categories`;
+export const getGetCategoriesUrl = (params?: GetCategoriesParams) => {
+  const normalizedParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+  const stringifiedParams = normalizedParams.toString();
+  return stringifiedParams.length > 0
+    ? `/api/products/categories?${stringifiedParams}`
+    : `/api/products/categories`;
 };
 
 export const getCategories = async (
+  params?: GetCategoriesParams,
   options?: RequestInit,
 ): Promise<CategoriesResponse> => {
-  return customFetch<CategoriesResponse>(getGetCategoriesUrl(), {
+  return customFetch<CategoriesResponse>(getGetCategoriesUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetCategoriesQueryKey = () => {
-  return [`/api/products/categories`] as const;
+export const getGetCategoriesQueryKey = (params?: GetCategoriesParams) => {
+  return [`/api/products/categories`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetCategoriesQueryOptions = <
   TData = Awaited<ReturnType<typeof getCategories>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCategories>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetCategoriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategories>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCategoriesQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetCategoriesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getCategories>>> = ({
     signal,
-  }) => getCategories({ signal, ...requestOptions });
+  }) => getCategories(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getCategories>>,
@@ -277,15 +291,18 @@ export type GetCategoriesQueryError = ErrorType<unknown>;
 export function useGetCategories<
   TData = Awaited<ReturnType<typeof getCategories>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCategories>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCategoriesQueryOptions(options);
+>(
+  params?: GetCategoriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategories>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCategoriesQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

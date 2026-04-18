@@ -197,6 +197,13 @@ export type GetProductsParams = {
   section?: string;
 };
 
+export type GetCategoriesParams = {
+  /**
+   * Filter by section (hombre or priority)
+   */
+  section?: string;
+};
+
 export type GetShippingCostParams = {
   /**
    * Argentine province name
