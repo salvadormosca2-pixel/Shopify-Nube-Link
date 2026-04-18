@@ -484,7 +484,7 @@ function ProductEditModal({
                 type="file"
                 accept="image/webp,image/jpeg,image/png,image/gif,image/heic,image/*"
                 multiple
-                className="hidden"
+                style={{ display: "none" }}
                 onChange={e => { if (e.target.files?.length) uploadFiles(e.target.files); }}
                 data-testid="input-edit-image-file"
               />
