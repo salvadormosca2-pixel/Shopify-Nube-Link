@@ -376,6 +376,17 @@ export default function Home() {
         </motion.div>
       </section>
 
+      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
+      <div id="editorial" className="divide-y divide-zinc-900">
+        {EDITORIAL_SECTIONS.map((section) => (
+          <EditorialSection
+            key={section.id}
+            section={section}
+            onCategoryClick={handleCategoryClick}
+          />
+        ))}
+      </div>
+
       {/* ── MARQUEE ──────────────────────────────────────────────────────────── */}
       <Marquee />
 
@@ -464,17 +475,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
-      <div id="editorial" className="divide-y divide-zinc-900">
-        {EDITORIAL_SECTIONS.map((section) => (
-          <EditorialSection
-            key={section.id}
-            section={section}
-            onCategoryClick={handleCategoryClick}
-          />
-        ))}
-      </div>
 
       {/* ── PRODUCT CATALOG ──────────────────────────────────────────────────── */}
       <section id="coleccion" className="bg-[#0a0a0a] py-24 px-4 scroll-mt-20">
