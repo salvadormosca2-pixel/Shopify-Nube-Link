@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useGetProducts, useGetCategories, getGetProductsQueryKey } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/ProductCard";
 import { Search, SlidersHorizontal, X, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
@@ -209,7 +209,11 @@ function EditorialSection({
 }
 
 export default function Priority() {
-  const [activeCategory, setActiveCategory] = useState<string>("todas");
+  const [, navigate] = useLocation();
+  const searchStr = useSearch();
+  const urlParams = new URLSearchParams(searchStr);
+  const activeCategory = urlParams.get("categoria") ?? "todas";
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedSize, setSelectedSize] = useState<string>("");
@@ -258,7 +262,14 @@ export default function Priority() {
   };
 
   const handleCategoryClick = (cat: string) => {
-    setActiveCategory(cat);
+    const params = new URLSearchParams(searchStr);
+    if (cat === "todas") {
+      params.delete("categoria");
+    } else {
+      params.set("categoria", cat);
+    }
+    const qs = params.toString();
+    navigate(qs ? `/priority?${qs}` : "/priority");
     clearFilters();
   };
 
@@ -450,6 +461,17 @@ export default function Priority() {
         </div>
       </section>
 
+      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
+      <div id="editorial" className="divide-y divide-zinc-900">
+        {EDITORIAL_SECTIONS.map((section) => (
+          <EditorialSection
+            key={section.id}
+            section={section}
+            onCategoryClick={handleCategoryClick}
+          />
+        ))}
+      </div>
+
       {/* ── PRODUCT CATALOG ──────────────────────────────────────────────────── */}
       <section id="coleccion" className="bg-[#0a0a0a] py-24 px-4 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
@@ -603,17 +625,6 @@ export default function Priority() {
 
       {/* ── MARQUEE 2 ────────────────────────────────────────────────────────── */}
       <Marquee />
-
-      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
-      <div id="editorial" className="divide-y divide-zinc-900">
-        {EDITORIAL_SECTIONS.map((section) => (
-          <EditorialSection
-            key={section.id}
-            section={section}
-            onCategoryClick={handleCategoryClick}
-          />
-        ))}
-      </div>
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
       <section className="relative h-[60vh] min-h-[400px] bg-black flex items-center justify-center">
