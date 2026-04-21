@@ -51,7 +51,23 @@ const VALUES = [
   { num: "100%", label: "Marca argentina" },
 ];
 
-const EDITORIAL_SECTIONS = [
+type EditorialSectionData = {
+  id: string;
+  number: string;
+  label: string;
+  title: string;
+  body?: string;
+  cta: string;
+  category: string;
+  cta2?: string;
+  category2?: string;
+  image?: string;
+  video?: string;
+  accent: string;
+  align: "left" | "right";
+};
+
+const EDITORIAL_SECTIONS: EditorialSectionData[] = [
   {
     id: "denim",
     number: "01",
@@ -62,7 +78,7 @@ const EDITORIAL_SECTIONS = [
     category: "Pantalones",
     image: `${BASE}/denim-puro.jpg`,
     accent: "#e8d5b7",
-    align: "left" as const,
+    align: "left",
   },
   {
     id: "urban",
@@ -74,9 +90,9 @@ const EDITORIAL_SECTIONS = [
     category: "Buzos",
     cta2: "Ver Pantalones",
     category2: "Pantalones",
-    video: "/urban-buzos.mp4",
+    video: `${BASE}/urban-buzos.mp4`,
     accent: "#c9d6df",
-    align: "right" as const,
+    align: "right",
   },
   {
     id: "temporada",
@@ -88,7 +104,7 @@ const EDITORIAL_SECTIONS = [
     category: "Tapados",
     image: `${BASE}/abrigos-1.jpg`,
     accent: "#d4b896",
-    align: "left" as const,
+    align: "left",
   },
 ];
 
@@ -119,7 +135,7 @@ function EditorialSection({
   section,
   onCategoryClick,
 }: {
-  section: typeof EDITORIAL_SECTIONS[number];
+  section: EditorialSectionData;
   onCategoryClick: (cat: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -132,7 +148,7 @@ function EditorialSection({
       <div
         className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
       >
-        {"video" in section && section.video ? (
+        {section.video ? (
           <video
             src={section.video}
             autoPlay
@@ -143,7 +159,7 @@ function EditorialSection({
           />
         ) : (
           <motion.img
-            src={(section as { image: string }).image}
+            src={section.image}
             alt={section.label}
             className="absolute inset-0 w-full h-full object-cover"
             initial={{ scale: 1.08 }}
@@ -189,7 +205,7 @@ function EditorialSection({
           {section.title}
         </motion.h2>
 
-        {"body" in section && section.body && (
+        {section.body && (
           <motion.p
             className="text-sm text-zinc-400 leading-relaxed mb-8 max-w-xs"
             initial={{ opacity: 0, y: 10 }}
@@ -217,12 +233,12 @@ function EditorialSection({
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </button>
 
-          {"cta2" in section && section.cta2 && "category2" in section && section.category2 && (
+          {section.cta2 && section.category2 && (
             <>
-              <div className="w-8 h-px bg-zinc-800 my-4" />
+              <div className="w-8 h-px bg-zinc-700 mt-5 mb-4" />
               <button
                 onClick={() => {
-                  onCategoryClick(section.category2 as string);
+                  onCategoryClick(section.category2!);
                   document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-500 border-b border-zinc-800 pb-1 hover:text-white hover:border-zinc-600 transition-colors duration-300 group"
