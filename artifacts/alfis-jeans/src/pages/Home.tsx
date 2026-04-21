@@ -51,16 +51,15 @@ const VALUES = [
   { num: "100%", label: "Marca argentina" },
 ];
 
+type EditorialCta = { label: string; category: string };
+
 type EditorialSectionData = {
   id: string;
   number: string;
   label: string;
   title: string;
   body?: string;
-  cta: string;
-  category: string;
-  cta2?: string;
-  category2?: string;
+  ctas: EditorialCta[];
   image?: string;
   video?: string;
   accent: string;
@@ -74,8 +73,7 @@ const EDITORIAL_SECTIONS: EditorialSectionData[] = [
     label: "DENIM PURO",
     title: "Sin\nConcesiones.",
     body: "Denim de alta resistencia con corte urbano. Cada costura pensada para durar.",
-    cta: "Ver Pantalones",
-    category: "Pantalones",
+    ctas: [{ label: "Ver Pantalones", category: "Pantalones" }],
     image: `${BASE}/denim-puro.jpg`,
     accent: "#e8d5b7",
     align: "left",
@@ -85,11 +83,12 @@ const EDITORIAL_SECTIONS: EditorialSectionData[] = [
     number: "02",
     label: "URBAN STYLE",
     title: "Hecho para\nla calle.",
-    body: "Buzos y pantalones con actitud. El combo que define tu look en cada salida.",
-    cta: "Ver Buzos",
-    category: "Buzos",
-    cta2: "Ver Pantalones",
-    category2: "Pantalones",
+    body: "Buzos, remeras y pantalones con actitud. El combo que define tu look en cada salida.",
+    ctas: [
+      { label: "Ver Buzos", category: "Buzos" },
+      { label: "Ver Remeras", category: "Remeras" },
+      { label: "Ver Pantalones", category: "Pantalones" },
+    ],
     video: `${BASE}/urban-buzos.mp4`,
     accent: "#c9d6df",
     align: "right",
@@ -99,9 +98,11 @@ const EDITORIAL_SECTIONS: EditorialSectionData[] = [
     number: "03",
     label: "TEMPORADA",
     title: "Abrigos que\nimpactan.",
-    body: "Tapados y sweaters de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
-    cta: "Ver Tapados",
-    category: "Tapados",
+    body: "Suéteres y camperas de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
+    ctas: [
+      { label: "Ver Suéteres", category: "Suéteres" },
+      { label: "Ver Camperas", category: "Camperas" },
+    ],
     image: `${BASE}/abrigos-1.jpg`,
     accent: "#d4b896",
     align: "left",
@@ -222,32 +223,25 @@ function EditorialSection({
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <button
-            onClick={() => {
-              onCategoryClick(section.category);
-              document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-white border-b border-zinc-700 pb-1 hover:border-white transition-colors duration-300 group"
-          >
-            {section.cta}
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </button>
-
-          {section.cta2 && section.category2 && (
-            <>
-              <div className="w-8 h-px bg-zinc-700 mt-5 mb-4" />
+          {section.ctas.map((cta, index) => (
+            <div key={cta.category}>
+              {index > 0 && <div className="w-8 h-px bg-zinc-700 mt-5 mb-4" />}
               <button
                 onClick={() => {
-                  onCategoryClick(section.category2!);
+                  onCategoryClick(cta.category);
                   document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-500 border-b border-zinc-800 pb-1 hover:text-white hover:border-zinc-600 transition-colors duration-300 group"
+                className={`inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] border-b pb-1 transition-colors duration-300 group ${
+                  index === 0
+                    ? "text-white border-zinc-700 hover:border-white"
+                    : "text-zinc-500 border-zinc-800 hover:text-white hover:border-zinc-600"
+                }`}
               >
-                {section.cta2}
+                {cta.label}
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </button>
-            </>
-          )}
+            </div>
+          ))}
         </motion.div>
       </div>
     </div>
