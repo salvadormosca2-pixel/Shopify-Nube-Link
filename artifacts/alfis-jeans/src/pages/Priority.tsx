@@ -660,7 +660,7 @@ export default function Priority() {
             transition={{ delay: 0.4 }}
           >
             <a
-              href="https://wa.me/5493834000000?text=Hola!%20Quiero%20consultar%20sobre%20la%20colección%20Priority%20de%20Alfis%20Jeans."
+              href="https://wa.me/5493834330385?text=Hola!%20Quiero%20consultar%20sobre%20la%20colección%20Priority%20de%20Alfis%20Jeans."
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-white text-black px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] hover:bg-zinc-100 transition-colors"

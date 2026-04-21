@@ -5,7 +5,7 @@ import { Footer } from "./Footer";
 import { Lock, Truck, MessageCircle } from "lucide-react";
 
 const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
-const WHATSAPP_URL = `https://wa.me/5493834000000?text=${WHATSAPP_MSG}`;
+const WHATSAPP_URL = `https://wa.me/5493834330385?text=${WHATSAPP_MSG}`;
 
 const TRUST_ITEMS = [
   {
