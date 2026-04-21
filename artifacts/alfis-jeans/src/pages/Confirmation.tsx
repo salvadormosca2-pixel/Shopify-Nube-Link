@@ -43,10 +43,10 @@ export default function Confirmation() {
         <div className="border-l-4 border-yellow-500 bg-yellow-500/10 p-4 mb-0 flex items-start gap-3 text-left">
           <AlertTriangle className="h-6 w-6 text-yellow-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-yellow-500">
+            <p className="text-base md:text-lg font-bold uppercase tracking-wider text-yellow-400">
               No pierdas este código
             </p>
-            <p className="text-xs text-yellow-100/80 mt-1">
+            <p className="text-sm text-yellow-50 mt-1">
               Lo vas a necesitar para hacer el seguimiento de tu pedido.
             </p>
           </div>
