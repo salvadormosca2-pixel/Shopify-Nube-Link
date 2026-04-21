@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
-import { eq, ilike, and, ne, sql, type SQL } from "drizzle-orm";
+import { eq, ilike, and, ne, or, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -16,7 +16,14 @@ router.get("/products", async (req, res) => {
     }
 
     if (category) {
-      conditions.push(sql`LOWER(${productsTable.category}) = LOWER(${category})`);
+      const cats = category.split(",").map(c => c.trim()).filter(Boolean);
+      if (cats.length === 1) {
+        conditions.push(sql`LOWER(${productsTable.category}) = LOWER(${cats[0]})`);
+      } else if (cats.length > 1) {
+        const orConds = cats.map(c => sql`LOWER(${productsTable.category}) = LOWER(${c})`);
+        const combined = or(...orConds);
+        if (combined) conditions.push(combined);
+      }
     }
 
     if (search) {

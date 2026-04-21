@@ -40,7 +40,7 @@ const CATEGORIES_GRID: CategoryGridItem[] = [
   },
   {
     label: "Abrigos",
-    tag: "Abrigos Mujer",
+    tag: "Buzos,Camperas",
     image: "/cat-abrigos.jpg",
     objectPos: "center 20%",
     studio: true,
