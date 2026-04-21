@@ -316,32 +316,35 @@ export default function Home() {
           className="relative z-10 w-full px-6 md:px-12"
           style={{ opacity: heroOpacity }}
         >
-          <motion.p
-            className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
+          <motion.div
+            className="flex items-center gap-4 mb-5"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Colección Hombre
-          </motion.p>
+            <div className="w-8 h-px bg-white/40" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50">
+              Colección Hombre
+            </span>
+          </motion.div>
 
           <motion.h1
-            className="font-black uppercase text-white leading-[0.85] tracking-tighter mb-2"
-            style={{ fontSize: "clamp(4.5rem, 14vw, 11rem)" }}
+            className="font-black uppercase text-white leading-[0.82] tracking-tighter mb-1"
+            style={{ fontSize: "clamp(5rem, 16vw, 13rem)" }}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            ACTITUD
+            ALFIS
           </motion.h1>
           <motion.h1
-            className="font-black uppercase text-white/30 leading-[0.85] tracking-tighter mb-8"
-            style={{ fontSize: "clamp(4.5rem, 14vw, 11rem)" }}
+            className="font-black uppercase leading-[0.82] tracking-tighter mb-8"
+            style={{ fontSize: "clamp(5rem, 16vw, 13rem)", WebkitTextStroke: "1px rgba(255,255,255,0.35)", color: "transparent" }}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            URBANA.
+            JEANS.
           </motion.h1>
 
           <motion.div
