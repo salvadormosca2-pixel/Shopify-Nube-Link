@@ -16,7 +16,7 @@ router.get("/products", async (req, res) => {
     }
 
     if (category) {
-      conditions.push(eq(productsTable.category, category));
+      conditions.push(sql`LOWER(${productsTable.category}) = LOWER(${category})`);
     }
 
     if (search) {

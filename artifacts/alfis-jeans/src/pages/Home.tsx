@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import imgPantalones from "@assets/11682_7_1776277692687.jpg";
 import imgRemeras from "@assets/33433_10_1776277692687.jpg";
 import imgCamperas from "@assets/16221_12_1776277692686.jpg";
-import imgBuzos from "@assets/40109_7_1775932999343.jpg";
+import imgBuzos from "@assets/15513_17_1776794372730.jpg";
 import heroImg from "@assets/ALFIES-PRIORITY_11-03-2612666_1776366025116.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
