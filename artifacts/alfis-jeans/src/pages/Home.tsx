@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import imgPantalones from "@assets/11682_7_1776277692687.jpg";
 import imgRemeras from "@assets/33433_10_1776277692687.jpg";
 import imgCamperas from "@assets/16221_12_1776277692686.jpg";
+import imgBuzos from "@assets/40109_7_1775932999343.jpg";
 import heroImg from "@assets/ALFIES-PRIORITY_11-03-2612666_1776366025116.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -40,6 +41,13 @@ const CATEGORIES_GRID = [
     tag: "Camperas",
     image: imgCamperas,
     objectPos: "center top",
+    studio: true,
+  },
+  {
+    label: "Buzos",
+    tag: "Buzos",
+    image: imgBuzos,
+    objectPos: "center 15%",
     studio: true,
   },
 ];
@@ -144,10 +152,10 @@ function EditorialSection({
   const isLeft = section.align === "left";
 
   return (
-    <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 min-h-[700px] overflow-hidden">
+    <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 md:min-h-[700px] overflow-hidden">
       {/* Media side */}
       <div
-        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
+        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[300px] md:min-h-0`}
       >
         {section.video ? (
           <video
@@ -183,12 +191,12 @@ function EditorialSection({
 
       {/* Text side */}
       <div
-        className={`bg-black flex flex-col justify-center px-10 py-16 md:px-16 ${
+        className={`bg-black flex flex-col justify-center px-7 py-10 md:px-16 md:py-16 ${
           isLeft ? "md:order-2" : "md:order-1"
         }`}
       >
         <motion.p
-          className="text-[10px] font-bold uppercase tracking-[0.4em] mb-6"
+          className="text-[10px] font-bold uppercase tracking-[0.4em] mb-4 md:mb-6"
           style={{ color: section.accent }}
           initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
           animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isLeft ? -20 : 20 }}
@@ -198,7 +206,7 @@ function EditorialSection({
         </motion.p>
 
         <motion.h2
-          className="text-5xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter mb-6 whitespace-pre-line"
+          className="text-4xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter mb-4 md:mb-6 whitespace-pre-line"
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
@@ -208,7 +216,7 @@ function EditorialSection({
 
         {section.body && (
           <motion.p
-            className="text-sm text-zinc-400 leading-relaxed mb-8 max-w-xs"
+            className="text-sm text-zinc-400 leading-relaxed mb-6 md:mb-8 max-w-xs"
             initial={{ opacity: 0, y: 10 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.5, delay: 0.35 }}
@@ -464,14 +472,14 @@ export default function Home() {
       </section>
 
       {/* ── CATEGORY GRID ─────────────────────────────────────────────────────── */}
-      <section className="bg-black py-20 px-4">
+      <section className="bg-black py-12 md:py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-10">
+          <div className="flex items-end justify-between mb-6 md:mb-10">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-2">
                 Alfis Jeans — Hombre
               </p>
-              <h2 className="text-3xl md:text-4xl font-black uppercase text-white tracking-tighter">
+              <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">
                 Encontrá tu estilo
               </h2>
             </div>
@@ -483,7 +491,7 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
             {CATEGORIES_GRID.map((cat, i) => (
               <motion.button
                 key={cat.label}
@@ -531,14 +539,14 @@ export default function Home() {
       </section>
 
       {/* ── PRODUCT CATALOG ──────────────────────────────────────────────────── */}
-      <section id="coleccion" className="bg-[#0a0a0a] py-24 px-4 scroll-mt-20">
+      <section id="coleccion" className="bg-[#0a0a0a] py-14 md:py-24 px-4 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           {/* Heading */}
-          <div className="mb-12">
+          <div className="mb-8 md:mb-12">
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-3">
               Alfis Jeans — Catamarca
             </p>
-            <h2 className="text-6xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-4">
+            <h2 className="text-4xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-4">
               La Colección
             </h2>
             <div className="w-12 h-0.5 bg-white mb-8" />
@@ -694,8 +702,8 @@ export default function Home() {
       <Marquee />
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
-      <section className="relative h-[60vh] min-h-[400px] bg-black flex items-center justify-center">
-        <div className="relative z-10 text-center px-4">
+      <section className="relative min-h-[420px] md:h-[60vh] bg-black flex items-center justify-center py-16 md:py-0">
+        <div className="relative z-10 text-center px-6">
           <motion.p
             className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
             initial={{ opacity: 0, y: 10 }}
@@ -705,7 +713,7 @@ export default function Home() {
             Alfis Jeans — Catamarca
           </motion.p>
           <motion.h2
-            className="text-5xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-6"
+            className="text-4xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-6"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
