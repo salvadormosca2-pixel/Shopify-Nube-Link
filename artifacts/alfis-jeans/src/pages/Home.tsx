@@ -262,6 +262,12 @@ export default function Home() {
   useEffect(() => {
     setSearch(urlQuery);
     setDebouncedSearch(urlQuery);
+    if (urlQuery) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById("coleccion");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }, [urlQuery]);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
