@@ -35,9 +35,9 @@ export function Footer() {
           <h4 className="font-bold mb-4">Contacto</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>hola@alfisjeans.com.ar</li>
-            <li>+54 9 383 4123456</li>
-            <li>San Martín 123, K5000</li>
-            <li>Catamarca, Argentina</li>
+            <li>+54 9 3834 33-0385</li>
+            <li>Rivadavia 817, K4700</li>
+            <li>San Fernando del Valle de Catamarca</li>
           </ul>
         </div>
       </div>

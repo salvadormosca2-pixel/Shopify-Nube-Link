@@ -1,4 +1,4 @@
-import { MapPin, Phone, Clock, MessageCircle, Mail } from "lucide-react";
+import { MapPin, Clock, MessageCircle, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 
 const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
@@ -8,12 +8,7 @@ const INFO_ITEMS = [
   {
     icon: <MapPin className="h-5 w-5" />,
     title: "Ubicación",
-    lines: ["San Martín 123, K5000", "Catamarca, Argentina"],
-  },
-  {
-    icon: <Phone className="h-5 w-5" />,
-    title: "Teléfono",
-    lines: ["+54 9 383 4123456"],
+    lines: ["Rivadavia 817, K4700", "San Fernando del Valle de Catamarca"],
   },
   {
     icon: <MessageCircle className="h-5 w-5" />,
@@ -86,8 +81,8 @@ export default function Contact() {
           <div className="border border-border overflow-hidden" data-testid="contact-map">
             <p className="text-xs font-bold uppercase tracking-wider p-3 border-b border-border">Encontranos aquí</p>
             <iframe
-              title="Alfis Jeans Catamarca — San Martín 123"
-              src="https://maps.google.com/maps?q=San+Mart%C3%ADn+123,+K5000+Catamarca,+Argentina&z=17&output=embed"
+              title="Alfis Jeans Catamarca — Rivadavia 817"
+              src="https://www.google.com/maps?q=ALFIS+JEANS+Rivadavia+817+Catamarca&output=embed"
               width="100%"
               height="260"
               style={{ border: 0 }}
@@ -96,7 +91,7 @@ export default function Contact() {
               allowFullScreen
             />
             <a
-              href="https://www.google.com/maps/dir//Alfis+Jeans,+San+Mart%C3%ADn+123,+K5000+Catamarca,+Argentina"
+              href="https://share.google/YfTtZHDwOqtyfDBxK"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2.5 border-t border-border text-xs font-bold uppercase tracking-wider hover:bg-muted transition-colors"
