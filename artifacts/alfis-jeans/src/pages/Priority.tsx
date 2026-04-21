@@ -425,7 +425,9 @@ export default function Priority() {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div
+            className="flex gap-4 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {CATEGORIES_GRID.map((cat, i) => (
               <motion.button
                 key={cat.label}
@@ -433,37 +435,31 @@ export default function Priority() {
                   handleCategoryClick(cat.tag);
                   document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="group relative overflow-hidden aspect-[3/4] block text-left"
+                className="group relative shrink-0 snap-start w-[68%] sm:w-[42%] md:w-[300px] lg:w-[340px] text-center"
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.55, delay: i * 0.1 }}
+                transition={{ duration: 0.55, delay: i * 0.08 }}
               >
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  style={{ objectPosition: cat.objectPos }}
-                />
-                {cat.studio && (
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "radial-gradient(ellipse 80% 85% at 50% 40%, transparent 35%, rgba(0,0,0,0.5) 65%, rgba(0,0,0,0.92) 90%)",
-                    }}
+                <div className="relative overflow-hidden rounded-3xl aspect-[4/5] bg-zinc-900 ring-1 ring-white/10 transition-all duration-500 group-hover:ring-white/40 group-hover:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.15)]">
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
+                    style={{ objectPosition: cat.objectPos }}
                   />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <p className="text-white font-black text-lg uppercase tracking-tight">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />
+                </div>
+                <div className="pt-4 pb-1">
+                  <p className="text-white font-bold text-base md:text-lg uppercase tracking-[0.18em]">
                     {cat.label}
                   </p>
-                  <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                  <div className="flex items-center justify-center gap-1.5 mt-1.5 text-zinc-500 group-hover:text-white transition-colors duration-300">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.25em]">
                       Ver todo
                     </span>
-                    <ArrowUpRight className="h-3 w-3 text-white/60" />
+                    <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </div>
                 </div>
               </motion.button>
