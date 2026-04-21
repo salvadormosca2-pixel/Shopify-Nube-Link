@@ -27,7 +27,20 @@ router.get("/products", async (req, res) => {
     }
 
     if (search) {
-      conditions.push(ilike(productsTable.name, `%${search}%`));
+      const tokens = search.split(/\s+/).map(t => t.trim()).filter(Boolean);
+      const tokenConds = tokens.map(tok => {
+        const like = `%${tok}%`;
+        const o = or(
+          ilike(productsTable.name, like),
+          ilike(productsTable.category, like),
+          ilike(productsTable.description, like),
+        );
+        return o;
+      }).filter((c): c is SQL => !!c);
+      if (tokenConds.length > 0) {
+        const combined = and(...tokenConds);
+        if (combined) conditions.push(combined);
+      }
     }
 
     if (size) {

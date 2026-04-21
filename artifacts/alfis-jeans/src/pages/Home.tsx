@@ -254,9 +254,15 @@ export default function Home() {
   const searchStr = useSearch();
   const urlParams = new URLSearchParams(searchStr);
   const activeCategory = urlParams.get("categoria") ?? "todos";
+  const urlQuery = urlParams.get("q") ?? "";
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(urlQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(urlQuery);
+
+  useEffect(() => {
+    setSearch(urlQuery);
+    setDebouncedSearch(urlQuery);
+  }, [urlQuery]);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);

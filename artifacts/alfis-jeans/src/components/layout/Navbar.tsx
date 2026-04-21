@@ -1,9 +1,65 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Menu, X, Package, ChevronRight } from "lucide-react";
+import { ShoppingBag, Menu, X, Package, ChevronRight, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 import { Badge } from "@/components/ui/badge";
+
+function SearchBar({ variant = "desktop", onDone }: { variant?: "desktop" | "mobile"; onDone?: () => void }) {
+  const [, navigate] = useLocation();
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (variant === "mobile") {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [variant]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = value.trim();
+    if (!q) return;
+    navigate(`/?q=${encodeURIComponent(q)}`);
+    onDone?.();
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className={
+        variant === "desktop"
+          ? "hidden md:flex items-center w-full max-w-sm h-10 border border-zinc-700 bg-zinc-900/60 focus-within:border-zinc-400 focus-within:bg-zinc-900 transition-colors"
+          : "flex items-center w-full h-11 border border-zinc-700 bg-zinc-900 focus-within:border-zinc-400 transition-colors"
+      }
+      role="search"
+      data-testid={`searchbar-${variant}`}
+    >
+      <Search className="h-4 w-4 text-zinc-500 ml-3 shrink-0" />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Buscar remera, jean, Versace…"
+        className="flex-1 h-full bg-transparent px-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+        autoComplete="off"
+        data-testid={`input-search-${variant}`}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => setValue("")}
+          aria-label="Limpiar"
+          className="px-2 text-zinc-500 hover:text-zinc-300"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </form>
+  );
+}
 
 function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, navigate] = useLocation();
@@ -123,14 +179,15 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 export function Navbar() {
   const { totalItems } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   return (
     <>
       <MobileDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4 shrink-0">
             <button
               className="md:hidden p-2 -ml-2 text-foreground hover:text-primary transition-colors"
               onClick={() => setMenuOpen(true)}
@@ -162,7 +219,23 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Desktop search bar */}
+          <div className="flex-1 hidden md:flex justify-center max-w-md mx-auto">
+            <SearchBar variant="desktop" />
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <button
+              type="button"
+              className="md:hidden p-2 text-foreground hover:text-primary transition-colors"
+              onClick={() => setMobileSearchOpen((v) => !v)}
+              aria-label="Buscar"
+              aria-expanded={mobileSearchOpen}
+              data-testid="button-mobile-search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
             <Link
               href="/seguimiento"
               className="hidden sm:flex items-center gap-2 hover:text-primary/80 transition-colors text-sm font-medium"
@@ -182,6 +255,24 @@ export function Navbar() {
             </Link>
           </div>
         </div>
+
+        {/* Mobile search bar (expandable) */}
+        <AnimatePresence initial={false}>
+          {mobileSearchOpen && (
+            <motion.div
+              key="mobile-search"
+              className="md:hidden overflow-hidden border-t border-border/50 bg-background"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              <div className="container mx-auto px-4 py-3">
+                <SearchBar variant="mobile" onDone={() => setMobileSearchOpen(false)} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
     </>
   );
