@@ -69,10 +69,12 @@ const EDITORIAL_SECTIONS = [
     number: "02",
     label: "URBAN STYLE",
     title: "Hecho para\nla calle.",
-    body: "Buzos, remeras y sweaters con actitud. Prendas que hablan antes que vos.",
-    cta: "Ver Remeras",
-    category: "Remeras",
-    image: "https://images.unsplash.com/photo-1516826957135-700dedea698c?w=1200&q=90&fit=crop",
+    body: "Buzos y pantalones con actitud. El combo que define tu look en cada salida.",
+    cta: "Ver Buzos",
+    category: "Buzos",
+    cta2: "Ver Pantalones",
+    category2: "Pantalones",
+    video: "/urban-buzos.mp4",
     accent: "#c9d6df",
     align: "right" as const,
   },
@@ -126,19 +128,30 @@ function EditorialSection({
 
   return (
     <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 min-h-[700px] overflow-hidden">
-      {/* Image side */}
+      {/* Media side */}
       <div
         className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[420px] md:min-h-0`}
       >
-        <motion.img
-          src={section.image}
-          alt={section.label}
-          className="absolute inset-0 w-full h-full object-cover"
-          initial={{ scale: 1.08 }}
-          animate={isInView ? { scale: 1 } : { scale: 1.08 }}
-          transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        {"video" in section && section.video ? (
+          <video
+            src={section.video}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <motion.img
+            src={(section as { image: string }).image}
+            alt={section.label}
+            className="absolute inset-0 w-full h-full object-cover"
+            initial={{ scale: 1.08 }}
+            animate={isInView ? { scale: 1 } : { scale: 1.08 }}
+            transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <motion.div
           className="absolute bottom-6 left-6"
           initial={{ opacity: 0, y: 10 }}
@@ -176,7 +189,19 @@ function EditorialSection({
           {section.title}
         </motion.h2>
 
+        {"body" in section && section.body && (
+          <motion.p
+            className="text-sm text-zinc-400 leading-relaxed mb-8 max-w-xs"
+            initial={{ opacity: 0, y: 10 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            {section.body}
+          </motion.p>
+        )}
+
         <motion.div
+          className="flex flex-col items-start gap-0"
           initial={{ opacity: 0, y: 10 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.5, delay: 0.5 }}
@@ -191,6 +216,22 @@ function EditorialSection({
             {section.cta}
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </button>
+
+          {"cta2" in section && section.cta2 && "category2" in section && section.category2 && (
+            <>
+              <div className="w-8 h-px bg-zinc-800 my-4" />
+              <button
+                onClick={() => {
+                  onCategoryClick(section.category2 as string);
+                  document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-500 border-b border-zinc-800 pb-1 hover:text-white hover:border-zinc-600 transition-colors duration-300 group"
+              >
+                {section.cta2}
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+              </button>
+            </>
+          )}
         </motion.div>
       </div>
     </div>
