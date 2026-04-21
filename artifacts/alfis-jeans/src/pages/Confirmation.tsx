@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Package, ArrowRight } from "lucide-react";
+import { CheckCircle2, Package, ArrowRight, AlertTriangle, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Confirmation() {
@@ -15,8 +15,8 @@ export default function Confirmation() {
       >
         <CheckCircle2 className="h-24 w-24 text-primary mb-8" />
       </motion.div>
-      
-      <motion.h1 
+
+      <motion.h1
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
@@ -24,33 +24,66 @@ export default function Confirmation() {
       >
         ¡Pago Exitoso!
       </motion.h1>
-      
-      <motion.p 
+
+      <motion.p
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
         className="text-xl text-muted-foreground mb-12 max-w-lg"
       >
-        Tu orden ha sido confirmada y ya estamos preparándola para el envío.
+        ¡Gracias por tu compra! Ya recibimos tu pedido.
       </motion.p>
 
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="border border-border bg-card p-8 w-full max-w-md mb-12"
+        className="w-full max-w-md mb-6"
       >
-        <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">Código de Seguimiento</p>
-        <p className="text-3xl font-display font-bold tracking-widest">{trackingNumber}</p>
-        <p className="text-xs text-muted-foreground mt-4">
-          Guardá este código. Te lo hemos enviado por email también.
-        </p>
+        <div className="border-l-4 border-yellow-500 bg-yellow-500/10 p-4 mb-0 flex items-start gap-3 text-left">
+          <AlertTriangle className="h-6 w-6 text-yellow-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold uppercase tracking-wider text-yellow-500">
+              No pierdas este código
+            </p>
+            <p className="text-xs text-yellow-100/80 mt-1">
+              Lo vas a necesitar para hacer el seguimiento de tu pedido.
+            </p>
+          </div>
+        </div>
+        <div className="border border-t-0 border-border bg-card p-8">
+          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            Código de Seguimiento
+          </p>
+          <p className="text-3xl font-display font-bold tracking-widest break-all" data-testid="text-tracking-code">
+            {trackingNumber}
+          </p>
+        </div>
       </motion.div>
 
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5 }}
+        className="w-full max-w-md mb-12 border border-green-500/40 bg-green-500/5 p-6 flex items-start gap-4 text-left"
+      >
+        <MessageCircle className="h-7 w-7 text-green-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-base font-bold uppercase tracking-wider text-green-400 mb-2">
+            Te contactamos por WhatsApp
+          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            En las próximas horas vas a recibir un mensaje en WhatsApp para
+            confirmar tu compra. Ahí también te enviaremos el código de
+            seguimiento del Correo Argentino para que rastrees tu envío.
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.6 }}
         className="flex flex-col sm:flex-row gap-4"
       >
         <Button asChild size="lg" variant="outline" className="h-14 px-8 rounded-none font-bold uppercase" data-testid="button-track-order">
