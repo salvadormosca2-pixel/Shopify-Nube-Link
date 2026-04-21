@@ -403,10 +403,26 @@ function ProductEditModal({
                 className={inputCls} data-testid="input-edit-price" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Stock</label>
+              <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Stock total</label>
               <Input type="number" min="0" value={form.stock}
                 onChange={e => set("stock", e.target.value)}
                 className={inputCls} data-testid="input-edit-stock" />
+              {(() => {
+                const total = parseInt(form.stock, 10);
+                const n = form.sizes.length;
+                if (!isNaN(total) && total > 0 && n > 0) {
+                  const perSize = total / n;
+                  const isExact = Number.isInteger(perSize);
+                  return (
+                    <p className="text-xs text-zinc-500">
+                      {isExact
+                        ? `≈ ${perSize} por talle (${n} talles)`
+                        : `≈ ${perSize.toFixed(1)} por talle (${n} talles)`}
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
 
@@ -535,6 +551,9 @@ function ProductEditModal({
           {/* Talles */}
           <div className="space-y-2">
             <label className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Talles disponibles</label>
+            <p className="text-[11px] text-zinc-500 leading-relaxed">
+              Si te quedás sin un talle puntual, simplemente desmarcalo acá y dejará de aparecer en la tienda.
+            </p>
             <div className="flex flex-wrap gap-2">
               {COMMON_SIZES.map(size => (
                 <button key={size} type="button" onClick={() => toggleSize(size)}
