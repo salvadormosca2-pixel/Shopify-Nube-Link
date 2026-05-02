@@ -1,0 +1,12 @@
+[build]
+  base    = "artifacts/alfis-jeans"
+  command = "pnpm run build"
+  publish = "dist/public"
+
+[build.environment]
+  VITE_API_URL = "https://workspaceapi-server-production-1cab.up.railway.app"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
