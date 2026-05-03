@@ -4,7 +4,7 @@
   publish = "dist/public"
 
 [build.environment]
-  VITE_API_URL = "https://workspaceapi-server-production-1cab.up.railway.app"
+  VITE_API_URL = "https://workspacealfis-jeans-production.up.railway.app"
 
 [[redirects]]
   from   = "/*"
