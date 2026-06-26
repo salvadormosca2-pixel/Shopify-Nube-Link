@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "wouter";
 import { formatArs } from "@/lib/utils";
 import type { Product } from "@workspace/api-client-react";
@@ -5,7 +6,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 
-export function ProductCard({ product }: { product: Product }) {
+export const ProductCard = memo(function ProductCard({ product }: { product: Product }) {
   const discountPct =
     product.salePrice != null
       ? Math.round((1 - product.salePrice / product.price) * 100)
@@ -13,15 +14,14 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
-      className="group relative flex flex-col"
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative flex flex-col product-card-glow"
       data-testid={`card-product-${product.id}`}
     >
       <Link href={`/productos/${product.id}`}>
-        {/* Image container */}
-        <div className="relative overflow-hidden bg-zinc-900">
+        <div className="product-card-img relative overflow-hidden bg-[hsl(var(--card))] border border-transparent group-hover:border-foreground/10 transition-[border-color] duration-500">
           <AspectRatio ratio={3 / 4}>
             <img
               src={
@@ -29,70 +29,60 @@ export function ProductCard({ product }: { product: Product }) {
                 "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80"
               }
               alt={product.name}
-              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
+              className="img-enhance object-cover w-full h-full transition-all duration-[800ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.06]"
               loading="lazy"
             />
 
-            {/* Dark gradient at bottom for text legibility on hover */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-500" />
 
-            {/* Hover CTA */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-400 ease-out">
-              <div className="flex items-center justify-between">
-                <span className="text-white text-xs font-bold uppercase tracking-[0.2em]">
-                  Ver Prenda
-                </span>
-                <ArrowUpRight className="h-4 w-4 text-white" />
-              </div>
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-400">
+              <span className="btn-fill-border border border-white/80 bg-transparent text-white px-7 py-3 text-xs font-medium tracking-[0.15em] uppercase flex items-center gap-2.5 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                Ver Prenda
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </span>
             </div>
           </AspectRatio>
 
-          {/* Badges */}
           {product.stock <= 0 && (
-            <div className="absolute top-3 left-3 bg-zinc-700 text-zinc-300 text-[10px] font-black px-2 py-0.5 uppercase tracking-widest">
-              Sin stock
+            <div className="absolute top-3 left-3 bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[10px] font-medium px-3 py-1 tracking-wider uppercase">
+              Agotado
             </div>
           )}
           {product.stock > 0 && discountPct != null && (
-            <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-black px-2 py-0.5 uppercase tracking-widest">
+            <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-semibold px-3 py-1 tracking-wider">
               -{discountPct}%
             </div>
           )}
           {product.stock > 0 && discountPct == null && product.featured && (
-            <div className="absolute top-3 left-3 border border-white/60 text-white text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest backdrop-blur-sm">
+            <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-medium px-3 py-1 tracking-wider uppercase">
               Nuevo
             </div>
           )}
         </div>
 
-        {/* Info block */}
-        <div className="pt-4 pb-1 border-b border-border/40 group-hover:border-foreground/60 transition-colors duration-300">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-1.5">
-                {product.category}
-              </p>
-              <h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-200">
-                {product.name}
-              </h3>
-            </div>
-            <div className="flex-shrink-0 text-right pt-5">
-              {product.salePrice != null ? (
-                <div>
-                  <p className="font-bold text-sm text-white">
-                    {formatArs(product.salePrice)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground line-through">
-                    {formatArs(product.price)}
-                  </p>
-                </div>
-              ) : (
-                <p className="font-bold text-sm">{formatArs(product.price)}</p>
-              )}
-            </div>
+        <div className="pt-4 pb-2">
+          <p className="text-[11px] font-light tracking-wider text-[hsl(var(--muted-foreground))] mb-1 uppercase">
+            {product.category}
+          </p>
+          <h3 className="font-display text-base md:text-lg tracking-wide leading-snug line-clamp-2 text-foreground group-hover:text-foreground/70 transition-colors duration-300">
+            {product.name}
+          </h3>
+          <div className="mt-2.5 flex items-center gap-2">
+            {product.salePrice != null ? (
+              <>
+                <span className="text-sm font-medium text-foreground">
+                  {formatArs(product.salePrice)}
+                </span>
+                <span className="text-xs text-[hsl(var(--muted-foreground))] line-through font-light">
+                  {formatArs(product.price)}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-light text-foreground">{formatArs(product.price)}</span>
+            )}
           </div>
         </div>
       </Link>
     </motion.div>
   );
-}
+});

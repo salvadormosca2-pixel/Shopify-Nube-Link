@@ -2,100 +2,33 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
-import { Lock, Truck, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 
 const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
 const WHATSAPP_URL = `https://wa.me/5493834330385?text=${WHATSAPP_MSG}`;
 
-const TRUST_ITEMS = [
-  {
-    icon: Lock,
-    text: "Pago seguro",
-    href: null,
-  },
-  {
-    icon: Truck,
-    text: "Envío a todo el país",
-    href: null,
-  },
-  {
-    icon: MessageCircle,
-    text: "Consultanos por WhatsApp",
-    href: WHATSAPP_URL,
-  },
+const PROMOS = [
+  "Envío gratis a todo el país",
+  "Hasta 3 cuotas sin interés",
+  "Cambios y devoluciones gratis",
 ];
 
-function TrustBar() {
-  const [mobileIdx, setMobileIdx] = useState(0);
+function AnnouncementBar() {
+  const [idx, setIdx] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setMobileIdx((i) => (i + 1) % TRUST_ITEMS.length);
-    }, 3000);
+    const t = setInterval(() => setIdx((i) => (i + 1) % PROMOS.length), 4000);
     return () => clearInterval(t);
   }, []);
 
   return (
-    <div className="bg-black border-b border-zinc-800 py-2 px-4 select-none">
-      {/* Desktop: todos en línea */}
-      <div className="hidden md:flex items-center justify-center gap-8">
-        {TRUST_ITEMS.map((item, i) => {
-          const Icon = item.icon;
-          const content = (
-            <>
-              <Icon className="h-3 w-3 text-zinc-400 flex-shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-400">
-                {item.text}
-              </span>
-            </>
-          );
-          return (
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && (
-                <span className="text-zinc-700 text-xs mr-6">·</span>
-              )}
-              {item.href ? (
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-white transition-colors group"
-                >
-                  <Icon className="h-3 w-3 text-zinc-400 group-hover:text-white flex-shrink-0" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-400 group-hover:text-white">
-                    {item.text}
-                  </span>
-                </a>
-              ) : (
-                content
-              )}
-            </span>
-          );
-        })}
-      </div>
-
-      {/* Mobile: rota entre los 3 mensajes */}
-      <div className="flex md:hidden items-center justify-center">
-        {(() => {
-          const item = TRUST_ITEMS[mobileIdx];
-          const Icon = item.icon;
-          const inner = (
-            <span className="flex items-center gap-2">
-              <Icon className="h-3 w-3 text-zinc-400 flex-shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-400">
-                {item.text}
-              </span>
-            </span>
-          );
-          return item.href ? (
-            <a href={item.href} target="_blank" rel="noopener noreferrer">
-              {inner}
-            </a>
-          ) : (
-            inner
-          );
-        })()}
-      </div>
+    <div className="bg-[hsl(0,0%,96%)] py-2.5 px-4 text-center overflow-hidden border-b border-[hsl(var(--border))]">
+      <p
+        className="text-[11px] font-medium tracking-[0.15em] uppercase text-foreground/70"
+        key={idx}
+      >
+        {PROMOS[idx]}
+      </p>
     </div>
   );
 }
@@ -110,24 +43,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans">
-      {!isAdmin && <TrustBar />}
+      {!isAdmin && <AnnouncementBar />}
       <Navbar />
       <main className="flex-1">
         {children}
       </main>
       <Footer />
 
-      {/* WhatsApp floating button — dark premium */}
       <a
         href={WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Consultanos por WhatsApp"
         data-testid="whatsapp-button"
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-800 transition-colors"
-        style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-[0_4px_24px_rgba(37,211,102,0.3)] hover:scale-110 hover:shadow-[0_6px_32px_rgba(37,211,102,0.4)] active:scale-95 transition-all duration-300"
       >
-        <MessageCircle className="h-7 w-7 fill-white" />
+        <MessageCircle className="h-6 w-6 fill-current" />
       </a>
     </div>
   );

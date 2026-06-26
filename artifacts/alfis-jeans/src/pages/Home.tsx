@@ -2,136 +2,63 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useGetProducts, useGetCategories, getGetProductsQueryKey } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/ProductCard";
-import { Search, SlidersHorizontal, X, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
+import { Search, SlidersHorizontal, X, ArrowRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import imgPantalones from "@assets/11682_7_1776277692687.jpg";
+import imgHero from "@assets/hero-hombre.jpg";
+import imgPantalones from "@assets/11708_2_pantalones.jpg";
 import imgRemeras from "@assets/33433_10_1776277692687.jpg";
-import imgCamperas from "@assets/16221_12_1776277692686.jpg";
 import imgBuzos from "@assets/15513_17_1776794372730.jpg";
-import heroImg from "@assets/ALFIES-PRIORITY_11-03-2612666_1776366025116.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const SIZES = ["S", "M", "L", "XL", "XXL", "38", "40", "42", "44", "46", "48", "50"];
 const COLORS = ["NEGRO", "BLANCO", "GRIS", "AZUL", "MARINO", "BEIGE", "CAMEL", "BORDO", "VERDE", "CRUDO", "TOSTADO"];
 
-const MARQUEE_WORDS = [
-  "HOMBRE", "·", "DENIM", "·", "ALFIS JEANS", "·", "CATAMARCA", "·",
-  "URBAN", "·", "PREMIUM", "·", "COLECCIÓN", "·", "ESTILO", "·",
-];
-
 const CATEGORIES_GRID = [
-  {
-    label: "Pantalones",
-    tag: "pantalon",
-    image: imgPantalones,
-    objectPos: "center top",
-    studio: true,
-  },
-  {
-    label: "Remeras",
-    tag: "remeras",
-    image: imgRemeras,
-    objectPos: "center 20%",
-    studio: true,
-  },
-  {
-    label: "Camperas",
-    tag: "camperas",
-    image: imgCamperas,
-    objectPos: "center top",
-    studio: true,
-  },
-  {
-    label: "Buzos",
-    tag: "BUZOS",
-    image: imgBuzos,
-    objectPos: "center 15%",
-    studio: true,
-  },
-];
-
-const VALUES = [
-  { num: "+40", label: "Modelos disponibles" },
-  { num: "6", label: "Categorías" },
-  { num: "24", label: "Provincias con envío" },
-  { num: "100%", label: "Marca argentina" },
+  { label: "Pantalones", tag: "pantalon", image: imgPantalones, objectPos: "center top", brightness: 1.0 },
+  { label: "Remeras", tag: "remeras", image: imgRemeras, objectPos: "center 20%", brightness: 1.18 },
+  { label: "Abrigos", tag: "BUZOS", image: imgBuzos, objectPos: "center 15%", brightness: 1.18 },
 ];
 
 type EditorialCta = { label: string; category: string };
 
 type EditorialSectionData = {
   id: string;
-  number: string;
-  label: string;
   title: string;
-  body?: string;
+  body: string;
   ctas: EditorialCta[];
   image?: string;
   video?: string;
-  accent: string;
   align: "left" | "right";
 };
 
 const EDITORIAL_SECTIONS: EditorialSectionData[] = [
   {
     id: "denim",
-    number: "01",
-    label: "DENIM PURO",
-    title: "Sin\nConcesiones.",
-    body: "Denim de alta resistencia con corte urbano. Cada costura pensada para durar.",
+    title: "Denim de alta resistencia\ncon corte urbano.",
+    body: "Cada costura pensada para durar. Sin concesiones.",
     ctas: [{ label: "Ver Pantalones", category: "pantalon" }],
     image: `${BASE}/denim-puro.jpg`,
-    accent: "#e8d5b7",
     align: "left",
   },
   {
     id: "urban",
-    number: "02",
-    label: "URBAN STYLE",
     title: "Hecho para\nla calle.",
-    body: "Buzos, remeras y pantalones con actitud. El combo que define tu look en cada salida.",
+    body: "Buzos, remeras y pantalones con actitud. El combo que define tu look.",
     ctas: [{ label: "Explorar Urban", category: "BUZOS,remeras,pantalon" }],
     video: `${BASE}/urban-buzos.mp4`,
-    accent: "#c9d6df",
     align: "right",
   },
   {
     id: "temporada",
-    number: "03",
-    label: "TEMPORADA",
     title: "Abrigos que\nimpactan.",
-    body: "Suéteres y camperas de alta calidad para el invierno catamarqueño. Calidez sin renunciar al estilo.",
+    body: "Suéteres y camperas para el invierno catamarqueño. Calidez sin renunciar al estilo.",
     ctas: [{ label: "Ver Abrigos", category: "SUETER,camperas" }],
     image: `${BASE}/abrigos-1.jpg`,
-    accent: "#d4b896",
     align: "left",
   },
 ];
-
-function Marquee() {
-  return (
-    <div className="overflow-hidden border-y border-zinc-800 bg-black py-4 select-none">
-      <motion.div
-        className="flex gap-8 whitespace-nowrap"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
-      >
-        {[...MARQUEE_WORDS, ...MARQUEE_WORDS].map((word, i) => (
-          <span
-            key={i}
-            className={`text-xs font-bold uppercase tracking-[0.35em] ${
-              word === "·" ? "text-zinc-700" : "text-zinc-500"
-            }`}
-          >
-            {word}
-          </span>
-        ))}
-      </motion.div>
-    </div>
-  );
-}
 
 function EditorialSection({
   section,
@@ -141,107 +68,86 @@ function EditorialSection({
   onCategoryClick: (cat: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const isInView = useInView(ref, { once: true, margin: "-60px" });
   const isLeft = section.align === "left";
 
   return (
-    <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 md:min-h-[700px] overflow-hidden">
-      {/* Media side */}
+    <div ref={ref} className="grid grid-cols-1 lg:grid-cols-5 min-h-[600px] lg:min-h-[85vh]">
       <div
-        className={`relative overflow-hidden ${isLeft ? "md:order-1" : "md:order-2"} min-h-[300px] md:min-h-0`}
+        className={`relative overflow-hidden ${isLeft ? "lg:order-1 lg:col-span-3" : "lg:order-2 lg:col-span-3"} min-h-[50vh] lg:min-h-0`}
       >
         {section.video ? (
-          <video
-            src={section.video}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          <video src={section.video} autoPlay muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <motion.img
             src={section.image}
-            alt={section.label}
+            alt=""
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover"
             initial={{ scale: 1.08 }}
             animate={isInView ? { scale: 1 } : { scale: 1.08 }}
-            transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <motion.div
-          className="absolute bottom-6 left-6"
-          initial={{ opacity: 0, y: 10 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-        >
-          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/50">
-            {section.number} — {section.label}
-          </span>
-        </motion.div>
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 82% 88% at 50% 42%, transparent 38%, rgba(0,0,0,0.55) 68%, rgba(0,0,0,0.93) 90%)",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--background))]/80 via-[hsl(var(--background))]/10 to-transparent" />
       </div>
 
-      {/* Text side */}
       <div
-        className={`bg-black flex flex-col justify-center px-7 py-10 md:px-16 md:py-16 ${
-          isLeft ? "md:order-2" : "md:order-1"
-        }`}
+        className={`flex flex-col justify-center px-8 py-16 md:px-14 lg:px-16 xl:px-20 ${
+          isLeft ? "lg:order-2 lg:col-span-2" : "lg:order-1 lg:col-span-2"
+        } bg-background`}
       >
-        <motion.p
-          className="text-[10px] font-bold uppercase tracking-[0.4em] mb-4 md:mb-6"
-          style={{ color: section.accent }}
-          initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
-          animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isLeft ? -20 : 20 }}
+        <motion.div
+          className="w-10 h-px bg-foreground/30 mb-8"
+          initial={{ scaleX: 0 }}
+          animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
+          style={{ transformOrigin: "left" }}
           transition={{ duration: 0.6, delay: 0.1 }}
-        >
-          {section.label}
-        </motion.p>
+        />
 
         <motion.h2
-          className="text-4xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter mb-4 md:mb-6 whitespace-pre-line"
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+          className="font-display text-[clamp(2.5rem,5vw,4rem)] text-foreground leading-[1] mb-6 whitespace-pre-line"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.15 }}
         >
           {section.title}
         </motion.h2>
 
-        {section.body && (
-          <motion.p
-            className="text-sm text-zinc-400 leading-relaxed mb-6 md:mb-8 max-w-xs"
-            initial={{ opacity: 0, y: 10 }}
-            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-          >
-            {section.body}
-          </motion.p>
-        )}
+        <motion.p
+          className="text-[15px] font-light leading-[1.7] text-[hsl(var(--muted-foreground))] mb-10 max-w-[28ch]"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          {section.body}
+        </motion.p>
 
         <motion.div
-          className="flex flex-col items-start gap-0"
-          initial={{ opacity: 0, y: 10 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.4, delay: 0.4 }}
         >
-          {section.ctas.map((cta, index) => (
-            <div key={cta.category}>
-              {index > 0 && <div className="w-8 h-px bg-zinc-700 mt-5 mb-4" />}
-              <button
-                onClick={() => {
-                  onCategoryClick(cta.category);
-                  document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className={`inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] border-b pb-1 transition-colors duration-300 group ${
-                  index === 0
-                    ? "text-white border-zinc-700 hover:border-white"
-                    : "text-zinc-500 border-zinc-800 hover:text-white hover:border-zinc-600"
-                }`}
-              >
-                {cta.label}
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>
+          {section.ctas.map((cta) => (
+            <button
+              key={cta.category}
+              onClick={() => {
+                onCategoryClick(cta.category);
+                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="btn-fill inline-flex items-center gap-3 bg-transparent border border-foreground/30 text-foreground px-7 py-3 text-sm font-medium tracking-[0.1em] uppercase"
+            >
+              {cta.label}
+              <ArrowRight className="h-4 w-4" />
+            </button>
           ))}
         </motion.div>
       </div>
@@ -264,8 +170,7 @@ export default function Home() {
     setDebouncedSearch(urlQuery);
     if (urlQuery) {
       requestAnimationFrame(() => {
-        const el = document.getElementById("coleccion");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   }, [urlQuery]);
@@ -276,9 +181,9 @@ export default function Home() {
 
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "28%"]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.06]);
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.04]);
 
   const effectiveColor = selectedColor === "todos-colores" ? "" : selectedColor;
 
@@ -301,9 +206,7 @@ export default function Home() {
 
   useEffect(() => {
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 500);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(searchTimer.current);
   }, [search]);
 
@@ -316,11 +219,8 @@ export default function Home() {
 
   const handleCategoryClick = (cat: string) => {
     const params = new URLSearchParams(searchStr);
-    if (cat === "todos") {
-      params.delete("categoria");
-    } else {
-      params.set("categoria", cat);
-    }
+    if (cat === "todos") params.delete("categoria");
+    else params.set("categoria", cat);
     const qs = params.toString();
     navigate(qs ? `/?${qs}` : "/");
     clearFilters();
@@ -329,240 +229,171 @@ export default function Home() {
   const categories = ["todos", ...(categoriesData?.categories ?? [])];
   const products = productsQuery.data?.products ?? [];
 
-  return (
-    <div className="bg-black text-white">
+  const catRef = useRef<HTMLDivElement>(null);
+  const catInView = useInView(catRef, { once: true, margin: "-80px" });
 
-      {/* ── HERO ──────────────────────────────────────────────────────────────── */}
+  return (
+    <div className="bg-background text-foreground">
+
+      {/* ═══════════════════ HERO ═══════════════════ */}
       <section
         ref={heroRef}
-        className="relative h-[100dvh] min-h-[700px] w-full flex flex-col justify-end overflow-hidden bg-black pb-20"
+        className="relative h-[100dvh] min-h-[640px] w-full flex flex-col justify-end overflow-hidden pb-24 md:pb-28"
       >
-        {/* Parallax image */}
         <motion.div
-          className="absolute inset-0 z-0"
+          className="absolute inset-0 z-0 will-change-transform"
           style={{ y: heroY, scale: heroScale }}
         >
           <img
-            src={heroImg}
-            alt="Alfis Jeans — Hombre"
-            className="w-full h-full object-cover object-[center_30%]"
+            src={imgHero}
+            alt="Alfis Jeans — Colección Hombre"
+            className="w-full h-full object-cover"
+            fetchPriority="high"
+            decoding="async"
+            style={{ objectPosition: "center 20%" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))]/50 to-[hsl(var(--background))]/5" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--background))]/60 via-[hsl(var(--background))]/20 to-transparent" />
         </motion.div>
 
-        {/* Brand tag — top left */}
         <motion.div
-          className="absolute top-8 left-6 md:left-10 z-10"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, delay: 0.3 }}
-        >
-          <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/40">
-            Alfis Jeans — Catamarca
-          </span>
-        </motion.div>
-
-        {/* Vertical watermark — right */}
-        <motion.div
-          className="absolute top-0 right-8 md:right-14 z-10 h-full flex items-center"
-          style={{ opacity: heroOpacity }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.2 }}
-        >
-          <span className="text-[11px] font-black uppercase tracking-[0.8em] text-white/20 rotate-90 origin-center whitespace-nowrap">
-            Colección Hombre
-          </span>
-        </motion.div>
-
-        {/* Main text — bottom left */}
-        <motion.div
-          className="relative z-10 w-full px-6 md:px-12"
+          className="relative z-10 w-full px-6 md:px-10 max-w-[1400px] mx-auto"
           style={{ opacity: heroOpacity }}
         >
-          <motion.div
-            className="flex items-center gap-4 mb-5"
+          <motion.p
+            className="font-display text-sm md:text-base tracking-[0.2em] text-foreground/50 mb-6"
+            style={{ fontWeight: 400 }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
           >
-            <div className="w-8 h-px bg-white/40" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50">
-              Colección Hombre
-            </span>
-          </motion.div>
+            Colección Hombre
+          </motion.p>
 
           <motion.h1
-            className="font-black uppercase text-white leading-[0.82] tracking-tighter mb-1"
-            style={{ fontSize: "clamp(5rem, 16vw, 13rem)" }}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            className="font-display text-foreground text-3d leading-[0.85] tracking-[0.06em] mb-10"
+            style={{ fontSize: "clamp(4rem, 14vw, 10rem)" }}
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
-            ALFIS
-          </motion.h1>
-          <motion.h1
-            className="font-black uppercase leading-[0.82] tracking-tighter mb-8"
-            style={{ fontSize: "clamp(5rem, 16vw, 13rem)", WebkitTextStroke: "1px rgba(255,255,255,0.35)", color: "transparent" }}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-          >
-            JEANS.
+            ALFIS JEANS
           </motion.h1>
 
           <motion.div
-            className="flex flex-wrap gap-4"
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.65 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
           >
             <a
               href="#coleccion"
               data-testid="button-shop-now"
-              className="inline-flex items-center gap-3 bg-white text-black px-8 py-3.5 text-xs font-black uppercase tracking-[0.25em] hover:bg-zinc-200 transition-colors"
+              className="btn-fill inline-flex items-center gap-3 border border-foreground text-foreground px-8 py-3.5 text-sm font-medium tracking-[0.1em] uppercase bg-transparent"
             >
-              Ver Colección <ArrowRight className="h-3.5 w-3.5" />
+              Ver Colección
+              <ArrowRight className="h-4 w-4" />
             </a>
           </motion.div>
         </motion.div>
 
-        {/* Scroll indicator */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.6 }}
         >
           <motion.div
             animate={{ y: [0, 6, 0] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <ChevronDown className="h-5 w-5 text-white/30" />
+            <ChevronDown className="h-5 w-5 text-foreground/25" />
           </motion.div>
         </motion.div>
       </section>
 
-      {/* ── EDITORIAL SECTIONS ───────────────────────────────────────────────── */}
-      <div id="editorial" className="divide-y divide-zinc-900">
-        {EDITORIAL_SECTIONS.map((section) => (
-          <EditorialSection
-            key={section.id}
-            section={section}
-            onCategoryClick={handleCategoryClick}
-          />
-        ))}
-      </div>
+      {/* ═══════════════════ CATEGORIES — EDITORIAL STAGGERED ═══════════════════ */}
+      <section ref={catRef} className="py-20 md:py-32">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 mb-14 md:mb-20">
+          <motion.h2
+            className="font-display text-[clamp(3rem,7vw,5.5rem)] text-foreground leading-[0.9]"
+            initial={{ opacity: 0, y: 16 }}
+            animate={catInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6 }}
+          >
+            Encontrá tu estilo
+          </motion.h2>
+        </div>
 
-      {/* ── MARQUEE ──────────────────────────────────────────────────────────── */}
-      <Marquee />
-
-      {/* ── VALUES STRIP ─────────────────────────────────────────────────────── */}
-      <section className="bg-zinc-950 border-b border-zinc-800 py-6 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:divide-x divide-zinc-800 gap-4 sm:gap-0">
-          {VALUES.map((v, i) => (
-            <motion.div
-              key={v.label}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.07 }}
-              className="flex items-center gap-3 sm:flex-1 sm:justify-center px-4"
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 auto-rows-[1fr]">
+          {CATEGORIES_GRID.map((cat, i) => (
+            <motion.button
+              key={cat.label}
+              onClick={() => {
+                handleCategoryClick(cat.tag);
+                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className={`group relative text-left overflow-hidden ${
+                i % 2 === 0 ? "lg:mt-0" : "lg:mt-12"
+              }`}
+              initial={{ opacity: 0, y: 40 }}
+              animate={catInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.7, delay: i * 0.12 }}
             >
-              <span className="text-2xl font-black text-white tracking-tighter">{v.num}</span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{v.label}</span>
-            </motion.div>
+              <div className="relative overflow-hidden aspect-[3/4.5] bg-[hsl(var(--muted))]">
+                <img
+                  src={cat.image}
+                  alt={cat.label}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover transition-all duration-[1s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-110"
+                  style={{ objectPosition: cat.objectPos, filter: `brightness(${cat.brightness}) contrast(1.02) saturate(1.05)` }}
+                />
+
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-600" />
+
+                <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-7">
+                  <div className="overflow-hidden">
+                    <p
+                      className="font-display text-[clamp(2rem,4vw,3.2rem)] tracking-[0.05em] leading-[0.95] text-white translate-y-2 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                    >
+                      {cat.label}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 overflow-hidden">
+                    <div className="w-6 h-px bg-white/60 origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100" />
+                    <span className="text-[11px] font-light tracking-[0.15em] uppercase text-white/0 group-hover:text-white/70 translate-y-4 group-hover:translate-y-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100">
+                      Explorar
+                    </span>
+                    <ArrowRight className="h-3 w-3 text-white/0 group-hover:text-white/70 translate-x-[-8px] group-hover:translate-x-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-150" />
+                  </div>
+                </div>
+              </div>
+            </motion.button>
           ))}
         </div>
       </section>
 
-      {/* ── CATEGORY GRID ─────────────────────────────────────────────────────── */}
-      <section className="bg-black py-12 md:py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-6 md:mb-10">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-2">
-                Alfis Jeans — Hombre
-              </p>
-              <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">
-                Encontrá tu estilo
+      {/* ═══════════════════ PRODUCT CATALOG ═══════════════════ */}
+      <section id="coleccion" className="py-20 md:py-32 px-6 md:px-12 lg:px-16 scroll-mt-24">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="mb-12 md:mb-16">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
+              <h2 className="font-display text-[clamp(3rem,7vw,5.5rem)] text-foreground leading-none">
+                La Colección
               </h2>
             </div>
-            <a
-              href="#coleccion"
-              className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
-            >
-              Ver todo <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
-          </div>
 
-          <div
-            className="flex gap-4 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {CATEGORIES_GRID.map((cat, i) => (
-              <motion.button
-                key={cat.label}
-                onClick={() => {
-                  handleCategoryClick(cat.tag);
-                  document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="group relative shrink-0 snap-start w-[68%] sm:w-[42%] md:w-[260px] lg:w-[300px] text-center"
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.55, delay: i * 0.08 }}
-              >
-                <div className="relative overflow-hidden rounded-3xl aspect-[4/5] bg-zinc-900 ring-1 ring-white/10 transition-all duration-500 group-hover:ring-white/40 group-hover:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.15)]">
-                  <img
-                    src={cat.image}
-                    alt={cat.label}
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
-                    style={{ objectPosition: cat.objectPos }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />
-                </div>
-                <div className="pt-4 pb-1">
-                  <p className="text-white font-bold text-base md:text-lg uppercase tracking-[0.18em]">
-                    {cat.label}
-                  </p>
-                  <div className="flex items-center justify-center gap-1.5 mt-1.5 text-zinc-500 group-hover:text-white transition-colors duration-300">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.25em]">
-                      Ver todo
-                    </span>
-                    <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </div>
-                </div>
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRODUCT CATALOG ──────────────────────────────────────────────────── */}
-      <section id="coleccion" className="bg-[#0a0a0a] py-14 md:py-24 px-4 scroll-mt-20">
-        <div className="max-w-7xl mx-auto">
-          {/* Heading */}
-          <div className="mb-8 md:mb-12">
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-600 mb-3">
-              Alfis Jeans — Catamarca
-            </p>
-            <h2 className="text-4xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-4">
-              La Colección
-            </h2>
-            <div className="w-12 h-0.5 bg-white mb-8" />
-
-            {/* Category tabs + filter toggle */}
-            <div className="flex items-center gap-0 border-b border-zinc-800 overflow-x-auto">
+            <div className="flex items-center gap-0 border-b border-[hsl(var(--border))] overflow-x-auto">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => handleCategoryClick(cat)}
                   data-testid={cat === "todos" ? "btn-category-todos" : `btn-category-${cat}`}
-                  className={`px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-all duration-200 border-b-2 -mb-px ${
+                  className={`px-5 py-3.5 text-sm font-light tracking-wide whitespace-nowrap transition-all duration-300 border-b-2 -mb-px ${
                     activeCategory === cat
-                      ? "border-white text-white"
-                      : "border-transparent text-zinc-600 hover:text-zinc-300"
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"
                   }`}
                 >
                   {cat === "todos" ? "Todos" : cat}
@@ -572,21 +403,18 @@ export default function Home() {
               <button
                 data-testid="button-toggle-filters"
                 onClick={() => setShowFilters(!showFilters)}
-                className={`ml-auto px-5 py-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                className={`ml-auto px-5 py-3.5 flex items-center gap-2 text-sm font-light tracking-wide whitespace-nowrap transition-colors duration-300 border-b-2 -mb-px ${
                   showFilters || hasActiveFilters
-                    ? "border-white text-white"
-                    : "border-transparent text-zinc-600 hover:text-zinc-300"
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"
                 }`}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filtros
-                {hasActiveFilters && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
+                {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-foreground" />}
               </button>
             </div>
 
-            {/* Collapsable advanced filters */}
             <AnimatePresence>
               {showFilters && (
                 <motion.div
@@ -596,65 +424,47 @@ export default function Home() {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="pt-4 pb-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap border-b border-zinc-800">
-                    {/* Search */}
+                  <div className="pt-5 pb-3 flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap border-b border-[hsl(var(--border))]">
                     <div className="relative flex-1 min-w-[200px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
                       <input
                         data-testid="input-search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Buscar producto..."
-                        className="w-full bg-zinc-900 border border-zinc-800 text-white text-xs pl-9 pr-4 py-2.5 outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors"
+                        className="w-full bg-[hsl(var(--card))] border border-[hsl(var(--border))] text-foreground text-sm font-light pl-9 pr-4 py-2.5 outline-none focus:border-foreground placeholder:text-[hsl(var(--muted-foreground))] transition-colors duration-300"
                       />
                     </div>
-
-                    {/* Size filter */}
                     <div className="flex flex-wrap gap-1.5">
                       {SIZES.map((size) => (
                         <button
                           key={size}
                           data-testid={`btn-size-${size}`}
                           onClick={() => setSelectedSize(selectedSize === size ? "" : size)}
-                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+                          className={`px-3 py-1.5 text-xs font-light tracking-wide border transition-colors duration-300 ${
                             selectedSize === size
-                              ? "border-white bg-white text-black"
-                              : "border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-white"
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-foreground/50 hover:text-foreground"
                           }`}
                         >
                           {size}
                         </button>
                       ))}
                     </div>
-
-                    {/* Color filter */}
-                    <Select
-                      value={selectedColor || "todos-colores"}
-                      onValueChange={(v) => setSelectedColor(v === "todos-colores" ? "" : v)}
-                    >
-                      <SelectTrigger
-                        data-testid="select-color"
-                        className="rounded-none border-zinc-700 bg-zinc-900 text-white text-xs w-48 focus:ring-0"
-                      >
+                    <Select value={selectedColor || "todos-colores"} onValueChange={(v) => setSelectedColor(v === "todos-colores" ? "" : v)}>
+                      <SelectTrigger data-testid="select-color" className="rounded-none border-[hsl(var(--border))] bg-[hsl(var(--card))] text-foreground text-sm font-light w-48 focus:ring-0">
                         <span>{selectedColor || "Color"}</span>
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
-                        <SelectItem value="todos-colores" className="text-xs">Todos los colores</SelectItem>
+                      <SelectContent className="bg-[hsl(var(--card))] border-[hsl(var(--border))] text-foreground">
+                        <SelectItem value="todos-colores" className="text-sm font-light">Todos los colores</SelectItem>
                         {COLORS.map((c) => (
-                          <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
+                          <SelectItem key={c} value={c} className="text-sm font-light">{c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-
-                    {/* Clear */}
                     {hasActiveFilters && (
-                      <button
-                        data-testid="button-clear-filters"
-                        onClick={clearFilters}
-                        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
-                      >
-                        <X className="h-3 w-3" />
-                        Limpiar
+                      <button data-testid="button-clear-filters" onClick={clearFilters} className="flex items-center gap-1.5 text-sm font-light text-[hsl(var(--muted-foreground))] hover:text-foreground transition-colors">
+                        <X className="h-3.5 w-3.5" /> Limpiar
                       </button>
                     )}
                   </div>
@@ -663,20 +473,16 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          {/* Products grid */}
           {productsQuery.isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-zinc-900 animate-pulse aspect-[3/4]" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-[hsl(var(--card))] animate-pulse aspect-[3/4]" />
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-24">
-              <p className="text-zinc-600 text-sm uppercase tracking-widest mb-2">Sin resultados</p>
-              <button
-                onClick={clearFilters}
-                className="text-xs text-zinc-500 hover:text-white transition-colors"
-              >
+            <div className="text-center py-32">
+              <p className="font-display text-xl text-[hsl(var(--muted-foreground))] mb-4">Sin resultados</p>
+              <button onClick={clearFilters} className="text-sm font-light text-foreground hover:underline transition-colors">
                 Limpiar filtros
               </button>
             </div>
@@ -684,11 +490,11 @@ export default function Home() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeCategory + debouncedSearch + selectedSize + selectedColor}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.35 }}
-                className="grid grid-cols-2 md:grid-cols-3 gap-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
               >
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -699,56 +505,75 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── MARQUEE 2 ────────────────────────────────────────────────────────── */}
-      <Marquee />
+      {/* ═══════════════════ EDITORIAL SECTIONS ═══════════════════ */}
+      {EDITORIAL_SECTIONS.map((section) => (
+        <EditorialSection
+          key={section.id}
+          section={section}
+          onCategoryClick={handleCategoryClick}
+        />
+      ))}
 
-      {/* ── CLOSING CTA ──────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[420px] md:h-[60vh] bg-black flex items-center justify-center py-16 md:py-0">
-        <div className="relative z-10 text-center px-6">
-          <motion.p
-            className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50 mb-4"
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+      {/* ═══════════════════ BRAND STRIP ═══════════════════ */}
+      <section className="bg-background py-20 md:py-28 px-6 md:px-12 lg:px-16 border-y border-[hsl(var(--border))]">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+          <div>
+            <h2 className="font-display text-[clamp(2.5rem,5vw,4rem)] text-foreground leading-[1] mb-3">
+              Marca argentina.<br />Calidad mundial.
+            </h2>
+            <p className="text-[hsl(var(--muted-foreground))] text-[15px] font-light max-w-md leading-relaxed">
+              Desde Catamarca con envío a las 24 provincias. Cada prenda diseñada y confeccionada con materiales de primera selección.
+            </p>
+          </div>
+          <Link
+            href="/contacto"
+            className="btn-fill inline-flex items-center gap-3 border-2 border-foreground bg-transparent text-foreground px-8 py-4 text-sm font-medium tracking-[0.1em] uppercase shrink-0 self-start"
           >
-            Alfis Jeans — Catamarca
-          </motion.p>
+            Conocenos
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* ═══════════════════ CLOSING CTA ═══════════════════ */}
+      <section className="relative py-24 md:py-36 border-t border-[hsl(var(--border))]">
+        <div className="max-w-3xl mx-auto text-center px-6">
           <motion.h2
-            className="text-4xl md:text-7xl font-black uppercase text-white tracking-tighter leading-none mb-6"
-            initial={{ opacity: 0, y: 24 }}
+            className="font-display text-[clamp(3rem,8vw,6rem)] text-foreground leading-[0.9] mb-8"
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1 }}
+            transition={{ duration: 0.6 }}
           >
             Tu look.<br />Tu actitud.
           </motion.h2>
           <motion.p
-            className="text-zinc-300 text-sm mb-8 max-w-sm mx-auto"
+            className="text-[hsl(var(--muted-foreground))] text-[15px] font-light leading-relaxed mb-12 max-w-md mx-auto"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.15 }}
           >
             ¿Dudas sobre talle o stock? Escribinos directamente por WhatsApp.
           </motion.p>
           <motion.div
             className="flex flex-wrap gap-4 justify-center"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.25 }}
           >
             <a
               href="https://wa.me/5493834330385?text=Hola!%20Quiero%20consultar%20sobre%20la%20colección%20Hombre%20de%20Alfis%20Jeans."
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-white text-black px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] hover:bg-zinc-100 transition-colors"
+              className="btn-fill inline-flex items-center gap-3 bg-transparent border-2 border-foreground text-foreground px-9 py-4 text-sm font-medium tracking-[0.1em] uppercase"
             >
               Consultanos
             </a>
             <Link
               href="/priority"
-              className="inline-flex items-center gap-3 border border-white/30 text-white px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] hover:border-white transition-colors"
+              className="btn-fill-border inline-flex items-center gap-3 border border-foreground/20 text-foreground px-9 py-4 text-sm font-light tracking-[0.1em] uppercase"
             >
               Ver Priority
             </Link>

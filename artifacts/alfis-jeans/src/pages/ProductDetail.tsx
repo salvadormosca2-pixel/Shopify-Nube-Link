@@ -81,9 +81,8 @@ function ReviewsSection({ productId }: { productId: number }) {
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-1">Opiniones</p>
-            <h2 className="text-2xl font-display font-bold uppercase tracking-tight">Reseñas</h2>
-            <div className="h-[2px] w-12 bg-primary mt-2" />
+            <h2 className="font-display text-2xl tracking-tight" style={{ fontWeight: 700 }}>Reseñas</h2>
+            <div className="h-px w-12 bg-foreground mt-3" />
           </div>
 
           {reviews.length > 0 && (
@@ -193,9 +192,8 @@ function RelatedProducts({ productId }: { productId: number }) {
         animate={isInView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.5 }}
       >
-        <p className="text-xs font-bold tracking-[0.3em] uppercase text-muted-foreground mb-1">Descubrí más</p>
-        <h2 className="text-2xl font-display font-bold uppercase tracking-tight mb-2">También te puede gustar</h2>
-        <div className="h-[2px] w-12 bg-primary mb-8" />
+        <h2 className="font-display text-2xl tracking-tight mb-2" style={{ fontWeight: 700 }}>También te puede gustar</h2>
+        <div className="h-px w-12 bg-foreground mb-10" />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {isLoading
@@ -313,10 +311,10 @@ export default function ProductDetail() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-16">
+    <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-20">
       <Button
         variant="ghost"
-        className="mb-8 pl-0 hover:bg-transparent hover:text-primary transition-colors uppercase text-xs font-bold tracking-wider"
+        className="mb-10 pl-0 hover:bg-transparent hover:text-foreground transition-colors text-sm font-light tracking-wide"
         onClick={() => window.history.back()}
         data-testid="button-back"
       >
@@ -324,18 +322,16 @@ export default function ProductDetail() {
         Volver
       </Button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-        {/* Gallery */}
-        <div className="flex flex-col gap-4">
-          {/* Main image */}
-          <div className="bg-muted relative overflow-hidden aspect-[3/4]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-20">
+        <div className="flex flex-col gap-3">
+          <div className="bg-[hsl(var(--card))] relative overflow-hidden aspect-[3/4]">
             <AnimatePresence mode="wait">
               <motion.img
                 key={currentImageIndex}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 src={product.images[currentImageIndex] || "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80"}
                 alt={product.name}
                 className="absolute inset-0 w-full h-full object-cover"
@@ -343,15 +339,14 @@ export default function ProductDetail() {
             </AnimatePresence>
           </div>
 
-          {/* Thumbnails */}
           {product.images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
               {product.images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentImageIndex(idx)}
-                  className={`flex-shrink-0 w-20 h-24 border-2 transition-all ${
-                    currentImageIndex === idx ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-100'
+                  className={`flex-shrink-0 w-20 h-24 border transition-all duration-300 ${
+                    currentImageIndex === idx ? 'border-foreground' : 'border-transparent opacity-50 hover:opacity-100'
                   }`}
                   data-testid={`btn-gallery-${idx}`}
                 >
@@ -362,47 +357,43 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Product Info */}
-        <div className="flex flex-col pt-2 md:pt-6">
-          <div className="mb-2">
-            <span className="text-xs uppercase font-bold tracking-wider text-muted-foreground">
-              {product.category}
-            </span>
-          </div>
+        <div className="flex flex-col pt-2 md:pt-8">
+          <p className="text-xs font-light tracking-wider text-[hsl(var(--muted-foreground))] mb-3 uppercase">
+            {product.category}
+          </p>
 
-          <h1 className="text-3xl md:text-5xl font-display font-bold uppercase tracking-tight mb-4">
+          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6 leading-[0.95]" style={{ fontWeight: 700 }}>
             {product.name}
           </h1>
 
           {product.salePrice != null ? (
-            <div className="flex items-center gap-3 mb-8">
-              <p className="text-2xl md:text-3xl font-bold text-red-500">{formatArs(product.salePrice)}</p>
-              <p className="text-lg text-muted-foreground line-through">{formatArs(product.price)}</p>
-              <span className="text-xs font-bold uppercase bg-red-500 text-white px-2 py-1">
-                -{Math.round((1 - product.salePrice / product.price) * 100)}% OFF
+            <div className="flex items-baseline gap-3 mb-10">
+              <p className="font-display text-2xl md:text-3xl text-foreground" style={{ fontWeight: 600 }}>{formatArs(product.salePrice)}</p>
+              <p className="text-base text-[hsl(var(--muted-foreground))] line-through font-light">{formatArs(product.price)}</p>
+              <span className="text-[10px] font-medium tracking-wider bg-foreground text-background px-2 py-0.5">
+                -{Math.round((1 - product.salePrice / product.price) * 100)}%
               </span>
             </div>
           ) : (
-            <p className="text-2xl md:text-3xl font-bold mb-8">
+            <p className="font-display text-2xl md:text-3xl mb-10" style={{ fontWeight: 500 }}>
               {formatArs(product.price)}
             </p>
           )}
 
-          <div className="space-y-6 mb-10">
-            {/* Color selector */}
+          <div className="space-y-8 mb-12">
             {product.colors && product.colors.length > 0 && (
               <div>
-                <label className="text-sm font-bold uppercase tracking-wider mb-3 block">
-                  Color: <span className="font-normal">{selectedColor}</span>
+                <label className="text-sm font-light tracking-wide mb-3 block">
+                  Color: <span className="text-[hsl(var(--muted-foreground))]">{selectedColor}</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {product.colors.map(color => (
                     <button
                       key={color}
-                      className={`h-10 px-4 border-2 text-sm font-bold transition-all ${
+                      className={`h-10 px-5 border text-sm font-light tracking-wide transition-all duration-300 ${
                         selectedColor === color
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border hover:border-primary/70'
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-[hsl(var(--border))] text-foreground hover:border-foreground/50'
                       }`}
                       onClick={() => setSelectedColor(color)}
                       data-testid={`btn-color-${color}`}
@@ -414,22 +405,19 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Size selector */}
             {product.sizes && product.sizes.length > 0 && (
               <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-sm font-bold uppercase tracking-wider">
-                    Talle: <span className="font-normal">{selectedSize}</span>
-                  </label>
-                </div>
+                <label className="text-sm font-light tracking-wide mb-3 block">
+                  Talle: <span className="text-[hsl(var(--muted-foreground))]">{selectedSize}</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {product.sizes.map(size => (
                     <button
                       key={size}
-                      className={`h-12 w-16 border-2 flex items-center justify-center font-bold text-sm transition-all ${
+                      className={`h-11 w-16 border flex items-center justify-center text-sm font-light transition-all duration-300 ${
                         selectedSize === size
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border hover:border-primary/70'
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-[hsl(var(--border))] text-foreground hover:border-foreground/50'
                       }`}
                       onClick={() => setSelectedSize(size)}
                       data-testid={`btn-size-${size}`}
@@ -442,34 +430,32 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Add to cart */}
           <Button
             size="lg"
-            className="w-full h-14 rounded-none text-base uppercase font-bold tracking-wider mb-6"
+            className="w-full h-14 rounded-none text-sm tracking-wide font-medium mb-6 bg-foreground text-background hover:opacity-90"
             onClick={handleAddToCart}
             disabled={product.stock <= 0}
             data-testid="button-add-to-cart"
           >
-            <ShoppingBag className="mr-2 h-5 w-5" />
+            <ShoppingBag className="mr-2 h-4 w-4" />
             {product.stock > 0 ? 'Agregar al carrito' : 'Sin stock'}
           </Button>
 
           {product.stock > 0 && product.stock < 10 && (
-            <p className="text-xs text-amber-500 font-medium mb-4 text-center">
-              ¡Quedan solo {product.stock} unidades!
+            <p className="text-xs text-foreground font-light mb-4 text-center tracking-wide">
+              Quedan solo {product.stock} unidades
             </p>
           )}
 
-          {/* Description */}
-          <div className="border-t border-border pt-6">
-            <h3 className="text-foreground uppercase font-bold tracking-wider text-sm mb-3">Descripción</h3>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+          <div className="border-t border-[hsl(var(--border))] pt-8 mt-2">
+            <h3 className="font-display text-base tracking-wide mb-4" style={{ fontWeight: 600 }}>Descripción</h3>
+            <p className="text-[hsl(var(--muted-foreground))] text-sm font-light leading-relaxed mb-5">
               {product.description || "Prenda de alta calidad con corte urbano. Fabricada con materiales premium seleccionados."}
             </p>
-            <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-4">
-              <li>Alta calidad de materiales</li>
-              <li>Costuras reforzadas</li>
-              <li>Diseñado y confeccionado en Argentina</li>
+            <ul className="space-y-2 text-sm text-[hsl(var(--muted-foreground))] font-light">
+              <li className="flex items-center gap-2"><span className="w-1 h-1 bg-foreground rounded-full" />Alta calidad de materiales</li>
+              <li className="flex items-center gap-2"><span className="w-1 h-1 bg-foreground rounded-full" />Costuras reforzadas</li>
+              <li className="flex items-center gap-2"><span className="w-1 h-1 bg-foreground rounded-full" />Diseñado y confeccionado en Argentina</li>
             </ul>
           </div>
         </div>

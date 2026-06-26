@@ -15,6 +15,7 @@ function SearchBar({ variant = "desktop", onDone }: { variant?: "desktop" | "mob
       const t = setTimeout(() => inputRef.current?.focus(), 50);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [variant]);
 
   const submit = (e: React.FormEvent) => {
@@ -30,20 +31,20 @@ function SearchBar({ variant = "desktop", onDone }: { variant?: "desktop" | "mob
       onSubmit={submit}
       className={
         variant === "desktop"
-          ? "hidden md:flex items-center w-full max-w-sm h-10 border border-zinc-700 bg-zinc-900/60 focus-within:border-zinc-400 focus-within:bg-zinc-900 transition-colors"
-          : "flex items-center w-full h-11 border border-zinc-700 bg-zinc-900 focus-within:border-zinc-400 transition-colors"
+          ? "hidden md:flex items-center w-full max-w-xs h-9 border-b border-[hsl(var(--border))] bg-transparent focus-within:border-foreground transition-colors duration-500"
+          : "flex items-center w-full h-11 border-b border-[hsl(var(--border))] bg-transparent focus-within:border-foreground transition-colors duration-500"
       }
       role="search"
       data-testid={`searchbar-${variant}`}
     >
-      <Search className="h-4 w-4 text-zinc-500 ml-3 shrink-0" />
+      <Search className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] shrink-0" />
       <input
         ref={inputRef}
         type="search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Buscar remera, jean, Versace…"
-        className="flex-1 h-full bg-transparent px-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+        placeholder="Buscar"
+        className="flex-1 h-full bg-transparent px-3 text-sm font-light tracking-wide text-foreground placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none"
         autoComplete="off"
         data-testid={`input-search-${variant}`}
       />
@@ -52,9 +53,9 @@ function SearchBar({ variant = "desktop", onDone }: { variant?: "desktop" | "mob
           type="button"
           onClick={() => setValue("")}
           aria-label="Limpiar"
-          className="px-2 text-zinc-500 hover:text-zinc-300"
+          className="px-2 text-[hsl(var(--muted-foreground))] hover:text-foreground transition-colors duration-300"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
     </form>
@@ -87,82 +88,61 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
     <AnimatePresence>
       {open && (
         <>
-          {/* Overlay */}
           <motion.div
             key="overlay"
-            className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/80"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.3 }}
             onClick={onClose}
           />
 
-          {/* Drawer panel */}
           <motion.div
             key="drawer"
-            className="fixed top-0 left-0 z-[70] h-full w-[78vw] max-w-[300px] bg-black border-r border-zinc-800 flex flex-col"
+            className="fixed top-0 left-0 z-[70] h-full w-[80vw] max-w-[320px] bg-background flex flex-col"
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
-            transition={{ type: "tween", duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ type: "tween", duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Header del drawer */}
-            <div className="flex items-center justify-between px-6 h-16 border-b border-zinc-800">
-              <span className="font-display font-bold text-xl tracking-tighter text-white">
-                ALFIS<span className="text-zinc-500">.</span>
+            <div className="flex items-center justify-between px-8 h-20 border-b border-[hsl(var(--border))]">
+              <span className="font-display text-2xl tracking-[0.06em] text-foreground">
+                ALFIS
               </span>
               <button
                 onClick={onClose}
-                className="p-2 text-zinc-400 hover:text-white transition-colors"
+                className="p-2 text-[hsl(var(--muted-foreground))] hover:text-foreground transition-colors duration-300"
                 aria-label="Cerrar menú"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Links principales */}
-            <nav className="flex flex-col flex-1 px-4 pt-6 gap-1">
-              <button
-                onClick={() => go("/")}
-                className="flex items-center justify-between w-full px-4 py-4 text-left text-base font-bold uppercase tracking-widest text-white hover:bg-zinc-900 transition-colors rounded-none group"
-                data-testid="mobile-nav-hombre"
-              >
-                Hombre
-                <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-              </button>
-
-              <div className="h-px bg-zinc-900 mx-4" />
-
-              <button
-                onClick={() => go("/priority")}
-                className="flex items-center justify-between w-full px-4 py-4 text-left text-base font-bold uppercase tracking-widest hover:bg-zinc-900 transition-colors rounded-none group"
-                style={{ color: "#d4b896" }}
-                data-testid="mobile-nav-priority"
-              >
-                Priority
-                <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-              </button>
-
-              <div className="h-px bg-zinc-900 mx-4" />
-
-              <button
-                onClick={() => go("/contacto")}
-                className="flex items-center justify-between w-full px-4 py-4 text-left text-base font-bold uppercase tracking-widest text-white hover:bg-zinc-900 transition-colors rounded-none group"
-                data-testid="mobile-nav-contacto"
-              >
-                Contacto
-                <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-              </button>
-
-              <div className="h-px bg-zinc-900 mx-4" />
+            <nav className="flex flex-col flex-1 px-8 pt-10 gap-0">
+              {[
+                { label: "Hombre", href: "/", testId: "mobile-nav-hombre" },
+                { label: "Priority", href: "/priority", testId: "mobile-nav-priority" },
+                { label: "Contacto", href: "/contacto", testId: "mobile-nav-contacto" },
+              ].map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => go(item.href)}
+                  className="flex items-center justify-between w-full py-5 text-left border-b border-[hsl(var(--border))] group"
+                  data-testid={item.testId}
+                >
+                  <span className="font-display text-xl tracking-wide text-foreground group-hover:text-foreground/60 transition-colors duration-300">
+                    {item.label}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-foreground transition-colors duration-300" />
+                </button>
+              ))}
             </nav>
 
-            {/* Footer del drawer */}
-            <div className="px-6 pb-8 pt-4 border-t border-zinc-900">
+            <div className="px-8 pb-10 pt-6">
               <button
                 onClick={() => go("/seguimiento")}
-                className="flex items-center gap-3 text-xs font-medium uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors py-2"
+                className="flex items-center gap-3 text-sm font-light tracking-wide text-[hsl(var(--muted-foreground))] hover:text-foreground transition-colors duration-300"
                 data-testid="mobile-nav-seguimiento"
               >
                 <Package className="h-4 w-4" />
@@ -180,54 +160,65 @@ export function Navbar() {
   const { totalItems } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <>
       <MobileDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-4 shrink-0">
+      <nav
+        className={`sticky top-0 z-50 w-full transition-all duration-500 ${
+          scrolled
+            ? "bg-background/95 backdrop-blur-sm border-b border-[hsl(var(--border))]"
+            : "bg-transparent border-b border-transparent"
+        }`}
+      >
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 h-16 md:h-20 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-8 shrink-0">
             <button
-              className="md:hidden p-2 -ml-2 text-foreground hover:text-primary transition-colors"
+              className="md:hidden p-1 text-foreground"
               onClick={() => setMenuOpen(true)}
               aria-label="Abrir menú"
               data-testid="button-mobile-menu"
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </button>
 
-            <Link href="/" className="font-display font-bold text-2xl tracking-tighter" data-testid="link-home-logo">
-              ALFIS<span className="text-primary/70">.</span>
+            <Link href="/" className="logo-3d font-display text-[1.6rem] md:text-[2rem] tracking-[0.08em] text-foreground" data-testid="link-home-logo">
+              ALFIS JEANS
             </Link>
 
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="/" className="hover:text-primary/80 transition-colors" data-testid="link-nav-denim">
+            <div className="hidden md:flex items-center gap-8 text-sm font-light tracking-wide">
+              <Link href="/" className="link-underline text-foreground/70 hover:text-foreground transition-colors duration-300" data-testid="link-nav-denim">
                 Hombre
               </Link>
               <Link
                 href="/priority"
-                className="font-bold tracking-wide transition-colors hover:opacity-80"
-                style={{ color: "#d4b896" }}
+                className="link-underline text-foreground hover:text-foreground/70 transition-colors duration-300"
                 data-testid="link-nav-priority"
               >
                 Priority
               </Link>
-              <Link href="/contacto" className="hover:text-primary/80 transition-colors" data-testid="link-nav-contact">
+              <Link href="/contacto" className="link-underline text-foreground/70 hover:text-foreground transition-colors duration-300" data-testid="link-nav-contact">
                 Contacto
               </Link>
             </div>
           </div>
 
-          {/* Desktop search bar */}
-          <div className="flex-1 hidden md:flex justify-center max-w-md mx-auto">
+          <div className="flex-1 hidden md:flex justify-end max-w-xs">
             <SearchBar variant="desktop" />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
             <button
               type="button"
-              className="md:hidden p-2 text-foreground hover:text-primary transition-colors"
+              className="md:hidden p-1 text-foreground/70 hover:text-foreground transition-colors duration-300"
               onClick={() => setMobileSearchOpen((v) => !v)}
               aria-label="Buscar"
               aria-expanded={mobileSearchOpen}
@@ -238,17 +229,17 @@ export function Navbar() {
 
             <Link
               href="/seguimiento"
-              className="hidden sm:flex items-center gap-2 hover:text-primary/80 transition-colors text-sm font-medium"
+              className="hidden sm:flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors duration-300 text-sm font-light tracking-wide"
               data-testid="link-nav-tracking"
             >
-              <Package className="h-5 w-5" />
+              <Package className="h-4 w-4" />
               <span>Seguimiento</span>
             </Link>
 
-            <Link href="/carrito" className="relative p-2 hover:text-primary/80 transition-colors" data-testid="link-nav-cart">
+            <Link href="/carrito" className="relative p-1 text-foreground/70 hover:text-foreground transition-colors duration-300" data-testid="link-nav-cart">
               <ShoppingBag className="h-5 w-5" />
               {totalItems > 0 && (
-                <Badge className="absolute top-0 right-0 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground rounded-full">
+                <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-foreground text-background rounded-full">
                   {totalItems}
                 </Badge>
               )}
@@ -256,18 +247,17 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Mobile search bar (expandable) */}
         <AnimatePresence initial={false}>
           {mobileSearchOpen && (
             <motion.div
               key="mobile-search"
-              className="md:hidden overflow-hidden border-t border-border/50 bg-background"
+              className="md:hidden overflow-hidden border-t border-[hsl(var(--border))] bg-background"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="container mx-auto px-4 py-3">
+              <div className="px-6 py-4">
                 <SearchBar variant="mobile" onDone={() => setMobileSearchOpen(false)} />
               </div>
             </motion.div>
