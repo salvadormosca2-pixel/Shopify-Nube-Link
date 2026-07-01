@@ -1,19 +1,24 @@
 # Netlify config for the standalone Aurora admin SPA.
-# In the Netlify UI set: Base directory = aurora-admin, Build command = npm run build,
-# Publish directory = dist  (these are mirrored below so the file is the source of truth).
-# Set VITE_API_URL in Site settings -> Environment variables (URL WITHOUT trailing /api).
+# Netlify UI: Base directory = aurora-admin, Build command = npm run build,
+# Publish directory = dist.
+#
+# El panel llama a /api en su propio dominio y Netlify lo proxea a Railway
+# (evita CORS y no requiere VITE_API_URL). El orden importa: el proxy /api/*
+# va ANTES del fallback SPA.
 
 [build]
   base    = "aurora-admin"
   command = "npm run build"
   publish = "dist"
 
-[build.environment]
-  # Backend real (Railway) SIN "/api" al final — el cliente axios agrega "/api".
-  # Podés sobrescribirlo en Site settings -> Environment variables.
-  VITE_API_URL = "https://workspacealfis-jeans-production.up.railway.app"
+# Proxy de la API al backend real (Railway).
+[[redirects]]
+  from   = "/api/*"
+  to     = "https://workspacealfis-jeans-production.up.railway.app/api/:splat"
+  status = 200
+  force  = true
 
-# SPA fallback: without this, refreshing /productos (or any deep link) returns 404.
+# SPA fallback: refrescar /productos u otro deep link no debe dar 404.
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
