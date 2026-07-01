@@ -8,4 +8,9 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
+// Simple liveness probe used for manual checks / n8n (200 { ok: true }).
+router.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 export default router;

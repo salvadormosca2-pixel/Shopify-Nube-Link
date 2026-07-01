@@ -7,6 +7,7 @@ import { db } from "@workspace/db";
 import { productsTable, ordersTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
+import { toProductoPublic, getSucursales } from "../lib/catalog";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,36 @@ router.get("/categorias", async (_req, res) => {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las categorías" });
   }
 });
+// Lectura pública de productos (sin token) — la usan la tienda y el bot.
+router.get("/productos", async (req, res) => {
+  try {
+    const { search, categoria, genero } = req.query as Record<string, string>;
+    let rows = await db
+      .select()
+      .from(productsTable)
+      .orderBy(productsTable.category, productsTable.name);
+
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          (p.description ?? "").toLowerCase().includes(q),
+      );
+    }
+    if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
+    if (genero) rows = rows.filter((p) => p.section === genero);
+
+    res.json(rows.map(toProductoPublic));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los productos" });
+  }
+});
+
+// Sucursales configurables por env (SUCURSALES_JSON); [] si aún no hay datos.
+router.get("/sucursales", (_req, res) => res.json(getSucursales()));
+
 // Marcas y métodos de pago no tienen tabla propia: listas estáticas para el ABM.
 router.get("/marcas", (_req, res) => res.json([]));
 router.get("/metodos-pago", (_req, res) =>

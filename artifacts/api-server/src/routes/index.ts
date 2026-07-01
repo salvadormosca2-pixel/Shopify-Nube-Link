@@ -9,6 +9,7 @@ import reviewsRouter from "./reviews";
 import contactRouter from "./contact";
 import adminRouter from "./admin";
 import panelRouter from "./panel";
+import botRouter from "./bot";
 import storageRouter from "./storage";
 import uploadsRouter from "./uploads";
 
@@ -24,6 +25,7 @@ router.use(reviewsRouter);
 router.use(contactRouter);
 router.use(adminRouter);
 router.use(panelRouter);
+router.use(botRouter);
 router.use(storageRouter);
 router.use(uploadsRouter);
 

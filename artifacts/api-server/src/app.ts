@@ -6,7 +6,18 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// CORS_ORIGIN may be "*" (allow all, no credentials) or a comma-separated list
+// of allowed origins (store + admin panel), in which case credentials are on.
 const corsOrigin = process.env["CORS_ORIGIN"];
+
+function corsOptions() {
+  if (!corsOrigin || corsOrigin.trim() === "*") return undefined; // reflect all, no credentials
+  const origins = corsOrigin.split(",").map((o) => o.trim()).filter(Boolean);
+  return {
+    origin: (origins.length === 1 ? origins[0] : origins) as string | string[],
+    credentials: true,
+  };
+}
 
 app.use(
   pinoHttp({
@@ -27,13 +38,7 @@ app.use(
     },
   }),
 );
-app.use(
-  cors(
-    corsOrigin
-      ? { origin: corsOrigin, credentials: true }
-      : undefined,
-  ),
-);
+app.use(cors(corsOptions()));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
