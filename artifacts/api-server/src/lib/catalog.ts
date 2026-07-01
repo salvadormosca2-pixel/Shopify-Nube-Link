@@ -49,11 +49,11 @@ export function toPromo(p: DbProduct) {
   };
 }
 
-// Sucursales have no DB table yet. They are configured via the SUCURSALES_JSON
-// env var (a JSON array); until it's set the endpoint returns [] instead of
-// fabricating branch data.
-export function getSucursales(): unknown[] {
-  const raw = process.env["SUCURSALES_JSON"];
+// Reads a JSON array from an env var, returning [] if unset or malformed.
+// Used for data that has no DB table yet (sucursales, combos/looks) so the
+// endpoints stay stable and configurable without fabricating data.
+function jsonArrayFromEnv(name: string): unknown[] {
+  const raw = process.env[name];
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -63,4 +63,14 @@ export function getSucursales(): unknown[] {
     }
   }
   return [];
+}
+
+// Sucursales have no DB table yet — configured via SUCURSALES_JSON.
+export function getSucursales(): unknown[] {
+  return jsonArrayFromEnv("SUCURSALES_JSON");
+}
+
+// Combos / looks have no DB table yet — configured via COMBOS_JSON.
+export function getCombos(): unknown[] {
+  return jsonArrayFromEnv("COMBOS_JSON");
 }

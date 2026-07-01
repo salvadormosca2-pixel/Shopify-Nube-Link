@@ -7,7 +7,7 @@ import { db } from "@workspace/db";
 import { productsTable, ordersTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
-import { toProductoPublic, getSucursales } from "../lib/catalog";
+import { toProductoPublic, toPromo, isPromo, getSucursales, getCombos } from "../lib/catalog";
 
 const router: IRouter = Router();
 
@@ -53,6 +53,19 @@ router.get("/productos", async (req, res) => {
 
 // Sucursales configurables por env (SUCURSALES_JSON); [] si aún no hay datos.
 router.get("/sucursales", (_req, res) => res.json(getSucursales()));
+
+// Promociones públicas (sin token): productos con precio de oferta (salePrice < price).
+router.get("/promociones", async (_req, res) => {
+  try {
+    const rows = await db.select().from(productsTable);
+    res.json(rows.filter(isPromo).map(toPromo));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las promociones" });
+  }
+});
+
+// Combos / looks configurables por env (COMBOS_JSON); [] si aún no hay datos.
+router.get("/combos", (_req, res) => res.json(getCombos()));
 
 // Marcas y métodos de pago no tienen tabla propia: listas estáticas para el ABM.
 router.get("/marcas", (_req, res) => res.json([]));
