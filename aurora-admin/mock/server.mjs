@@ -88,7 +88,7 @@ const DEVOLUCIONES = [
   { id: 1, pedido_id: 2, cliente: "Pedro Ramírez", motivo: "Talle incorrecto", tipo: "cambio", estado: "solicitada" },
 ];
 const USUARIOS = [
-  { id: 1, nombre: "Admin Aurora", email: "admin@aurora.com", rol: "admin", activo: true },
+  { id: 1, nombre: "Administrador", email: "admin@alfis.com", rol: "admin", activo: true },
   { id: 2, nombre: "Carla Encargada", email: "carla@aurora.com", rol: "encargado", activo: true },
   { id: 3, nombre: "Diego Vendedor", email: "diego@aurora.com", rol: "vendedor", activo: false },
 ];
@@ -116,7 +116,7 @@ const METRICAS = {
   total_ventas: 1240000, conversaciones: 312, leads_ia: 84, pedidos: 38, conversion: 12, ticket_promedio: 32600,
   serie: [{ fecha: "Sem 1", total: 120000 }, { fecha: "Sem 2", total: 180000 }, { fecha: "Sem 3", total: 240000 }, { fecha: "Sem 4", total: 400000 }],
 };
-const SUCURSAL = { id: 1, nombre: "Aurora Indumentaria — Local Central", direccion: "Av. Santa Fe 2100, CABA", horarios: "Lun a Sáb 10-20h", telefono: "+54 11 4000-0000" };
+const SUCURSAL = { id: 1, nombre: "Alfis Jeans — Local Central", direccion: "Av. Santa Fe 2100, CABA", horarios: "Lun a Sáb 10-20h", telefono: "+54 11 4000-0000" };
 
 // ---------- router ----------
 const server = createServer((req, res) => {
@@ -132,10 +132,10 @@ const server = createServer((req, res) => {
   if (p === "/api/auth/login" && m === "POST") {
     return json(res, {
       token: "mock-jwt-token-demo",
-      user: { id: 1, email: "admin@aurora.com", nombre: "Admin Aurora", rol: "admin" },
+      user: { id: 1, email: "admin@alfis.com", nombre: "Administrador", rol: "admin" },
     });
   }
-  if (p === "/api/auth/me") return json(res, { id: 1, email: "admin@aurora.com", nombre: "Admin Aurora", rol: "admin" });
+  if (p === "/api/auth/me") return json(res, { id: 1, email: "admin@alfis.com", nombre: "Administrador", rol: "admin" });
 
   // GETs principales
   if (m === "GET") {

@@ -189,7 +189,7 @@ export function Pedidos() {
               className="mx-auto max-w-sm rounded-lg border border-borde bg-[#0E0E0E] p-5 font-mono text-sm text-gray-200"
             >
               <div className="mb-3 text-center">
-                <p className="text-base font-bold tracking-wide text-white">AURORA INDUMENTARIA</p>
+                <p className="text-base font-bold tracking-wide text-white">ALFIS JEANS</p>
                 <p className="text-xs text-gray-500">Pedido #{selected.id}</p>
               </div>
 

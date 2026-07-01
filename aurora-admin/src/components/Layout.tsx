@@ -70,7 +70,7 @@ export function Layout() {
       {/* Logo */}
       <div className="flex items-center justify-between px-5 py-5">
         <span className="glow-text font-display text-2xl font-bold tracking-wide text-acento">
-          AURORA
+          ALFIS
         </span>
         <button className="text-gray-500 lg:hidden" onClick={() => setOpen(false)}>
           <X size={20} />
@@ -174,7 +174,7 @@ export function Layout() {
           <button className="text-gray-300" onClick={() => setOpen(true)}>
             <Menu size={22} />
           </button>
-          <span className="glow-text font-display text-lg font-bold text-acento">AURORA</span>
+          <span className="glow-text font-display text-lg font-bold text-acento">ALFIS</span>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />

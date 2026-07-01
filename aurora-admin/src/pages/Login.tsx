@@ -41,7 +41,7 @@ export function Login() {
     >
       <div className="mb-8 text-center">
         <h1 className="glow-text font-display text-5xl font-bold tracking-wide text-acento">
-          AURORA
+          ALFIS
         </h1>
         <p className="mt-2 text-xs font-medium uppercase tracking-[0.3em] text-gray-500">
           Panel de Administración
@@ -93,7 +93,7 @@ export function Login() {
       </form>
 
       <p className="mt-8 text-xs text-gray-600">
-        Aurora Indumentaria © {new Date().getFullYear()}
+        Alfis Jeans © {new Date().getFullYear()}
       </p>
     </div>
   );
