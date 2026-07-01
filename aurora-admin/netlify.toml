@@ -1,0 +1,20 @@
+# Netlify config for the standalone Aurora admin SPA.
+# In the Netlify UI set: Base directory = aurora-admin, Build command = npm run build,
+# Publish directory = dist  (these are mirrored below so the file is the source of truth).
+# Set VITE_API_URL in Site settings -> Environment variables (URL WITHOUT trailing /api).
+
+[build]
+  base    = "aurora-admin"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Backend real (Railway) SIN "/api" al final — el cliente axios agrega "/api".
+  # Podés sobrescribirlo en Site settings -> Environment variables.
+  VITE_API_URL = "https://workspacealfis-jeans-production.up.railway.app"
+
+# SPA fallback: without this, refreshing /productos (or any deep link) returns 404.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

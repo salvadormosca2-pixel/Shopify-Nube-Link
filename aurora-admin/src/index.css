@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+/* ================================================================
+   AURORA INDUMENTARIA — sistema visual
+   Tema oscuro neón. Rebrandeo: cambiá --color-acento y se propaga.
+   ================================================================ */
+@theme {
+  --color-fondo: #0a0a0a;          /* fondo general */
+  --color-card: #141414;           /* superficie de cards/tablas */
+  --color-borde: #2a2a2a;          /* bordes */
+  --color-dark-hover: #1e1e1e;     /* hover filas/botones */
+
+  --color-acento: #39ff14;         /* ACENTO de marca (rebranding) */
+  --color-acento-dim: rgba(57, 255, 20, 0.15);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background-color: var(--color-fondo);
+    color: #e5e7eb;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Scrollbar: track transparente, thumb #2a2a2a (hover = acento), 6px */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-acento);
+  }
+}
+
+/* ---------------- Componentes utilitarios ---------------- */
+@utility card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-acento);
+  color: #000;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  &:hover {
+    opacity: 0.9;
+    box-shadow: 0 0 20px var(--color-acento-dim);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-borde);
+  color: #9ca3af;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  &:hover {
+    background-color: var(--color-dark-hover);
+    border-color: var(--color-acento-dim);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.25);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility input-field {
+  width: 100%;
+  background-color: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #e5e7eb;
+  transition: all 0.15s ease;
+  &::placeholder {
+    color: #4b5563;
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-acento);
+    box-shadow: 0 0 0 3px var(--color-acento-dim);
+  }
+}
+
+@utility table-header {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@utility table-cell {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  border-top: 1px solid var(--color-borde);
+  vertical-align: middle;
+}
+
+/* ---------------- Efectos ---------------- */
+@utility glow-text {
+  text-shadow: 0 0 12px var(--color-acento-dim), 0 0 4px var(--color-acento-dim);
+}
+
+@utility glow-border {
+  box-shadow: 0 0 0 1px var(--color-acento-dim), 0 0 30px var(--color-acento-dim),
+    inset 0 0 20px rgba(57, 255, 20, 0.05);
+}
+
+@utility pattern-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%2339FF14' stroke-opacity='0.04' stroke-width='1'%3E%3Cpath d='M0 20h40M20 0v40'/%3E%3C/g%3E%3C/svg%3E");
+}
