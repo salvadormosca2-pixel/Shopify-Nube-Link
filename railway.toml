@@ -1,6 +1,8 @@
 [build]
 builder = "nixpacks"
 buildCommand = "corepack enable && pnpm install && pnpm --filter @workspace/api-server run build"
+# Rebuild on any change in the API source / shared packages / build config.
+watchPatterns = ["artifacts/**", "lib/**", "package.json", "pnpm-lock.yaml", "railway.toml"]
 
 [build.environment]
 NIXPACKS_NODE_VERSION = "20"
