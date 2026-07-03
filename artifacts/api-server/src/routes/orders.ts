@@ -139,6 +139,9 @@ router.post("/orders", async (req, res) => {
           shippingCost: String(shippingCost),
           total: String(total),
           paymentId: null,
+          // La tienda descuenta stock acá mismo (abajo), así que el pedido ya
+          // queda con el stock aplicado y el admin no lo vuelve a descontar.
+          stockApplied: true,
         }).returning();
 
         // Decrement stock atomically — WHERE stock >= qty prevents oversell on concurrent requests

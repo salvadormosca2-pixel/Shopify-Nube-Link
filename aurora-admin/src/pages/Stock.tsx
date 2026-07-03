@@ -24,6 +24,8 @@ interface Variante {
 interface Producto {
   id: string | number;
   nombre: string;
+  talles?: string[];
+  colores?: string[];
 }
 
 interface AlertaItem {
@@ -336,7 +338,9 @@ export function Stock() {
             <Field label="Producto">
               <Select
                 value={String(mov.producto_id)}
-                onChange={(e) => setMov({ ...mov, producto_id: e.target.value })}
+                onChange={(e) =>
+                  setMov({ ...mov, producto_id: e.target.value, talle: "", color: "" })
+                }
               >
                 <option value="">Seleccionar...</option>
                 {productos.map((p) => (
@@ -346,20 +350,51 @@ export function Stock() {
                 ))}
               </Select>
             </Field>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Talle">
-                <TextInput
-                  value={mov.talle}
-                  onChange={(e) => setMov({ ...mov, talle: e.target.value })}
-                />
-              </Field>
-              <Field label="Color">
-                <TextInput
-                  value={mov.color}
-                  onChange={(e) => setMov({ ...mov, color: e.target.value })}
-                />
-              </Field>
-            </div>
+            {(() => {
+              const prod = productos.find((p) => String(p.id) === String(mov.producto_id));
+              const talles = prod?.talles ?? [];
+              const colores = prod?.colores ?? [];
+              return (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Talle">
+                    {talles.length > 0 ? (
+                      <Select value={mov.talle} onChange={(e) => setMov({ ...mov, talle: e.target.value })}>
+                        <option value="">Seleccionar...</option>
+                        {talles.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <TextInput
+                        value={mov.talle}
+                        onChange={(e) => setMov({ ...mov, talle: e.target.value })}
+                        placeholder="S, M, 40..."
+                      />
+                    )}
+                  </Field>
+                  <Field label="Color">
+                    {colores.length > 0 ? (
+                      <Select value={mov.color} onChange={(e) => setMov({ ...mov, color: e.target.value })}>
+                        <option value="">Sin color</option>
+                        {colores.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <TextInput
+                        value={mov.color}
+                        onChange={(e) => setMov({ ...mov, color: e.target.value })}
+                        placeholder="(opcional)"
+                      />
+                    )}
+                  </Field>
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Tipo">
                 <Select

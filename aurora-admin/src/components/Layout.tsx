@@ -15,6 +15,7 @@ import {
   BarChart3,
   TrendingUp,
   Settings,
+  Store,
   LogOut,
   Menu,
   X,
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { to: "/empleados", label: "Empleados", icon: UserCog, adminOnly: true },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
   { to: "/resultados", label: "Resultados", icon: TrendingUp },
+  { to: "/sucursales", label: "Sucursales", icon: Store, adminOnly: true },
   { to: "/configuracion", label: "Configuración", icon: Settings, adminOnly: true },
 ];
 

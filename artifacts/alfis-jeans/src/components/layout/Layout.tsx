@@ -8,9 +8,8 @@ const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los prod
 const WHATSAPP_URL = `https://wa.me/5493834330385?text=${WHATSAPP_MSG}`;
 
 const PROMOS = [
-  "Envío gratis a todo el país",
+  "Envíos a todo el país · Retiro sin cargo en nuestro local de Catamarca",
   "Hasta 3 cuotas sin interés",
-  "Cambios y devoluciones gratis",
 ];
 
 function AnnouncementBar() {

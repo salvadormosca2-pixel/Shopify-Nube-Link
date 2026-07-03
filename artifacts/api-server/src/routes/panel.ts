@@ -4,16 +4,15 @@
 // storefront reads. Auth reuses the existing x-admin-key middleware.
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { productsTable, ordersTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { productsTable, ordersTable, productVariantsTable, sucursalesTable } from "@workspace/db/schema";
+import { eq, sql, and } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
-import { toProductoPublic, toPromo, isPromo, getSucursales, getCombos } from "../lib/catalog";
+import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
+import { loadVariantsMap } from "../lib/variants";
+import { applyOrderStock } from "../lib/stock-movements";
+import { listSucursalesPublic } from "../lib/sucursales";
 
 const router: IRouter = Router();
-
-// Low-stock threshold (the products table has no per-product minimum column,
-// so the panel uses a shared default).
-const STOCK_MIN = 3;
 
 // ─── Aliases públicos que usa el panel (categorías reales, maestros) ─────────
 router.get("/categorias", async (_req, res) => {
@@ -45,20 +44,29 @@ router.get("/productos", async (req, res) => {
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
     if (genero) rows = rows.filter((p) => p.section === genero);
 
-    res.json(rows.map(toProductoPublic));
+    const variants = await loadVariantsMap(rows.map((p) => p.id));
+    res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id))));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los productos" });
   }
 });
 
-// Sucursales configurables por env (SUCURSALES_JSON); [] si aún no hay datos.
-router.get("/sucursales", (_req, res) => res.json(getSucursales()));
+// Sucursales / datos del local — leídos de la base (editable desde el panel).
+router.get("/sucursales", async (_req, res) => {
+  try {
+    res.json(await listSucursalesPublic());
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las sucursales" });
+  }
+});
 
 // Promociones públicas (sin token): productos con precio de oferta (salePrice < price).
 router.get("/promociones", async (_req, res) => {
   try {
     const rows = await db.select().from(productsTable);
-    res.json(rows.filter(isPromo).map(toPromo));
+    const promos = rows.filter(isPromo);
+    const variants = await loadVariantsMap(promos.map((p) => p.id));
+    res.json(promos.map((p) => toPromo(p, variants.get(p.id))));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las promociones" });
   }
@@ -136,9 +144,10 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
   return out;
 }
 
-function estadoFromStock(stock: number): "sin_stock" | "bajo" | "ok" {
+// Estado de una variante según su propio stock mínimo.
+function estadoVar(stock: number, minimo: number): "sin_stock" | "bajo" | "ok" {
   if (stock <= 0) return "sin_stock";
-  if (stock <= STOCK_MIN) return "bajo";
+  if (stock <= minimo) return "bajo";
   return "ok";
 }
 
@@ -241,20 +250,30 @@ router.delete("/admin/productos/:id", async (req, res) => {
   }
 });
 
-// ─── STOCK (por producto; la base no tiene variantes por talle/color) ────────
+// ─── STOCK por variante (talle / color) ──────────────────────────────────────
+// Lista todas las variantes con el nombre del producto. Si una variante no
+// existe todavía, se crea al registrar una "entrada" (así se carga el stock).
 router.get("/admin/stock", async (req, res) => {
   try {
     const soloReponer = req.query.reponer === "true";
-    const rows = await db.select().from(productsTable).orderBy(productsTable.name);
-    let variantes = rows.map((p) => ({
-      id: p.id,
-      producto_id: p.id,
-      producto_nombre: p.name,
-      talle: (p.sizes ?? []).join(" / ") || "Único",
-      color: (p.colors ?? []).join(" / ") || "—",
-      stock: p.stock,
-      stock_minimo: STOCK_MIN,
-      estado: estadoFromStock(p.stock),
+    const rows = await db
+      .select({
+        id: productVariantsTable.id,
+        producto_id: productVariantsTable.productoId,
+        producto_nombre: productsTable.name,
+        talle: productVariantsTable.talle,
+        color: productVariantsTable.color,
+        stock: productVariantsTable.stock,
+        stock_minimo: productVariantsTable.stockMinimo,
+      })
+      .from(productVariantsTable)
+      .innerJoin(productsTable, eq(productVariantsTable.productoId, productsTable.id))
+      .orderBy(productsTable.name, productVariantsTable.talle);
+
+    let variantes = rows.map((v) => ({
+      ...v,
+      color: v.color === "" ? "" : v.color,
+      estado: estadoVar(v.stock, v.stock_minimo),
     }));
     if (soloReponer) variantes = variantes.filter((v) => v.estado !== "ok");
     res.json(variantes);
@@ -263,14 +282,17 @@ router.get("/admin/stock", async (req, res) => {
   }
 });
 
-// Movimiento de stock: ajusta products.stock (entrada suma, salida resta).
+// Movimiento de stock por variante (entrada suma, salida resta, nunca < 0).
+// La entrada crea la variante si no existía (forma de cargar el stock inicial).
 router.post("/admin/stock/movimiento", async (req, res) => {
   try {
-    const { producto_id, tipo, cantidad } = req.body ?? {};
+    const { producto_id, talle, color, tipo, cantidad } = req.body ?? {};
     const id = parseInt(String(producto_id), 10);
     const cant = parseInt(String(cantidad), 10);
-    if (Number.isNaN(id) || Number.isNaN(cant) || cant <= 0) {
-      res.status(400).json({ error: "invalid_input", message: "producto_id y cantidad son obligatorios" });
+    const talleStr = String(talle ?? "").trim();
+    const colorStr = color != null ? String(color).trim() : "";
+    if (Number.isNaN(id) || Number.isNaN(cant) || cant <= 0 || !talleStr) {
+      res.status(400).json({ error: "invalid_input", message: "Producto, talle y cantidad son obligatorios" });
       return;
     }
     const [prod] = await db.select().from(productsTable).where(eq(productsTable.id, id));
@@ -278,42 +300,98 @@ router.post("/admin/stock/movimiento", async (req, res) => {
       res.status(404).json({ error: "not_found", message: "Producto no encontrado" });
       return;
     }
+
+    const [existing] = await db
+      .select()
+      .from(productVariantsTable)
+      .where(
+        and(
+          eq(productVariantsTable.productoId, id),
+          eq(productVariantsTable.talle, talleStr),
+          eq(productVariantsTable.color, colorStr),
+        ),
+      );
+
+    if (!existing) {
+      if (tipo === "salida") {
+        res.status(400).json({ error: "no_variant", message: "Esa variante no existe todavía" });
+        return;
+      }
+      const [created] = await db
+        .insert(productVariantsTable)
+        .values({ productoId: id, talle: talleStr, color: colorStr, stock: cant })
+        .returning();
+      res.json({ ok: true, id: created.id, stock: created.stock });
+      return;
+    }
+
     const delta = tipo === "salida" ? -cant : cant;
-    const nuevo = Math.max(0, prod.stock + delta);
+    const nuevo = Math.max(0, existing.stock + delta);
     const [updated] = await db
-      .update(productsTable)
-      .set({ stock: nuevo })
-      .where(eq(productsTable.id, id))
+      .update(productVariantsTable)
+      .set({ stock: nuevo, updatedAt: new Date() })
+      .where(eq(productVariantsTable.id, existing.id))
       .returning();
-    res.json({ ok: true, stock: updated.stock });
+    res.json({ ok: true, id: updated.id, stock: updated.stock });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo registrar el movimiento" });
   }
 });
 
-// Sin tabla de movimientos: devolvemos lista vacía para no romper la UI.
+// Sin tabla de historial de movimientos: lista vacía para no romper la UI.
 router.get("/admin/stock/movimientos", (_req, res) => res.json([]));
 
-// Stock mínimo no es persistible (no hay columna); aceptamos el PATCH sin error.
-router.patch("/admin/stock/variante/:id/minimo", (_req, res) => res.json({ ok: true }));
+// Stock mínimo por variante (persistente).
+router.patch("/admin/stock/variante/:id/minimo", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const minimo = parseInt(String(req.body?.stock_minimo), 10);
+    if (Number.isNaN(id) || Number.isNaN(minimo) || minimo < 0) {
+      res.status(400).json({ error: "invalid_input", message: "Stock mínimo inválido" });
+      return;
+    }
+    const [updated] = await db
+      .update(productVariantsTable)
+      .set({ stockMinimo: minimo, updatedAt: new Date() })
+      .where(eq(productVariantsTable.id, id))
+      .returning({ id: productVariantsTable.id });
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Variante no encontrada" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el stock mínimo" });
+  }
+});
 
 router.get("/admin/stock/alertas", async (_req, res) => {
   try {
-    const rows = await db.select().from(productsTable);
-    const items = rows
-      .filter((p) => p.stock <= STOCK_MIN)
-      .map((p) => ({
-        id: p.id,
-        tipo: p.stock <= 0 ? "sin_stock" : "bajo_stock",
-        mensaje:
-          p.stock <= 0
-            ? `${p.name} sin stock`
-            : `${p.name} con stock bajo (${p.stock})`,
-      }));
+    const rows = await db
+      .select({
+        id: productVariantsTable.id,
+        nombre: productsTable.name,
+        talle: productVariantsTable.talle,
+        color: productVariantsTable.color,
+        stock: productVariantsTable.stock,
+        stock_minimo: productVariantsTable.stockMinimo,
+      })
+      .from(productVariantsTable)
+      .innerJoin(productsTable, eq(productVariantsTable.productoId, productsTable.id));
+
+    const bajos = rows.filter((v) => v.stock <= v.stock_minimo);
+    const items = bajos.map((v) => {
+      const etiqueta = `${v.nombre} · ${v.talle}${v.color ? ` / ${v.color}` : ""}`;
+      return {
+        id: v.id,
+        tipo: v.stock <= 0 ? "sin_stock" : "bajo_stock",
+        mensaje: v.stock <= 0 ? `${etiqueta} sin stock` : `${etiqueta} con stock bajo (${v.stock})`,
+      };
+    });
     res.json({
       items,
       para_reponer: items.length,
-      sin_stock: rows.filter((p) => p.stock <= 0).length,
+      sin_stock: rows.filter((v) => v.stock <= 0).length,
     });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las alertas" });
@@ -402,6 +480,9 @@ router.get("/admin/pedidos", async (_req, res) => {
   }
 });
 
+// Estados en los que el stock ya debe estar descontado (pago confirmado o más allá).
+const PAID_STATUSES = new Set(["confirmed", "preparing", "shipped", "delivered"]);
+
 router.patch("/admin/pedidos/:id/estado", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -411,18 +492,121 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
       res.status(400).json({ error: "invalid_input", message: "Estado inválido" });
       return;
     }
-    const [updated] = await db
-      .update(ordersTable)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(ordersTable.id, id))
-      .returning({ id: ordersTable.id });
-    if (!updated) {
+
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
+    if (!order) {
       res.status(404).json({ error: "not_found", message: "Pedido no encontrado" });
       return;
     }
-    res.json({ ok: true });
+
+    let advertencias: string[] = [];
+    let stockApplied = order.stockApplied;
+
+    if (PAID_STATUSES.has(status) && !order.stockApplied) {
+      // Confirmación del pago → descontar stock de las variantes del pedido.
+      ({ advertencias } = await applyOrderStock(order.items ?? [], -1));
+      stockApplied = true;
+    } else if (status === "cancelled" && order.stockApplied) {
+      // Cancelación de un pedido ya confirmado → reponer stock.
+      ({ advertencias } = await applyOrderStock(order.items ?? [], +1));
+      stockApplied = false;
+    }
+
+    await db
+      .update(ordersTable)
+      .set({ status, stockApplied, updatedAt: new Date() })
+      .where(eq(ordersTable.id, id));
+
+    res.json({ ok: true, advertencias });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el pedido" });
+  }
+});
+
+// ─── SUCURSALES / DATOS DEL LOCAL ────────────────────────────────────────────
+function fromSucursal(body: Record<string, unknown>): Partial<typeof sucursalesTable.$inferInsert> {
+  const out: Partial<typeof sucursalesTable.$inferInsert> = {};
+  if (body.nombre !== undefined) out.nombre = String(body.nombre).trim();
+  if (body.direccion !== undefined) out.direccion = String(body.direccion ?? "");
+  if (body.horarios !== undefined) out.horarios = String(body.horarios ?? "");
+  if (body.envios !== undefined) out.envios = String(body.envios ?? "");
+  if (body.cambios !== undefined) out.cambios = String(body.cambios ?? "");
+  if (body.whatsapp !== undefined) out.whatsapp = String(body.whatsapp ?? "");
+  if (body.activo !== undefined) out.activo = Boolean(body.activo);
+  return out;
+}
+
+router.get("/admin/sucursales", async (_req, res) => {
+  try {
+    const rows = await db.select().from(sucursalesTable).orderBy(sucursalesTable.id);
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las sucursales" });
+  }
+});
+
+router.post("/admin/sucursales", async (req, res) => {
+  try {
+    const payload = fromSucursal(req.body ?? {});
+    if (!payload.nombre) {
+      res.status(400).json({ error: "invalid_name", message: "El nombre es obligatorio" });
+      return;
+    }
+    const [created] = await db
+      .insert(sucursalesTable)
+      .values({ nombre: payload.nombre, ...payload })
+      .returning();
+    res.status(201).json(created);
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo crear la sucursal" });
+  }
+});
+
+router.put("/admin/sucursales/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const updates = fromSucursal(req.body ?? {});
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "no_changes", message: "Sin cambios" });
+      return;
+    }
+    const [updated] = await db
+      .update(sucursalesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(sucursalesTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Sucursal no encontrada" });
+      return;
+    }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar la sucursal" });
+  }
+});
+
+router.delete("/admin/sucursales/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const [deleted] = await db
+      .delete(sucursalesTable)
+      .where(eq(sucursalesTable.id, id))
+      .returning({ id: sucursalesTable.id });
+    if (!deleted) {
+      res.status(404).json({ error: "not_found", message: "Sucursal no encontrada" });
+      return;
+    }
+    res.json({ ok: true, id: deleted.id });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo eliminar la sucursal" });
   }
 });
 

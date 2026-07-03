@@ -15,6 +15,7 @@ import { Envios } from "./pages/Envios";
 import { Empleados } from "./pages/Empleados";
 import { Reportes } from "./pages/Reportes";
 import { Resultados } from "./pages/Resultados";
+import { Sucursales } from "./pages/Sucursales";
 import { Configuracion } from "./pages/Configuracion";
 
 // Requiere sesión; opcionalmente rol admin.
@@ -59,6 +60,14 @@ export function App() {
         />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/resultados" element={<Resultados />} />
+        <Route
+          path="/sucursales"
+          element={
+            <Protected adminOnly>
+              <Sucursales />
+            </Protected>
+          }
+        />
         <Route
           path="/configuracion"
           element={

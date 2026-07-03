@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, decimal, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, json, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -25,6 +25,9 @@ export const ordersTable = pgTable("orders", {
   shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   paymentId: text("payment_id"),
+  // Si el stock de este pedido ya se descontó de las variantes. Evita descontar
+  // dos veces: la tienda descuenta al crear (true), el bot al confirmar el pago.
+  stockApplied: boolean("stock_applied").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { ordersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { applyOrderStock } from "../lib/stock-movements";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
 const router: IRouter = Router();
@@ -106,14 +107,22 @@ router.post("/payment/webhook", async (req, res) => {
         if (payment.status === "approved" && payment.external_reference) {
           const orderId = parseInt(payment.external_reference, 10);
           if (!isNaN(orderId)) {
-            await db
-              .update(ordersTable)
-              .set({
-                status: "confirmed",
-                paymentId: String(data.id),
-                updatedAt: new Date(),
-              })
-              .where(eq(ordersTable.id, orderId));
+            const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+            if (order) {
+              // Descontar stock de las variantes al aprobarse el pago (una sola vez).
+              if (!order.stockApplied) {
+                await applyOrderStock(order.items ?? [], -1);
+              }
+              await db
+                .update(ordersTable)
+                .set({
+                  status: "confirmed",
+                  paymentId: String(data.id),
+                  stockApplied: true,
+                  updatedAt: new Date(),
+                })
+                .where(eq(ordersTable.id, orderId));
+            }
           }
         }
       }
