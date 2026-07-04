@@ -6,6 +6,8 @@ import tailwindcss from "@tailwindcss/vite";
 // VITE_API_URL must point at the backend WITHOUT the trailing "/api"
 // (the axios client appends "/api"). In dev we proxy /api to a local backend.
 export default defineConfig({
+  // El panel se sirve bajo /admin (mismo dominio que la tienda pública).
+  base: "/admin/",
   plugins: [react(), tailwindcss()],
   server: {
     port: 5174,

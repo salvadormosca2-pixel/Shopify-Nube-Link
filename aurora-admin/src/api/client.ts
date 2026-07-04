@@ -29,8 +29,10 @@ api.interceptors.response.use(
     if (error?.response?.status === 401) {
       localStorage.removeItem("aurora_token");
       localStorage.removeItem("aurora_user");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      // BASE_URL es "/admin/" en prod y "/" en dev; el login vive bajo esa base.
+      const loginPath = `${import.meta.env.BASE_URL}login`.replace(/\/\/+/g, "/");
+      if (window.location.pathname !== loginPath) {
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);

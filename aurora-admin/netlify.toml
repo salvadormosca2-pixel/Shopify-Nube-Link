@@ -1,25 +1,14 @@
-# Netlify config for the standalone Aurora admin SPA.
-# Netlify UI: Base directory = aurora-admin, Build command = npm run build,
-# Publish directory = dist.
+# Netlify config del panel admin. Se sirve bajo /admin (mismo dominio que la
+# tienda pública, vía proxy desde el sitio de la tienda).
 #
-# El panel llama a /api en su propio dominio y Netlify lo proxea a Railway
-# (evita CORS y no requiere VITE_API_URL). El orden importa: el proxy /api/*
-# va ANTES del fallback SPA.
+# Las redirecciones NO van acá: se publican en un archivo _redirects en la raíz
+# del deploy (única fuente, evita conflictos). El deploy se hace por CLI:
+#   pnpm run build
+#   rm -rf deploy && mkdir -p deploy/admin && cp -r dist/* deploy/admin/
+#   printf '.../_redirects...' > deploy/_redirects
+#   netlify deploy --prod --dir deploy
 
 [build]
   base    = "aurora-admin"
   command = "npm run build"
   publish = "dist"
-
-# Proxy de la API al backend real (Railway).
-[[redirects]]
-  from   = "/api/*"
-  to     = "https://workspacealfis-jeans-production.up.railway.app/api/:splat"
-  status = 200
-  force  = true
-
-# SPA fallback: refrescar /productos u otro deep link no debe dar 404.
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
