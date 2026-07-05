@@ -5,22 +5,11 @@ import { ProductCard } from "@/components/ProductCard";
 import { Search, SlidersHorizontal, X, ArrowRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import EncontraTuEstilo from "@/components/EncontraTuEstilo";
+import { useEstilos } from "@/lib/estilos";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "36", "38", "40", "42", "44"];
 const COLORS = ["NEGRO", "BLANCO", "GRIS", "ROSA", "BEIGE", "CAMEL", "BORDO", "VERDE", "CRUDO", "TOSTADO", "AZUL"];
-
-type CategoryGridItem = {
-  label: string;
-  tag: string;
-  image: string;
-  objectPos: string;
-};
-
-const CATEGORIES_GRID: CategoryGridItem[] = [
-  { label: "Jeans", tag: "pantalones", image: "/cat-jeans.jpg", objectPos: "center top" },
-  { label: "Remeras", tag: "remeras", image: "/cat-remeras.jpg", objectPos: "center 15%" },
-  { label: "Abrigos", tag: "BUZOS,blazer,chaleco", image: "/cat-abrigos.jpg", objectPos: "center 20%" },
-];
 
 type EditorialSectionData = {
   id: string;
@@ -244,6 +233,7 @@ export default function Priority() {
   };
 
   const categories = ["todas", ...(categoriesData?.categories ?? [])];
+  const estilos = useEstilos("priority");
   const products = productsQuery.data?.products ?? [];
 
   return (
@@ -324,55 +314,9 @@ export default function Priority() {
         </motion.div>
       </section>
 
-      {/* ── CATEGORIES ── */}
-      <section className="py-20 md:py-32">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 mb-14 md:mb-20">
-          <h2
-            className="font-display text-[clamp(3rem,7vw,5.5rem)] text-foreground leading-[0.9]"
-          >
-            Encontrá tu estilo
-          </h2>
-        </div>
-
-        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 auto-rows-[1fr]">
-          {CATEGORIES_GRID.map((cat, i) => (
-            <button
-              key={cat.label}
-              onClick={() => {
-                handleCategoryClick(cat.tag);
-                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className={`group relative text-left overflow-hidden ${
-                i % 2 === 0 ? "lg:mt-0" : "lg:mt-12"
-              }`}
-            >
-              <div className="relative overflow-hidden aspect-[3/4.5] bg-[hsl(var(--muted))]">
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover transition-all duration-[1s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-110"
-                  style={{ objectPosition: cat.objectPos, filter: "brightness(1.15) contrast(1.02) saturate(1.05)" }}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-600" />
-                <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-7">
-                  <div className="overflow-hidden">
-                    <p className="font-display text-[clamp(2rem,4vw,3.2rem)] tracking-[0.05em] leading-[0.95] text-white translate-y-2 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">
-                      {cat.label}
-                    </p>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 overflow-hidden">
-                    <div className="w-6 h-px bg-white/60 origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100" />
-                    <span className="text-[11px] font-light tracking-[0.15em] uppercase text-white/0 group-hover:text-white/70 translate-y-4 group-hover:translate-y-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100">
-                      Explorar
-                    </span>
-                    <ArrowRight className="h-3 w-3 text-white/0 group-hover:text-white/70 translate-x-[-8px] group-hover:translate-x-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-150" />
-                  </div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+      {/* ── ENCONTRÁ TU ESTILO — COVERFLOW 3D ── */}
+      <section id="estilo">
+        <EncontraTuEstilo items={estilos} />
       </section>
 
       {/* ── CATALOG ── */}

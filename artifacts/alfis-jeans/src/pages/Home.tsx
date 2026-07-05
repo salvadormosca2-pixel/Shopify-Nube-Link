@@ -5,21 +5,14 @@ import { ProductCard } from "@/components/ProductCard";
 import { Search, SlidersHorizontal, X, ArrowRight, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import EncontraTuEstilo from "@/components/EncontraTuEstilo";
+import { useEstilos } from "@/lib/estilos";
 import imgHero from "@assets/hero-hombre.jpg";
-import imgPantalones from "@assets/11708_2_pantalones.jpg";
-import imgRemeras from "@assets/33433_10_1776277692687.jpg";
-import imgBuzos from "@assets/15513_17_1776794372730.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const SIZES = ["S", "M", "L", "XL", "XXL", "38", "40", "42", "44", "46", "48", "50"];
 const COLORS = ["NEGRO", "BLANCO", "GRIS", "AZUL", "MARINO", "BEIGE", "CAMEL", "BORDO", "VERDE", "CRUDO", "TOSTADO"];
-
-const CATEGORIES_GRID = [
-  { label: "Pantalones", tag: "pantalon", image: imgPantalones, objectPos: "center top", brightness: 1.0 },
-  { label: "Remeras", tag: "remeras", image: imgRemeras, objectPos: "center 20%", brightness: 1.18 },
-  { label: "Abrigos", tag: "BUZOS", image: imgBuzos, objectPos: "center 15%", brightness: 1.18 },
-];
 
 type EditorialCta = { label: string; category: string };
 
@@ -227,10 +220,8 @@ export default function Home() {
   };
 
   const categories = ["todos", ...(categoriesData?.categories ?? [])];
+  const estilos = useEstilos("hombre");
   const products = productsQuery.data?.products ?? [];
-
-  const catRef = useRef<HTMLDivElement>(null);
-  const catInView = useInView(catRef, { once: true, margin: "-80px" });
 
   return (
     <div className="bg-background text-foreground">
@@ -311,67 +302,9 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ═══════════════════ CATEGORIES — EDITORIAL STAGGERED ═══════════════════ */}
-      <section ref={catRef} className="py-20 md:py-32">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 mb-14 md:mb-20">
-          <motion.h2
-            className="font-display text-[clamp(3rem,7vw,5.5rem)] text-foreground leading-[0.9]"
-            initial={{ opacity: 0, y: 16 }}
-            animate={catInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6 }}
-          >
-            Encontrá tu estilo
-          </motion.h2>
-        </div>
-
-        <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-16 grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 auto-rows-[1fr]">
-          {CATEGORIES_GRID.map((cat, i) => (
-            <motion.button
-              key={cat.label}
-              onClick={() => {
-                handleCategoryClick(cat.tag);
-                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className={`group relative text-left overflow-hidden ${
-                i % 2 === 0 ? "lg:mt-0" : "lg:mt-12"
-              }`}
-              initial={{ opacity: 0, y: 40 }}
-              animate={catInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.7, delay: i * 0.12 }}
-            >
-              <div className="relative overflow-hidden aspect-[3/4.5] bg-[hsl(var(--muted))]">
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  loading="lazy"
-                  decoding="async"
-                  className="absolute inset-0 w-full h-full object-cover transition-all duration-[1s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-110"
-                  style={{ objectPosition: cat.objectPos, filter: `brightness(${cat.brightness}) contrast(1.02) saturate(1.05)` }}
-                />
-
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-600" />
-
-                <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-7">
-                  <div className="overflow-hidden">
-                    <p
-                      className="font-display text-[clamp(2rem,4vw,3.2rem)] tracking-[0.05em] leading-[0.95] text-white translate-y-2 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                    >
-                      {cat.label}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2 overflow-hidden">
-                    <div className="w-6 h-px bg-white/60 origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100" />
-                    <span className="text-[11px] font-light tracking-[0.15em] uppercase text-white/0 group-hover:text-white/70 translate-y-4 group-hover:translate-y-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-100">
-                      Explorar
-                    </span>
-                    <ArrowRight className="h-3 w-3 text-white/0 group-hover:text-white/70 translate-x-[-8px] group-hover:translate-x-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] delay-150" />
-                  </div>
-                </div>
-              </div>
-            </motion.button>
-          ))}
-        </div>
+      {/* ═══════════════════ ENCONTRÁ TU ESTILO — COVERFLOW 3D ═══════════════════ */}
+      <section id="estilo">
+        <EncontraTuEstilo items={estilos} />
       </section>
 
       {/* ═══════════════════ PRODUCT CATALOG ═══════════════════ */}
