@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  ScanBarcode,
   Shirt,
   Tag,
   Layers,
@@ -32,6 +33,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/venta-rapida", label: "Venta Rápida", icon: ScanBarcode },
   { to: "/productos", label: "Productos", icon: Shirt },
   { to: "/promociones", label: "Promociones", icon: Tag },
   { to: "/combos", label: "Combos / Looks", icon: Layers },
