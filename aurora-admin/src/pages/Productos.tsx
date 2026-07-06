@@ -26,6 +26,7 @@ interface Producto {
   imagen?: string;
   sku?: string;
   activo: boolean;
+  es_complemento?: boolean;
 }
 
 interface Categoria {
@@ -51,6 +52,7 @@ const empty = (): Producto => ({
   imagen: "",
   sku: "",
   activo: true,
+  es_complemento: false,
 });
 
 export function Productos() {
@@ -350,6 +352,15 @@ export function Productos() {
                 className="h-4 w-4 accent-acento"
               />
               Producto activo
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={form.es_complemento ?? false}
+                onChange={(e) => setForm({ ...form, es_complemento: e.target.checked })}
+                className="h-4 w-4 accent-acento"
+              />
+              Es complemento (venta cruzada: medias, boxers, gorras, accesorios)
             </label>
           </div>
         )}
