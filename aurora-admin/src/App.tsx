@@ -5,6 +5,7 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { VentaRapida } from "./pages/VentaRapida";
 import { Caja } from "./pages/Caja";
+import { Finanzas } from "./pages/Finanzas";
 import { Productos } from "./pages/Productos";
 import { Promociones } from "./pages/Promociones";
 import { Combos } from "./pages/Combos";
@@ -49,6 +50,14 @@ export function App() {
           element={
             <Protected adminOnly>
               <Caja />
+            </Protected>
+          }
+        />
+        <Route
+          path="/finanzas"
+          element={
+            <Protected adminOnly>
+              <Finanzas />
             </Protected>
           }
         />
