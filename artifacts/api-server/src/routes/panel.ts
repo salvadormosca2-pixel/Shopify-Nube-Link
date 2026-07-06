@@ -348,14 +348,28 @@ router.get("/admin/stock", async (req, res) => {
         color: productVariantsTable.color,
         stock: productVariantsTable.stock,
         stock_minimo: productVariantsTable.stockMinimo,
+        sku: productVariantsTable.sku,
+        codigo_barras: productVariantsTable.codigoBarras,
+        price: productsTable.price,
+        salePrice: productsTable.salePrice,
+        images: productsTable.images,
       })
       .from(productVariantsTable)
       .innerJoin(productsTable, eq(productVariantsTable.productoId, productsTable.id))
       .orderBy(productsTable.name, productVariantsTable.talle);
 
     let variantes = rows.map((v) => ({
-      ...v,
+      id: v.id,
+      producto_id: v.producto_id,
+      producto_nombre: v.producto_nombre,
+      talle: v.talle,
       color: v.color === "" ? "" : v.color,
+      stock: v.stock,
+      stock_minimo: v.stock_minimo,
+      sku: v.sku,
+      codigo_barras: v.codigo_barras,
+      precio: v.salePrice != null ? parseFloat(v.salePrice) : parseFloat(v.price),
+      imagen: v.images?.[0] ?? "",
       estado: estadoVar(v.stock, v.stock_minimo),
     }));
     if (soloReponer) variantes = variantes.filter((v) => v.estado !== "ok");
