@@ -28,6 +28,7 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
     talles,
     colores: p.colors ?? [],
     imagen: p.images?.[0] ?? "",
+    imagenes: p.images ?? [],
     variantes,
     disponible,
   };
@@ -53,6 +54,7 @@ export function toPromo(p: DbProduct, variants?: VariantRow[]) {
     categoria: p.category,
     genero: p.section,
     imagen: p.images?.[0] ?? "",
+    imagenes: p.images ?? [],
     precio_lista: price,
     precio_oferta: sale,
     descuento_pct: descuento,
