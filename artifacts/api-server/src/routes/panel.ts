@@ -5,8 +5,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable, ordersTable, productVariantsTable, sucursalesTable } from "@workspace/db/schema";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, or } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
+import { generateSku, generateEan13FromId } from "../lib/codes";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
 import { loadVariantsMap } from "../lib/variants";
 import { applyOrderStock } from "../lib/stock-movements";
@@ -274,6 +275,64 @@ router.delete("/admin/productos/:id", async (req, res) => {
   }
 });
 
+// Búsqueda instantánea por código (para el POS / lector de código de barras):
+// matchea la variante exacta por sku O codigo_barras y devuelve el producto con
+// esa variante (talle/color, stock, precio) listo para agregar al ticket.
+router.get("/admin/productos/codigo/:codigo", async (req, res) => {
+  try {
+    const codigo = String(req.params.codigo ?? "").trim();
+    if (!codigo) {
+      res.status(400).json({ error: "invalid_input", message: "Falta el código" });
+      return;
+    }
+    const [row] = await db
+      .select({
+        variante_id: productVariantsTable.id,
+        producto_id: productsTable.id,
+        nombre: productsTable.name,
+        categoria: productsTable.category,
+        images: productsTable.images,
+        talle: productVariantsTable.talle,
+        color: productVariantsTable.color,
+        stock: productVariantsTable.stock,
+        sku: productVariantsTable.sku,
+        codigo_barras: productVariantsTable.codigoBarras,
+        price: productsTable.price,
+        salePrice: productsTable.salePrice,
+      })
+      .from(productVariantsTable)
+      .innerJoin(productsTable, eq(productVariantsTable.productoId, productsTable.id))
+      .where(
+        or(eq(productVariantsTable.sku, codigo), eq(productVariantsTable.codigoBarras, codigo)),
+      )
+      .limit(1);
+
+    if (!row) {
+      res.status(404).json({ error: "not_found", message: "No se encontró ninguna variante con ese código" });
+      return;
+    }
+
+    const price = parseFloat(row.price);
+    const sale = row.salePrice != null ? parseFloat(row.salePrice) : null;
+    res.json({
+      variante_id: row.variante_id,
+      producto_id: row.producto_id,
+      nombre: row.nombre,
+      categoria: row.categoria,
+      imagen: row.images?.[0] ?? "",
+      talle: row.talle,
+      color: row.color === "" ? null : row.color,
+      stock: row.stock,
+      sku: row.sku,
+      codigo_barras: row.codigo_barras,
+      precio_contado: sale != null ? sale : price,
+      precio_tarjeta: price,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo buscar el código" });
+  }
+});
+
 // ─── STOCK por variante (talle / color) ──────────────────────────────────────
 // Lista todas las variantes con el nombre del producto. Si una variante no
 // existe todavía, se crea al registrar una "entrada" (así se carga el stock).
@@ -343,9 +402,27 @@ router.post("/admin/stock/movimiento", async (req, res) => {
       }
       const [created] = await db
         .insert(productVariantsTable)
-        .values({ productoId: id, talle: talleStr, color: colorStr, stock: cant })
+        .values({
+          productoId: id,
+          talle: talleStr,
+          color: colorStr,
+          stock: cant,
+          sku: generateSku(id, talleStr, colorStr),
+        })
         .returning();
-      res.json({ ok: true, id: created.id, stock: created.stock });
+      // El EAN-13 depende del id recién asignado → se completa con un update.
+      const [withCode] = await db
+        .update(productVariantsTable)
+        .set({ codigoBarras: generateEan13FromId(created.id) })
+        .where(eq(productVariantsTable.id, created.id))
+        .returning();
+      res.json({
+        ok: true,
+        id: withCode.id,
+        stock: withCode.stock,
+        sku: withCode.sku,
+        codigo_barras: withCode.codigoBarras,
+      });
       return;
     }
 

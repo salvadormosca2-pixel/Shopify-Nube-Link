@@ -21,6 +21,11 @@ export const productVariantsTable = pgTable(
     color: text("color").notNull().default(""),
     stock: integer("stock").notNull().default(0),
     stockMinimo: integer("stock_minimo").notNull().default(2),
+    // Códigos de la variante (para POS/etiquetas). Se autogeneran al crearla.
+    // Nullable + unique: las variantes viejas sin código conviven; los NULL no
+    // chocan con el unique en Postgres.
+    sku: text("sku").unique(),
+    codigoBarras: text("codigo_barras").unique(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
