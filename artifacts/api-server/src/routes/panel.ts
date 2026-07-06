@@ -11,11 +11,13 @@ import {
   sucursalesTable,
   cajasTable,
   cajaMovimientosTable,
+  gastosTable,
 } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { generateSku, generateEan13FromId } from "../lib/codes";
 import { todayInAr, resumenCaja } from "../lib/caja";
+import { resumenFinanzas, serieDiaria, periodoAnterior, arDate } from "../lib/finanzas";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
 import { loadVariantsMap } from "../lib/variants";
 import { applyOrderStock } from "../lib/stock-movements";
@@ -964,6 +966,165 @@ router.post("/admin/caja/cerrar", async (req, res) => {
     res.json({ ok: true, efectivo_teorico: teorico, efectivo_real: montoReal, diferencia });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo cerrar la caja" });
+  }
+});
+
+// ─── FINANZAS (día / semana / mes / año) ─────────────────────────────────────
+async function cargarFinanzasInput() {
+  const [orders, gastos, cajaMovs] = await Promise.all([
+    db.select().from(ordersTable),
+    db.select().from(gastosTable),
+    db.select().from(cajaMovimientosTable),
+  ]);
+  return { orders, gastos, cajaMovs };
+}
+
+function rangoDefault(desde?: string, hasta?: string) {
+  const hoy = todayInAr();
+  return { desde: desde && desde.trim() ? desde.trim() : hoy, hasta: hasta && hasta.trim() ? hasta.trim() : hoy };
+}
+
+router.get("/admin/finanzas", async (req, res) => {
+  try {
+    const { desde, hasta } = rangoDefault(req.query.desde as string, req.query.hasta as string);
+    const input = await cargarFinanzasInput();
+    const actual = resumenFinanzas(input, desde, hasta);
+    const prev = periodoAnterior(desde, hasta);
+    const anterior = resumenFinanzas(input, prev.desde, prev.hasta);
+    const pct = (a: number, b: number) => (b === 0 ? (a === 0 ? 0 : 100) : Math.round(((a - b) / Math.abs(b)) * 100));
+
+    // Por cobrar: pedidos pendientes (sin pago verificado). Por pagar: gastos recurrentes.
+    const porCobrar = input.orders
+      .filter((o) => o.status === "pending")
+      .reduce((a, o) => a + (parseFloat(o.total) || 0), 0);
+    const porPagar = input.gastos.filter((g) => g.recurrente).reduce((a, g) => a + (parseFloat(g.monto) || 0), 0);
+
+    res.json({
+      ...actual,
+      serie_diaria: serieDiaria(input, desde, hasta),
+      comparacion: {
+        anterior_desde: prev.desde,
+        anterior_hasta: prev.hasta,
+        ingresos_prev: anterior.ingresos,
+        egresos_prev: anterior.egresos,
+        resultado_prev: anterior.resultado,
+        ingresos_pct: pct(actual.ingresos, anterior.ingresos),
+        egresos_pct: pct(actual.egresos, anterior.egresos),
+        resultado_pct: pct(actual.resultado, anterior.resultado),
+      },
+      por_cobrar: porCobrar,
+      por_pagar: porPagar,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo obtener finanzas" });
+  }
+});
+
+// Export CSV del período para el contador.
+router.get("/admin/finanzas/export", async (req, res) => {
+  try {
+    const { desde, hasta } = rangoDefault(req.query.desde as string, req.query.hasta as string);
+    const input = await cargarFinanzasInput();
+    const PAID = new Set(["confirmed", "preparing", "shipped", "delivered"]);
+    const enRango = (f: string) => f >= desde && f <= hasta;
+    const filas: string[] = ["tipo,fecha,detalle,categoria/medio,monto"];
+    const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+
+    for (const o of input.orders) {
+      if (PAID.has(o.status) && enRango(arDate(o.createdAt)))
+        filas.push(["venta", arDate(o.createdAt), o.trackingNumber, o.canal + "/" + (o.medioPago ?? ""), o.total].map(esc).join(","));
+    }
+    for (const g of input.gastos)
+      if (enRango(g.fecha)) filas.push(["gasto", g.fecha, g.nota, g.categoria, "-" + g.monto].map(esc).join(","));
+    for (const m of input.cajaMovs) {
+      const f = arDate(m.createdAt);
+      if (m.tipo === "gasto" && enRango(f)) filas.push(["gasto_caja", f, m.nota, m.categoria ?? "otros", "-" + m.monto].map(esc).join(","));
+      if (m.tipo === "retiro" && enRango(f)) filas.push(["retiro", f, m.nota, "dueño", "-" + m.monto].map(esc).join(","));
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="finanzas_${desde}_${hasta}.csv"`);
+    res.send(filas.join("\n"));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo exportar" });
+  }
+});
+
+// CRUD de gastos (los cargados a mano: alquiler, sueldos, servicios…).
+router.get("/admin/gastos", async (req, res) => {
+  try {
+    const { desde, hasta } = rangoDefault(req.query.desde as string, req.query.hasta as string);
+    const rows = await db.select().from(gastosTable).orderBy(desc(gastosTable.fecha));
+    res.json(
+      rows
+        .filter((g) => g.fecha >= desde && g.fecha <= hasta)
+        .map((g) => ({ id: g.id, fecha: g.fecha, categoria: g.categoria, monto: parseFloat(g.monto), nota: g.nota, recurrente: g.recurrente })),
+    );
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los gastos" });
+  }
+});
+
+router.post("/admin/gastos", async (req, res) => {
+  try {
+    const b = req.body ?? {};
+    const monto = Number(b.monto);
+    if (!(monto > 0)) {
+      res.status(400).json({ error: "invalid_monto", message: "El monto debe ser mayor a 0" });
+      return;
+    }
+    const [g] = await db
+      .insert(gastosTable)
+      .values({
+        fecha: b.fecha ? String(b.fecha) : todayInAr(),
+        categoria: b.categoria ? String(b.categoria) : "otros",
+        monto: String(monto),
+        nota: b.nota != null ? String(b.nota) : "",
+        recurrente: Boolean(b.recurrente),
+      })
+      .returning();
+    res.status(201).json({ ok: true, id: g.id });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo crear el gasto" });
+  }
+});
+
+router.put("/admin/gastos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const b = req.body ?? {};
+    const set: Record<string, unknown> = {};
+    if (b.fecha !== undefined) set.fecha = String(b.fecha);
+    if (b.categoria !== undefined) set.categoria = String(b.categoria);
+    if (b.monto !== undefined) set.monto = String(Number(b.monto) || 0);
+    if (b.nota !== undefined) set.nota = String(b.nota ?? "");
+    if (b.recurrente !== undefined) set.recurrente = Boolean(b.recurrente);
+    const [g] = await db.update(gastosTable).set(set).where(eq(gastosTable.id, id)).returning();
+    if (!g) {
+      res.status(404).json({ error: "not_found", message: "Gasto no encontrado" });
+      return;
+    }
+    res.json({ ok: true, id: g.id });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el gasto" });
+  }
+});
+
+router.delete("/admin/gastos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    await db.delete(gastosTable).where(eq(gastosTable.id, id));
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo eliminar el gasto" });
   }
 });
 
