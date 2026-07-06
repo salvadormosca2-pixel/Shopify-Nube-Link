@@ -51,6 +51,27 @@ router.get("/productos", async (req, res) => {
   }
 });
 
+// Detalle público de un producto (sin token) — mismo shape que la lista, con
+// `variantes`/`talles`/`talles_disponibles`/`disponible` de stock real por variante.
+router.get("/productos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id)).limit(1);
+    if (!product) {
+      res.status(404).json({ error: "not_found", message: "Producto no encontrado" });
+      return;
+    }
+    const variants = await loadVariantsMap([id]);
+    res.json(toProductoPublic(product, variants.get(id)));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo obtener el producto" });
+  }
+});
+
 // Sucursales / datos del local — leídos de la base (editable desde el panel).
 router.get("/sucursales", async (_req, res) => {
   try {

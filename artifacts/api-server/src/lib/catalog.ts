@@ -26,6 +26,7 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
     precio_contado: sale != null ? sale : price,
     precio_tarjeta: price,
     talles,
+    talles_disponibles: talles, // alias explícito: talles con stock > 0
     colores: p.colors ?? [],
     imagen: p.images?.[0] ?? "",
     imagenes: p.images ?? [],
@@ -59,6 +60,7 @@ export function toPromo(p: DbProduct, variants?: VariantRow[]) {
     precio_oferta: sale,
     descuento_pct: descuento,
     talles,
+    talles_disponibles: talles, // alias explícito: talles con stock > 0
     colores: p.colors ?? [],
     variantes,
     disponible,
