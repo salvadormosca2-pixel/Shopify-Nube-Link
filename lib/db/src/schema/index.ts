@@ -5,3 +5,4 @@ export * from "./sucursales";
 export * from "./coupons";
 export * from "./reviews";
 export * from "./contact-messages";
+export * from "./caja";

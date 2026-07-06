@@ -4,10 +4,18 @@
 // storefront reads. Auth reuses the existing x-admin-key middleware.
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { productsTable, ordersTable, productVariantsTable, sucursalesTable } from "@workspace/db/schema";
-import { eq, sql, and, or, inArray } from "drizzle-orm";
+import {
+  productsTable,
+  ordersTable,
+  productVariantsTable,
+  sucursalesTable,
+  cajasTable,
+  cajaMovimientosTable,
+} from "@workspace/db/schema";
+import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { generateSku, generateEan13FromId } from "../lib/codes";
+import { todayInAr, resumenCaja } from "../lib/caja";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
 import { loadVariantsMap } from "../lib/variants";
 import { applyOrderStock } from "../lib/stock-movements";
@@ -752,7 +760,24 @@ router.post("/admin/ventas", async (req, res) => {
           stockApplied: true, // ya descontado en esta transacción
         })
         .returning();
-      return { order, items, subtotal, total, advertencias };
+
+      // Registrar el ingreso en la caja abierta si hay una (Fase 3).
+      const [cajaAbierta] = await tx
+        .select()
+        .from(cajasTable)
+        .where(eq(cajasTable.estado, "abierta"))
+        .limit(1);
+      if (cajaAbierta) {
+        await tx.insert(cajaMovimientosTable).values({
+          cajaId: cajaAbierta.id,
+          tipo: "venta",
+          medioPago,
+          monto: String(total),
+          orderId: order.id,
+          nota: `Venta ${order.trackingNumber}`,
+        });
+      }
+      return { order, items, subtotal, total, advertencias, caja_registrada: !!cajaAbierta };
     });
 
     const vuelto =
@@ -786,6 +811,159 @@ router.post("/admin/ventas", async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo registrar la venta" });
+  }
+});
+
+// ─── CAJA DIARIA + RETIROS ───────────────────────────────────────────────────
+// Estado de la caja de una fecha (o la de hoy): apertura, movimientos y resumen
+// de efectivo (teórico = inicial + ventas efectivo + ingresos extra - retiros - gastos).
+router.get("/admin/caja", async (req, res) => {
+  try {
+    const fecha = String(req.query.fecha ?? "").trim() || todayInAr();
+    const [caja] = await db
+      .select()
+      .from(cajasTable)
+      .where(eq(cajasTable.fecha, fecha))
+      .orderBy(desc(cajasTable.id))
+      .limit(1);
+    if (!caja) {
+      res.json({ fecha, abierta: false, caja: null, movimientos: [], resumen: null });
+      return;
+    }
+    const movimientos = await db
+      .select()
+      .from(cajaMovimientosTable)
+      .where(eq(cajaMovimientosTable.cajaId, caja.id))
+      .orderBy(desc(cajaMovimientosTable.id));
+    res.json({
+      fecha,
+      abierta: caja.estado === "abierta",
+      caja: {
+        id: caja.id,
+        fecha: caja.fecha,
+        estado: caja.estado,
+        monto_inicial: parseFloat(caja.montoInicial),
+        monto_cierre_teorico: caja.montoCierreTeorico != null ? parseFloat(caja.montoCierreTeorico) : null,
+        monto_cierre_real: caja.montoCierreReal != null ? parseFloat(caja.montoCierreReal) : null,
+        diferencia: caja.diferencia != null ? parseFloat(caja.diferencia) : null,
+        nota: caja.nota,
+        abierta_at: caja.abiertaAt,
+        cerrada_at: caja.cerradaAt,
+      },
+      movimientos: movimientos.map((m) => ({
+        id: m.id,
+        tipo: m.tipo,
+        medio_pago: m.medioPago,
+        categoria: m.categoria,
+        monto: parseFloat(m.monto),
+        nota: m.nota,
+        order_id: m.orderId,
+        created_at: m.createdAt,
+      })),
+      resumen: resumenCaja(parseFloat(caja.montoInicial), movimientos),
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo obtener la caja" });
+  }
+});
+
+router.post("/admin/caja/abrir", async (req, res) => {
+  try {
+    const montoInicial = Math.max(0, Number(req.body?.monto_inicial) || 0);
+    const [abierta] = await db
+      .select()
+      .from(cajasTable)
+      .where(eq(cajasTable.estado, "abierta"))
+      .limit(1);
+    if (abierta) {
+      res.status(409).json({ error: "caja_abierta", message: "Ya hay una caja abierta" });
+      return;
+    }
+    const [caja] = await db
+      .insert(cajasTable)
+      .values({ fecha: todayInAr(), montoInicial: String(montoInicial), estado: "abierta" })
+      .returning();
+    res.status(201).json({ ok: true, id: caja.id, fecha: caja.fecha, monto_inicial: montoInicial });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo abrir la caja" });
+  }
+});
+
+// Movimiento MANUAL: retiro del dueño | gasto (con categoría) | ingreso extra.
+// (Las ventas del POS se registran solas al confirmar la venta.)
+router.post("/admin/caja/movimiento", async (req, res) => {
+  try {
+    const tipo = String(req.body?.tipo ?? "");
+    if (!["retiro", "gasto", "ingreso_extra"].includes(tipo)) {
+      res.status(400).json({ error: "invalid_tipo", message: "Tipo inválido (retiro | gasto | ingreso_extra)" });
+      return;
+    }
+    const monto = Number(req.body?.monto);
+    if (!(monto > 0)) {
+      res.status(400).json({ error: "invalid_monto", message: "El monto debe ser mayor a 0" });
+      return;
+    }
+    const [caja] = await db
+      .select()
+      .from(cajasTable)
+      .where(eq(cajasTable.estado, "abierta"))
+      .limit(1);
+    if (!caja) {
+      res.status(400).json({ error: "sin_caja", message: "No hay una caja abierta. Abrí la caja primero." });
+      return;
+    }
+    const [mov] = await db
+      .insert(cajaMovimientosTable)
+      .values({
+        cajaId: caja.id,
+        tipo,
+        categoria: tipo === "gasto" && req.body?.categoria ? String(req.body.categoria) : null,
+        monto: String(monto),
+        nota: req.body?.nota != null ? String(req.body.nota) : "",
+      })
+      .returning();
+    res.status(201).json({ ok: true, id: mov.id });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo registrar el movimiento" });
+  }
+});
+
+router.post("/admin/caja/cerrar", async (req, res) => {
+  try {
+    const montoReal = Number(req.body?.monto_cierre_real);
+    if (Number.isNaN(montoReal)) {
+      res.status(400).json({ error: "invalid_monto", message: "Ingresá el efectivo real contado" });
+      return;
+    }
+    const [caja] = await db
+      .select()
+      .from(cajasTable)
+      .where(eq(cajasTable.estado, "abierta"))
+      .limit(1);
+    if (!caja) {
+      res.status(400).json({ error: "sin_caja", message: "No hay una caja abierta para cerrar" });
+      return;
+    }
+    const movimientos = await db
+      .select()
+      .from(cajaMovimientosTable)
+      .where(eq(cajaMovimientosTable.cajaId, caja.id));
+    const teorico = resumenCaja(parseFloat(caja.montoInicial), movimientos).efectivo_teorico;
+    const diferencia = montoReal - teorico;
+    await db
+      .update(cajasTable)
+      .set({
+        estado: "cerrada",
+        montoCierreTeorico: String(teorico),
+        montoCierreReal: String(montoReal),
+        diferencia: String(diferencia),
+        nota: req.body?.nota != null ? String(req.body.nota) : caja.nota,
+        cerradaAt: new Date(),
+      })
+      .where(eq(cajasTable.id, caja.id));
+    res.json({ ok: true, efectivo_teorico: teorico, efectivo_real: montoReal, diferencia });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo cerrar la caja" });
   }
 });
 
