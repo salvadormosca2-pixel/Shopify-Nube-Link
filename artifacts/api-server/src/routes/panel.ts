@@ -5,7 +5,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable, ordersTable, productVariantsTable, sucursalesTable } from "@workspace/db/schema";
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { generateSku, generateEan13FromId } from "../lib/codes";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
@@ -553,6 +553,13 @@ const ESTADO_ORDER: Record<string, string> = {
   entregado: "delivered",
   cancelado: "cancelled",
 };
+const MEDIO_PAGO_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  debito: "Débito",
+  credito: "Crédito",
+  mercado_pago: "Mercado Pago",
+};
 
 router.get("/admin/pedidos", async (_req, res) => {
   try {
@@ -563,8 +570,8 @@ router.get("/admin/pedidos", async (_req, res) => {
         cliente_nombre: `${o.customerFirstName} ${o.customerLastName}`.trim(),
         telefono: o.customerPhone,
         monto_total: parseFloat(o.total),
-        forma_pago: "Mercado Pago",
-        canal: "online",
+        forma_pago: o.medioPago ? MEDIO_PAGO_LABEL[o.medioPago] ?? o.medioPago : "Mercado Pago",
+        canal: o.canal ?? "online",
         estado: ESTADO_PEDIDO[o.status] ?? "pendiente_verificacion",
         direccion_envio: `${o.customerAddress}, ${o.customerCity}, ${o.customerProvince}`,
         productos: (o.items ?? []).map((it) => ({
@@ -621,6 +628,150 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
     res.json({ ok: true, advertencias });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el pedido" });
+  }
+});
+
+// ─── VENTA RÁPIDA (POS de mostrador) ─────────────────────────────────────────
+function genTracking(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let r = "AJ-";
+  for (let i = 0; i < 8; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+  return r;
+}
+
+// Crea una venta de mostrador: canal='local', pago_confirmado, descuenta el stock
+// de cada variante en la MISMA transacción (todo o nada, nunca negativo).
+// Body: { items:[{variante_id,cantidad,precio?}], descuento?, medio_pago, pago_con?, cliente_telefono? }
+router.post("/admin/ventas", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const rawItems: Array<Record<string, unknown>> = Array.isArray(body.items) ? body.items : [];
+    if (rawItems.length === 0) {
+      res.status(400).json({ error: "invalid_request", message: "La venta no tiene ítems" });
+      return;
+    }
+    const medioPago = String(body.medio_pago ?? "efectivo").trim() || "efectivo";
+    const clienteTel = body.cliente_telefono != null ? String(body.cliente_telefono).trim() : "";
+    const pagoCon = body.pago_con != null && body.pago_con !== "" ? Number(body.pago_con) : null;
+    const descuento = Math.max(0, Number(body.descuento) || 0); // monto en $
+
+    const parsed = rawItems.map((it) => ({
+      varianteId: parseInt(String(it.variante_id ?? it.id), 10),
+      cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)),
+      precio: it.precio != null ? Number(it.precio) : NaN,
+    }));
+    if (parsed.some((p) => Number.isNaN(p.varianteId))) {
+      res.status(400).json({ error: "invalid_item", message: "Falta el id de alguna variante" });
+      return;
+    }
+
+    // Pre-cargar variantes + productos y validar ANTES de la transacción.
+    const ids = [...new Set(parsed.map((p) => p.varianteId))];
+    const variantRows = await db
+      .select()
+      .from(productVariantsTable)
+      .where(inArray(productVariantsTable.id, ids));
+    const varById = new Map(variantRows.map((v) => [v.id, v]));
+    const faltante = ids.find((id) => !varById.has(id));
+    if (faltante != null) {
+      res.status(400).json({ error: "invalid_item", message: `Variante ${faltante} no encontrada` });
+      return;
+    }
+    const prodIds = [...new Set(variantRows.map((v) => v.productoId))];
+    const prodRows = await db.select().from(productsTable).where(inArray(productsTable.id, prodIds));
+    const prodById = new Map(prodRows.map((p) => [p.id, p]));
+
+    const result = await db.transaction(async (tx) => {
+      const items = [];
+      const advertencias: string[] = [];
+      let subtotal = 0;
+      for (const p of parsed) {
+        const v = varById.get(p.varianteId)!;
+        const prod = prodById.get(v.productoId)!;
+        const precio =
+          p.precio > 0
+            ? p.precio
+            : prod.salePrice != null
+              ? parseFloat(prod.salePrice)
+              : parseFloat(prod.price);
+        const nuevo = v.stock - p.cantidad;
+        if (nuevo < 0) {
+          advertencias.push(
+            `Stock insuficiente de "${prod.name}" talle ${v.talle}` +
+              `${v.color ? ` (${v.color})` : ""}: se vendió hasta 0 (faltaban ${-nuevo}).`,
+          );
+        }
+        await tx
+          .update(productVariantsTable)
+          .set({ stock: Math.max(0, nuevo), updatedAt: new Date() })
+          .where(eq(productVariantsTable.id, v.id));
+        items.push({
+          productId: prod.id,
+          productName: prod.name,
+          size: v.talle,
+          color: v.color,
+          quantity: p.cantidad,
+          price: precio,
+        });
+        subtotal += precio * p.cantidad;
+      }
+      const total = Math.max(0, subtotal - descuento);
+      const [order] = await tx
+        .insert(ordersTable)
+        .values({
+          trackingNumber: genTracking(),
+          status: "confirmed",
+          canal: "local",
+          medioPago,
+          customerFirstName: "Mostrador",
+          customerLastName: "",
+          customerEmail: "",
+          customerPhone: clienteTel,
+          customerAddress: "",
+          customerCity: "",
+          customerProvince: "",
+          customerPostalCode: "",
+          items,
+          shippingCost: "0",
+          total: String(total),
+          paymentId: null,
+          stockApplied: true, // ya descontado en esta transacción
+        })
+        .returning();
+      return { order, items, subtotal, total, advertencias };
+    });
+
+    const vuelto =
+      medioPago === "efectivo" && pagoCon != null && !Number.isNaN(pagoCon)
+        ? Math.max(0, pagoCon - result.total)
+        : null;
+
+    // TODO Fase 3: registrar el ingreso de esta venta en la caja del día.
+    res.status(201).json({
+      ok: true,
+      id: result.order.id,
+      tracking: result.order.trackingNumber,
+      canal: "local",
+      estado: "pago_confirmado",
+      medio_pago: medioPago,
+      subtotal: result.subtotal,
+      descuento,
+      total: result.total,
+      pago_con: pagoCon,
+      vuelto,
+      cliente_telefono: clienteTel || null,
+      items: result.items.map((i) => ({
+        producto_id: i.productId,
+        nombre: i.productName,
+        talle: i.size,
+        color: i.color || null,
+        cantidad: i.quantity,
+        precio: i.price,
+      })),
+      advertencias: result.advertencias,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo registrar la venta" });
   }
 });
 

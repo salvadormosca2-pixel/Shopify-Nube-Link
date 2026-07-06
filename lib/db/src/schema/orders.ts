@@ -25,6 +25,11 @@ export const ordersTable = pgTable("orders", {
   shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   paymentId: text("payment_id"),
+  // Canal de la venta: 'online' (tienda/bot) o 'local' (POS mostrador).
+  canal: text("canal").notNull().default("online"),
+  // Medio de pago: efectivo | transferencia | debito | credito | mercado_pago.
+  // Null en pedidos online legados (se muestran como Mercado Pago).
+  medioPago: text("medio_pago"),
   // Si el stock de este pedido ya se descontó de las variantes. Evita descontar
   // dos veces: la tienda descuenta al crear (true), el bot al confirmar el pago.
   stockApplied: boolean("stock_applied").notNull().default(false),
