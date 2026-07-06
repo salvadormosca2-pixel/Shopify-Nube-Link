@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { VentaRapida } from "./pages/VentaRapida";
+import { Caja } from "./pages/Caja";
 import { Productos } from "./pages/Productos";
 import { Promociones } from "./pages/Promociones";
 import { Combos } from "./pages/Combos";
@@ -43,6 +44,14 @@ export function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/venta-rapida" element={<VentaRapida />} />
+        <Route
+          path="/caja"
+          element={
+            <Protected adminOnly>
+              <Caja />
+            </Protected>
+          }
+        />
         <Route path="/productos" element={<Productos />} />
         <Route path="/promociones" element={<Promociones />} />
         <Route path="/combos" element={<Combos />} />

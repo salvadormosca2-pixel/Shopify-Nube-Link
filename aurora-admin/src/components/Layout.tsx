@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   ScanBarcode,
+  Wallet,
   Shirt,
   Tag,
   Layers,
@@ -34,6 +35,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/venta-rapida", label: "Venta Rápida", icon: ScanBarcode },
+  { to: "/caja", label: "Caja", icon: Wallet, adminOnly: true },
   { to: "/productos", label: "Productos", icon: Shirt },
   { to: "/promociones", label: "Promociones", icon: Tag },
   { to: "/combos", label: "Combos / Looks", icon: Layers },
@@ -44,9 +46,9 @@ const NAV: NavItem[] = [
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/envios", label: "Envíos", icon: Truck },
   { to: "/empleados", label: "Empleados", icon: UserCog, adminOnly: true },
-  { to: "/reportes", label: "Reportes", icon: BarChart3 },
+  { to: "/reportes", label: "Reportes", icon: BarChart3, adminOnly: true },
   { to: "/resultados", label: "Resultados", icon: TrendingUp },
-  { to: "/sucursales", label: "Sucursales", icon: Store, adminOnly: true },
+  { to: "/sucursales", label: "Mi Local", icon: Store, adminOnly: true },
   { to: "/configuracion", label: "Configuración", icon: Settings, adminOnly: true },
 ];
 
