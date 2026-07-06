@@ -133,6 +133,7 @@ function toProducto(p: DbProduct) {
     activo: p.stock > 0,
     stock: p.stock,
     featured: p.featured,
+    es_complemento: p.esComplemento,
   };
 }
 
@@ -149,6 +150,7 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
   if (Array.isArray(body.talles)) out.sizes = body.talles.map(String);
   if (Array.isArray(body.colores)) out.colors = body.colores.map(String);
   if (body.genero !== undefined) out.section = body.genero === "priority" ? "priority" : "hombre";
+  if (body.es_complemento !== undefined) out.esComplemento = Boolean(body.es_complemento);
 
   const tarjeta = body.precio_tarjeta != null ? parseFloat(String(body.precio_tarjeta)) : NaN;
   const contado = body.precio_contado != null ? parseFloat(String(body.precio_contado)) : NaN;
@@ -211,6 +213,7 @@ router.post("/admin/productos", async (req, res) => {
       stock: payload.stock ?? 0,
       section: payload.section ?? "hombre",
       featured: false,
+      esComplemento: payload.esComplemento ?? false,
       images: payload.images ?? [],
       colors: payload.colors ?? [],
       sizes: payload.sizes ?? [],

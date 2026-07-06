@@ -4,7 +4,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable, ordersTable } from "@workspace/db/schema";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 import { botAuth } from "../middleware/botAuth";
 import { toProductoPublic, toPromo, isPromo } from "../lib/catalog";
 import { loadVariantsMap } from "../lib/variants";
@@ -56,6 +56,32 @@ router.get("/bot/productos", async (req, res) => {
     res
       .status(500)
       .json({ error: "internal_error", message: "No se pudieron obtener los productos" });
+  }
+});
+
+// Complementos de venta cruzada: productos marcados como complemento en el admin
+// (medias, boxers, gorras, accesorios) para sumar a la compra. Lista corta, más
+// baratos primero. Formato mínimo para el bot: { id, nombre, precio, imagen }.
+router.get("/bot/complementos", async (_req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.esComplemento, true))
+      .orderBy(productsTable.price)
+      .limit(12);
+    res.json(
+      rows.map((p) => ({
+        id: p.id,
+        nombre: p.name,
+        precio: p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price),
+        imagen: p.images?.[0] ?? "",
+      })),
+    );
+  } catch {
+    res
+      .status(500)
+      .json({ error: "internal_error", message: "No se pudieron obtener los complementos" });
   }
 });
 

@@ -14,6 +14,9 @@ export const productsTable = pgTable("products", {
   stock: integer("stock").notNull().default(0),
   section: text("section").notNull().default("hombre"),
   featured: boolean("featured").notNull().default(false),
+  // Marca el producto como "complemento" de venta cruzada (medias, boxers,
+  // gorras, accesorios) que el bot ofrece para sumar a la compra.
+  esComplemento: boolean("es_complemento").notNull().default(false),
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
