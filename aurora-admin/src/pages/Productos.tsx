@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Search, ImageOff } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, Pencil, Trash2, Search, ImageOff, Upload, Loader2, Star } from "lucide-react";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -24,6 +24,7 @@ interface Producto {
   talles?: string[];
   colores?: string[];
   imagen?: string;
+  imagenes?: string[];
   sku?: string;
   activo: boolean;
   es_complemento?: boolean;
@@ -50,6 +51,7 @@ const empty = (): Producto => ({
   talles: [],
   colores: [],
   imagen: "",
+  imagenes: [],
   sku: "",
   activo: true,
   es_complemento: false,
@@ -337,11 +339,10 @@ export function Productos() {
                 onChange={(v) => setForm({ ...form, colores: v })}
               />
             </Field>
-            <Field label="Imagen (URL)">
-              <TextInput
-                value={form.imagen ?? ""}
-                onChange={(e) => setForm({ ...form, imagen: e.target.value })}
-                placeholder="https://..."
+            <Field label="Fotos del producto (la primera es la principal)">
+              <ImageUploader
+                value={form.imagenes ?? (form.imagen ? [form.imagen] : [])}
+                onChange={(imgs) => setForm({ ...form, imagenes: imgs, imagen: imgs[0] ?? "" })}
               />
             </Field>
             <label className="flex items-center gap-2 text-sm text-gray-300">
@@ -373,6 +374,77 @@ export function Productos() {
         loading={saving}
         message={`¿Eliminar "${toDelete?.nombre}"? Esta acción no se puede deshacer.`}
       />
+    </div>
+  );
+}
+
+// Uploader de imágenes: sube directo a Cloudinary vía el backend (el usuario
+// nunca pega URLs). Galería con "hacer principal", reordenar y borrar.
+function ImageUploader({ value, onChange }: { value: string[]; onChange: (imgs: string[]) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const onFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setErr(null);
+    try {
+      const nuevas: string[] = [];
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("image", file);
+        const { data } = await api.post(`/admin/uploads/image`, fd);
+        if (data?.url) nuevas.push(data.url as string);
+      }
+      onChange([...value, ...nuevas]);
+    } catch (e) {
+      setErr(apiError(e));
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const hacerPrincipal = (i: number) => {
+    const next = [...value];
+    const [img] = next.splice(i, 1);
+    onChange([img, ...next]);
+  };
+  const borrar = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-2">
+        {value.map((url, i) => (
+          <div key={url + i} className="group relative h-20 w-20 overflow-hidden rounded-md border border-borde">
+            <img src={url} alt="" className="h-full w-full object-cover" />
+            {i === 0 && (
+              <span className="absolute left-0 top-0 bg-acento px-1 text-[0.6rem] font-bold text-black">Principal</span>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 opacity-0 transition group-hover:opacity-100">
+              {i > 0 && (
+                <button type="button" onClick={() => hacerPrincipal(i)} title="Hacer principal" className="text-acento">
+                  <Star size={16} />
+                </button>
+              )}
+              <button type="button" onClick={() => borrar(i)} title="Borrar" className="text-red-400">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => onFiles(e.target.files)} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="btn-secondary text-sm"
+      >
+        {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Subir imagen
+      </button>
+      {err && <p className="mt-1 text-xs text-red-400">{err}</p>}
     </div>
   );
 }

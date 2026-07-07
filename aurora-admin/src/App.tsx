@@ -6,6 +6,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { VentaRapida } from "./pages/VentaRapida";
 import { Caja } from "./pages/Caja";
 import { Finanzas } from "./pages/Finanzas";
+import { Cambios } from "./pages/Cambios";
 import { Productos } from "./pages/Productos";
 import { Promociones } from "./pages/Promociones";
 import { Combos } from "./pages/Combos";
@@ -62,6 +63,7 @@ export function App() {
           }
         />
         <Route path="/productos" element={<Productos />} />
+        <Route path="/cambios" element={<Cambios />} />
         <Route path="/promociones" element={<Promociones />} />
         <Route path="/combos" element={<Combos />} />
         <Route path="/stock" element={<Stock />} />
