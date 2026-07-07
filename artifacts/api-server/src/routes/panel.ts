@@ -12,6 +12,7 @@ import {
   cajasTable,
   cajaMovimientosTable,
   gastosTable,
+  devolucionesTable,
 } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
@@ -140,6 +141,7 @@ function toProducto(p: DbProduct) {
     talles: p.sizes ?? [],
     colores: p.colors ?? [],
     imagen: p.images?.[0] ?? "",
+    imagenes: p.images ?? [],
     sku: String(p.id),
     activo: p.stock > 0,
     stock: p.stock,
@@ -154,7 +156,10 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
   if (body.nombre !== undefined) out.name = String(body.nombre).trim();
   if (body.descripcion !== undefined) out.description = String(body.descripcion ?? "");
   if (body.categoria !== undefined) out.category = String(body.categoria).trim();
-  if (body.imagen !== undefined) {
+  // Galería: `imagenes` (array) tiene prioridad; `imagen` se mantiene por compat.
+  if (Array.isArray(body.imagenes)) {
+    out.images = body.imagenes.map((u) => String(u).trim()).filter(Boolean);
+  } else if (body.imagen !== undefined) {
     const url = String(body.imagen ?? "").trim();
     out.images = url ? [url] : [];
   }
@@ -966,6 +971,142 @@ router.post("/admin/caja/cerrar", async (req, res) => {
     res.json({ ok: true, efectivo_teorico: teorico, efectivo_real: montoReal, diferencia });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo cerrar la caja" });
+  }
+});
+
+// ─── CAMBIOS Y DEVOLUCIONES ──────────────────────────────────────────────────
+// Buscar una venta por número de ticket o teléfono (para cambios/devoluciones).
+router.get("/admin/ventas/buscar", async (req, res) => {
+  try {
+    const q = String(req.query.q ?? "").trim().toLowerCase();
+    const rows = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt)).limit(200);
+    const filtradas = q
+      ? rows.filter(
+          (o) => o.trackingNumber.toLowerCase().includes(q) || (o.customerPhone ?? "").toLowerCase().includes(q),
+        )
+      : rows.slice(0, 20);
+    res.json(
+      filtradas.map((o) => ({
+        id: o.id,
+        tracking: o.trackingNumber,
+        telefono: o.customerPhone,
+        canal: o.canal ?? "online",
+        fecha: o.createdAt,
+        total: parseFloat(o.total),
+        items: (o.items ?? []).map((it, idx) => ({
+          index: idx,
+          producto_id: it.productId,
+          nombre: it.productName,
+          talle: it.size,
+          color: it.color || null,
+          cantidad: it.quantity,
+          precio: it.price,
+        })),
+      })),
+    );
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo buscar la venta" });
+  }
+});
+
+// Cambio de talle: repone el talle devuelto y descuenta el nuevo (si hay stock).
+router.post("/admin/cambios", async (req, res) => {
+  try {
+    const orderId = parseInt(String(req.body?.order_id), 10);
+    const itemIndex = parseInt(String(req.body?.item_index), 10);
+    const talleNuevo = String(req.body?.talle_nuevo ?? "").trim();
+    if (Number.isNaN(orderId) || Number.isNaN(itemIndex) || !talleNuevo) {
+      res.status(400).json({ error: "invalid_input", message: "Faltan datos del cambio" });
+      return;
+    }
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+    if (!order) {
+      res.status(404).json({ error: "not_found", message: "Venta no encontrada" });
+      return;
+    }
+    const items = [...(order.items ?? [])];
+    const item = items[itemIndex];
+    if (!item) {
+      res.status(400).json({ error: "invalid_item", message: "Ítem inexistente en la venta" });
+      return;
+    }
+    // Repone el talle original, descuenta el nuevo (misma lógica de variantes).
+    const rep = await applyOrderStock([{ productId: item.productId, productName: item.productName, size: item.size, color: item.color, quantity: item.quantity }], +1);
+    const desc2 = await applyOrderStock([{ productId: item.productId, productName: item.productName, size: talleNuevo, color: item.color, quantity: item.quantity }], -1);
+    const advertencias = [...rep.advertencias, ...desc2.advertencias];
+
+    const talleAnterior = item.size;
+    items[itemIndex] = { ...item, size: talleNuevo };
+    await db.update(ordersTable).set({ items, updatedAt: new Date() }).where(eq(ordersTable.id, orderId));
+    await db.insert(devolucionesTable).values({
+      orderId,
+      tipo: "cambio",
+      detalle: { item_index: itemIndex, producto: item.productName, talle_anterior: talleAnterior, talle_nuevo: talleNuevo, cantidad: item.quantity },
+      clienteTelefono: order.customerPhone ?? "",
+      nota: `Cambio de talle ${talleAnterior} → ${talleNuevo}`,
+    });
+    res.json({ ok: true, talle_anterior: talleAnterior, talle_nuevo: talleNuevo, advertencias });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo registrar el cambio" });
+  }
+});
+
+// Devolución: repone stock; si es en efectivo registra egreso en la caja abierta,
+// si es saldo a favor queda registrado para la ficha del cliente.
+router.post("/admin/devoluciones", async (req, res) => {
+  try {
+    const orderId = parseInt(String(req.body?.order_id), 10);
+    const modo = String(req.body?.modo ?? "efectivo"); // efectivo | saldo
+    const rawItems: Array<{ item_index?: number; cantidad?: number }> = Array.isArray(req.body?.items) ? req.body.items : [];
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+    if (!order) {
+      res.status(404).json({ error: "not_found", message: "Venta no encontrada" });
+      return;
+    }
+    const items = order.items ?? [];
+    const aReponer = [];
+    let monto = 0;
+    for (const r of rawItems) {
+      const idx = Number(r.item_index);
+      const it = items[idx];
+      if (!it) continue;
+      const cant = Math.min(it.quantity, Math.max(1, Math.trunc(Number(r.cantidad) || it.quantity)));
+      aReponer.push({ productId: it.productId, productName: it.productName, size: it.size, color: it.color, quantity: cant });
+      monto += it.price * cant;
+    }
+    if (aReponer.length === 0) {
+      res.status(400).json({ error: "invalid_items", message: "No hay ítems válidos para devolver" });
+      return;
+    }
+    const { advertencias } = await applyOrderStock(aReponer, +1); // repone stock
+
+    // Efectivo → egreso en la caja abierta. Saldo → queda registrado (ficha cliente).
+    let cajaRegistrada = false;
+    if (modo === "efectivo") {
+      const [caja] = await db.select().from(cajasTable).where(eq(cajasTable.estado, "abierta")).limit(1);
+      if (caja) {
+        await db.insert(cajaMovimientosTable).values({
+          cajaId: caja.id,
+          tipo: "gasto",
+          categoria: "devolucion",
+          monto: String(monto),
+          nota: `Devolución venta ${order.trackingNumber}`,
+        });
+        cajaRegistrada = true;
+      }
+    }
+    await db.insert(devolucionesTable).values({
+      orderId,
+      tipo: "devolucion",
+      detalle: { items: aReponer.map((i) => ({ producto: i.productName, talle: i.size, cantidad: i.quantity })) },
+      monto: String(monto),
+      modo,
+      clienteTelefono: order.customerPhone ?? "",
+      nota: modo === "saldo" ? "Saldo a favor del cliente" : "Devolución en efectivo",
+    });
+    res.json({ ok: true, monto, modo, caja_registrada: cajaRegistrada, advertencias });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo registrar la devolución" });
   }
 });
 

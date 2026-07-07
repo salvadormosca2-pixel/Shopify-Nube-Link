@@ -6,7 +6,7 @@ import { db } from "@workspace/db";
 import { productsTable, ordersTable } from "@workspace/db/schema";
 import { inArray, eq } from "drizzle-orm";
 import { botAuth } from "../middleware/botAuth";
-import { toProductoPublic, toPromo, isPromo } from "../lib/catalog";
+import { toProductoPublic, toPromo, isPromo, optimizeCloudinary } from "../lib/catalog";
 import { loadVariantsMap, buildAvailability } from "../lib/variants";
 import { listSucursalesPublic } from "../lib/sucursales";
 
@@ -92,7 +92,7 @@ router.get("/bot/complementos", async (_req, res) => {
         id: p.id,
         nombre: p.name,
         precio: p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price),
-        imagen: p.images?.[0] ?? "",
+        imagen: optimizeCloudinary(p.images?.[0] ?? ""),
         talles_disponibles: talles,
       });
       if (items.length >= 6) break; // lista corta

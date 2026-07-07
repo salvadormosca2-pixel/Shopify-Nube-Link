@@ -6,6 +6,18 @@ import { buildAvailability, type VariantRow } from "./variants";
 
 type DbProduct = typeof productsTable.$inferSelect;
 
+// Optimiza una URL de Cloudinary insertando la transformación w_800,q_auto,f_auto
+// después de "/upload/". Deja intactas las URLs que no son de Cloudinary.
+const CLD_TX = "w_800,q_auto,f_auto";
+export function optimizeCloudinary(url: string): string {
+  if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  if (url.includes(`/upload/${CLD_TX}/`)) return url; // ya optimizada
+  return url.replace("/upload/", `/upload/${CLD_TX}/`);
+}
+function optimizeList(urls: string[]): string[] {
+  return urls.map(optimizeCloudinary);
+}
+
 // Public-safe product shape: no raw stock count, just an availability flag.
 // `variants` (opcional) son las filas de producto_variantes de este producto;
 // si se pasan, `talles`/`disponible`/`variantes` reflejan el stock real por
@@ -28,8 +40,8 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
     talles,
     talles_disponibles: talles, // alias explícito: talles con stock > 0
     colores: p.colors ?? [],
-    imagen: p.images?.[0] ?? "",
-    imagenes: p.images ?? [],
+    imagen: optimizeCloudinary(p.images?.[0] ?? ""),
+    imagenes: optimizeList(p.images ?? []),
     variantes,
     disponible,
   };
@@ -54,8 +66,8 @@ export function toPromo(p: DbProduct, variants?: VariantRow[]) {
     nombre: p.name,
     categoria: p.category,
     genero: p.section,
-    imagen: p.images?.[0] ?? "",
-    imagenes: p.images ?? [],
+    imagen: optimizeCloudinary(p.images?.[0] ?? ""),
+    imagenes: optimizeList(p.images ?? []),
     precio_lista: price,
     precio_oferta: sale,
     descuento_pct: descuento,

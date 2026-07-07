@@ -7,3 +7,4 @@ export * from "./reviews";
 export * from "./contact-messages";
 export * from "./caja";
 export * from "./gastos";
+export * from "./devoluciones";
