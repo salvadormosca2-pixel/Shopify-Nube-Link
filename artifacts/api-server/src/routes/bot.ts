@@ -9,6 +9,7 @@ import { botAuth } from "../middleware/botAuth";
 import { toProductoPublic, toPromo, isPromo, optimizeCloudinary } from "../lib/catalog";
 import { loadVariantsMap, buildAvailability } from "../lib/variants";
 import { listSucursalesPublic } from "../lib/sucursales";
+import { searchProductsByImage, ImageSearchError } from "../lib/imageSearch";
 
 const router: IRouter = Router();
 
@@ -116,6 +117,36 @@ router.get("/bot/categorias", async (_req, res) => {
     res
       .status(500)
       .json({ error: "internal_error", message: "No se pudieron obtener las categorías" });
+  }
+});
+
+// Búsqueda visual: el cliente manda una foto/captura de una prenda y se
+// devuelven los productos del catálogo más parecidos (similitud CLIP 0..1).
+// Body: { "imagen_url": "https://..." } (también acepta "url" o "imagen").
+router.post("/bot/buscar-por-imagen", async (req, res) => {
+  const body = req.body ?? {};
+  const url = String(body.imagen_url ?? body.url ?? body.imagen ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) {
+    res.status(400).json({
+      error: "invalid_request",
+      message: "Mandá la URL de la imagen en el campo imagen_url",
+    });
+    return;
+  }
+  try {
+    res.json(await searchProductsByImage(url, 3));
+  } catch (err) {
+    if (err instanceof ImageSearchError && err.code === "bad_image") {
+      res.status(400).json({ error: "bad_image", message: err.message });
+      return;
+    }
+    if (err instanceof ImageSearchError && err.code === "no_embeddings") {
+      res.status(503).json({ error: "no_embeddings", message: err.message });
+      return;
+    }
+    res
+      .status(500)
+      .json({ error: "internal_error", message: "No se pudo buscar por imagen" });
   }
 });
 

@@ -4,6 +4,7 @@ import { productsTable, couponsTable, ordersTable } from "@workspace/db/schema";
 import { eq, desc, gte } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { v2 as cloudinary } from "cloudinary";
+import { queueProductEmbeddings, backfillAllEmbeddings } from "../lib/imageSearch";
 
 cloudinary.config({
   cloud_name: process.env["CLOUDINARY_CLOUD_NAME"],
@@ -149,6 +150,9 @@ router.patch("/admin/products/:id", async (req, res) => {
       return;
     }
 
+    // Si cambiaron las fotos, regenerar la huella visual en segundo plano.
+    if (updates.images !== undefined) queueProductEmbeddings(updated);
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "internal_error", message: "Failed to update product" });
@@ -192,9 +196,26 @@ router.post("/admin/products", async (req, res) => {
     };
 
     const [created] = await db.insert(productsTable).values(values).returning();
+    // Generar la huella visual de las fotos en segundo plano (búsqueda por imagen).
+    queueProductEmbeddings(created);
     res.status(201).json(created);
   } catch (err) {
     res.status(500).json({ error: "internal_error", message: "Failed to create product" });
+  }
+});
+
+// POST /api/admin/embeddings/backfill - genera los embeddings visuales que
+// falten para TODOS los productos con imagen (backfill de una vez; también
+// re-sincroniza si se cambiaron fotos por fuera del flujo normal).
+router.post("/admin/embeddings/backfill", async (_req, res) => {
+  try {
+    res.json(await backfillAllEmbeddings());
+  } catch (err) {
+    if (err instanceof Error && err.message === "backfill_in_progress") {
+      res.status(409).json({ error: "backfill_in_progress", message: "Ya hay un backfill corriendo" });
+      return;
+    }
+    res.status(500).json({ error: "internal_error", message: "Falló el backfill de embeddings" });
   }
 });
 

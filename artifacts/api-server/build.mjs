@@ -54,6 +54,9 @@ async function buildAll() {
       "knex",
       "typeorm",
       "protobufjs",
+      // @huggingface/transformers carga binarios nativos (onnxruntime, sharp)
+      // y resuelve archivos de modelo en runtime: no es bundleable.
+      "@huggingface/transformers",
       "onnxruntime-node",
       "@tensorflow/*",
       "@prisma/client",

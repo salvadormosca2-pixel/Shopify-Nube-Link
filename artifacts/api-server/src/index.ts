@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { warmupImageSearch } from "./lib/imageSearch";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Precarga el modelo CLIP (búsqueda por imagen) sin bloquear el arranque.
+  warmupImageSearch();
 });
