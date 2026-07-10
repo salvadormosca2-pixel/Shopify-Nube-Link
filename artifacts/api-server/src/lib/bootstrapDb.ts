@@ -1,21 +1,15 @@
-// Migración aditiva e idempotente para el backend del bot (2026-07-09):
-//   - products.estilo, orders.transportista / tracking_url
-//   - tablas clientes, derivaciones, producto_vistos, presupuestos,
-//     calificaciones, avisos_stock, promos, stock_reservas
-//   - seed de la sucursal de Catamarca si la tabla está vacía
-// Se corre contra la base real con:  railway run --service "@workspace/alfis-jeans" \
-//   node "lib/db/scripts/migrate-bot-crm.mjs"
-// NUNCA usar drizzle-kit push contra prod (quiere truncar orders / dropear las
-// tablas del bot n8n_chat_memory y mensajes que no están en el schema).
-import pg from "pg";
+// Migración aditiva e idempotente que corre al arrancar el servidor (dentro de
+// Railway, donde la DB sí es alcanzable). Sólo CREATE TABLE IF NOT EXISTS /
+// ADD COLUMN IF NOT EXISTS — nunca borra ni modifica datos. Reemplaza al
+// releaseCommand (drizzle-kit no existe en el contenedor de prod) y a los
+// scripts one-off que requerían conexión externa a la base.
+import { pool } from "@workspace/db";
+import { logger } from "./logger";
 
-const sql = [
-  // Columnas nuevas (aditivas)
+const STATEMENTS = [
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS estilo TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS transportista TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_url TEXT`,
-
-  // CRM del bot
   `CREATE TABLE IF NOT EXISTS clientes (
     id SERIAL PRIMARY KEY,
     telefono TEXT NOT NULL UNIQUE,
@@ -95,57 +89,29 @@ const sql = [
      ON stock_reservas (producto_id) WHERE activa`,
 ];
 
-// Conecta probando primero sin SSL y, si el server lo rechaza, con SSL laxo
-// (el proxy público de Railway a veces exige TLS según la región).
-async function connect() {
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL no está seteada");
-  for (const ssl of [undefined, { rejectUnauthorized: false }]) {
-    const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl });
-    try {
-      await client.connect();
-      return client;
-    } catch (e) {
-      console.error(`conexión ${ssl ? "con" : "sin"} SSL falló:`, e.code ?? e.message);
-      try { await client.end(); } catch {}
-    }
+// Seed de la sucursal de Catamarca si la tabla está vacía (era el motivo por el
+// que GET /api/sucursales devolvía []). Los datos reales se editan en el panel.
+const SUCURSAL_SEED = [
+  "Alfis Jeans — Local Catamarca",
+  "San Fernando del Valle de Catamarca, Catamarca capital",
+  "Lunes a sábado de 9 a 13 y de 17 a 21 hs",
+  "Retiro sin cargo en el local. Envíos a todo el país por correo/encomienda: en Catamarca capital llega en 24-48 hs; al resto del país en 3-6 días hábiles. El costo se cotiza según la zona.",
+  "Cambios dentro de los 30 días con la prenda sin uso y con etiqueta. Por talle o por otro producto del mismo valor.",
+  "",
+];
+
+export async function bootstrapDb(): Promise<void> {
+  for (const stmt of STATEMENTS) {
+    await pool.query(stmt);
   }
-  throw new Error("No se pudo conectar a la base");
-}
-
-async function main() {
-  const client = await connect();
-  try {
-    for (const stmt of sql) {
-      await client.query(stmt);
-      console.log("OK:", stmt.split("\n")[0].trim());
-    }
-
-    // Seed de sucursal si la tabla está vacía (GET /api/sucursales devolvía []).
-    const { rows } = await client.query(`SELECT count(*)::int AS n FROM sucursales`);
-    if (rows[0].n === 0) {
-      await client.query(
-        `INSERT INTO sucursales (nombre, direccion, horarios, envios, cambios, whatsapp, activo)
-         VALUES ($1,$2,$3,$4,$5,$6,true)`,
-        [
-          "Alfis Jeans — Local Catamarca",
-          "San Fernando del Valle de Catamarca, Catamarca capital",
-          "Lunes a sábado de 9 a 13 y de 17 a 21 hs",
-          "Retiro sin cargo en el local. Envíos a todo el país por correo/encomienda: en Catamarca capital llega en 24-48 hs; al resto del país en 3-6 días hábiles. El costo se cotiza según la zona.",
-          "Cambios dentro de los 30 días con la prenda sin uso y con etiqueta. Por talle o por otro producto del mismo valor.",
-          "",
-        ],
-      );
-      console.log("Seed: sucursal de Catamarca creada (editar datos reales desde el panel)");
-    } else {
-      console.log(`Sucursales ya cargadas (${rows[0].n}), sin seed`);
-    }
-    console.log("Migración completa ✔");
-  } finally {
-    await client.end();
+  const { rows } = await pool.query(`SELECT count(*)::int AS n FROM sucursales`);
+  if (rows[0]?.n === 0) {
+    await pool.query(
+      `INSERT INTO sucursales (nombre, direccion, horarios, envios, cambios, whatsapp, activo)
+       VALUES ($1,$2,$3,$4,$5,$6,true)`,
+      SUCURSAL_SEED,
+    );
+    logger.info("bootstrapDb: sucursal de Catamarca creada (seed)");
   }
+  logger.info("bootstrapDb: esquema al día");
 }
-
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
