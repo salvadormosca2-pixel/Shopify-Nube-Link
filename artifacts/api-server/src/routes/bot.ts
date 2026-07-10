@@ -632,8 +632,18 @@ router.post("/bot/pago", async (req, res) => {
       ok: true,
       pedido_id: order.id,
       tracking: order.trackingNumber,
-      total: resolved.total,
       link: preference.init_point,
+      total: resolved.total,
+      // Detalle de precios (calculados por el servidor) para que el bot pueda
+      // mostrar el resumen junto al link.
+      productos: resolved.items.map((i) => ({
+        producto_id: i.producto_id,
+        nombre: i.nombre,
+        talle: i.talle,
+        cantidad: i.cantidad,
+        precio: i.precio,
+        subtotal: i.precio * i.cantidad,
+      })),
     });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo generar el link de pago" });
