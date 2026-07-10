@@ -7,5 +7,8 @@ export * from "./coupons";
 export * from "./reviews";
 export * from "./contact-messages";
 export * from "./caja";
+export * from "./crm";
+export * from "./promos";
+export * from "./stock-reservas";
 export * from "./gastos";
 export * from "./devoluciones";

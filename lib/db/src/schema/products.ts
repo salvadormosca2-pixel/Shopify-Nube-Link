@@ -13,6 +13,9 @@ export const productsTable = pgTable("products", {
   sizes: json("sizes").$type<string[]>().notNull().default([]),
   stock: integer("stock").notNull().default(0),
   section: text("section").notNull().default("hombre"),
+  // Estilo dentro de la categoría (oversize, slim, mom, chupín, recto, ...).
+  // Texto libre normalizado en minúsculas; el bot filtra por él.
+  estilo: text("estilo").notNull().default(""),
   featured: boolean("featured").notNull().default(false),
   // Marca el producto como "complemento" de venta cruzada (medias, boxers,
   // gorras, accesorios) que el bot ofrece para sumar a la compra.

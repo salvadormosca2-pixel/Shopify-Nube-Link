@@ -13,6 +13,9 @@ import {
   cajaMovimientosTable,
   gastosTable,
   devolucionesTable,
+  derivacionesTable,
+  avisosStockTable,
+  promosTable,
 } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
@@ -20,9 +23,12 @@ import { generateSku, generateEan13FromId } from "../lib/codes";
 import { todayInAr, resumenCaja } from "../lib/caja";
 import { resumenFinanzas, serieDiaria, periodoAnterior, arDate } from "../lib/finanzas";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
-import { loadVariantsMap } from "../lib/variants";
+import { queueProductEmbeddings } from "../lib/imageSearch";
+import { loadVariantsMap, loadVariantsMapRaw, type VariantRow } from "../lib/variants";
 import { applyOrderStock } from "../lib/stock-movements";
 import { listSucursalesPublic } from "../lib/sucursales";
+import { listEstilosEnStock } from "../lib/crm";
+import { liberarReservasPedido } from "../lib/reservas";
 
 const router: IRouter = Router();
 
@@ -35,10 +41,21 @@ router.get("/categorias", async (_req, res) => {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las categorías" });
   }
 });
+// Estilos con productos EN STOCK (opcional ?categoria=). Alimenta el filtro del
+// bot ("mostrame solo las oversize") y las sugerencias del form de producto.
+router.get("/estilos", async (req, res) => {
+  try {
+    const { categoria } = req.query as Record<string, string>;
+    res.json(await listEstilosEnStock(categoria));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los estilos" });
+  }
+});
+
 // Lectura pública de productos (sin token) — la usan la tienda y el bot.
 router.get("/productos", async (req, res) => {
   try {
-    const { search, categoria, genero } = req.query as Record<string, string>;
+    const { search, categoria, genero, estilo } = req.query as Record<string, string>;
     let rows = await db
       .select()
       .from(productsTable)
@@ -55,6 +72,7 @@ router.get("/productos", async (req, res) => {
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
     if (genero) rows = rows.filter((p) => p.section === genero);
+    if (estilo) rows = rows.filter((p) => p.estilo.toLowerCase() === estilo.toLowerCase());
 
     const variants = await loadVariantsMap(rows.map((p) => p.id));
     res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id))));
@@ -126,7 +144,7 @@ router.use("/admin", adminAuth);
 // ─── helpers: map DB product <-> panel "producto" ────────────────────────────
 type DbProduct = typeof productsTable.$inferSelect;
 
-function toProducto(p: DbProduct) {
+function toProducto(p: DbProduct, variants?: VariantRow[]) {
   const price = parseFloat(p.price); // precio de lista / tarjeta
   const sale = p.salePrice != null ? parseFloat(p.salePrice) : null; // precio contado
   return {
@@ -135,7 +153,8 @@ function toProducto(p: DbProduct) {
     descripcion: p.description,
     categoria: p.category,
     marca: "",
-    genero: p.section, // 'hombre' | 'priority' (única dimensión real en la base)
+    genero: p.section,
+    estilo: p.estilo,
     precio_contado: sale != null ? sale : price,
     precio_tarjeta: price,
     talles: p.sizes ?? [],
@@ -143,10 +162,17 @@ function toProducto(p: DbProduct) {
     imagen: p.images?.[0] ?? "",
     imagenes: p.images ?? [],
     sku: String(p.id),
-    activo: p.stock > 0,
+    activo: p.stock > 0 || (variants ?? []).some((v) => v.stock > 0),
     stock: p.stock,
     featured: p.featured,
+    destacado: p.featured,
     es_complemento: p.esComplemento,
+    // Stock FÍSICO por variante (para la mini-tabla del form).
+    variantes: (variants ?? []).map((v) => ({
+      talle: v.talle,
+      color: v.color === "" ? null : v.color,
+      stock: v.stock,
+    })),
   };
 }
 
@@ -165,7 +191,13 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
   }
   if (Array.isArray(body.talles)) out.sizes = body.talles.map(String);
   if (Array.isArray(body.colores)) out.colors = body.colores.map(String);
-  if (body.genero !== undefined) out.section = body.genero === "priority" ? "priority" : "hombre";
+  if (body.genero !== undefined) {
+    const g = String(body.genero).toLowerCase().trim();
+    out.section = ["mujer", "hombre", "unisex"].includes(g) ? g : "hombre";
+  }
+  if (body.estilo !== undefined) out.estilo = String(body.estilo).toLowerCase().trim();
+  if (body.destacado !== undefined) out.featured = Boolean(body.destacado);
+  else if (body.featured !== undefined) out.featured = Boolean(body.featured);
   if (body.es_complemento !== undefined) out.esComplemento = Boolean(body.es_complemento);
 
   const tarjeta = body.precio_tarjeta != null ? parseFloat(String(body.precio_tarjeta)) : NaN;
@@ -208,11 +240,50 @@ router.get("/admin/productos", async (req, res) => {
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
     if (genero) rows = rows.filter((p) => p.section === genero);
 
-    res.json(rows.map(toProducto));
+    const variants = await loadVariantsMapRaw(rows.map((p) => p.id));
+    res.json(rows.map((p) => toProducto(p, variants.get(p.id))));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los productos" });
   }
 });
+
+// Upsert del stock por talle/color que manda el form de producto
+// (mini-tabla talle → cantidad). Sólo pisa lo que vino: no borra variantes que
+// el form no mencione (el ciclo completo se maneja desde la sección Stock).
+async function upsertVariantesForm(productoId: number, raw: unknown): Promise<void> {
+  if (!Array.isArray(raw)) return;
+  for (const it of raw as Array<Record<string, unknown>>) {
+    const talle = String(it.talle ?? "").trim();
+    if (!talle) continue;
+    const color = it.color != null ? String(it.color).trim() : "";
+    const stock = Math.max(0, Math.trunc(Number(it.stock) || 0));
+    const [row] = await db
+      .insert(productVariantsTable)
+      .values({
+        productoId,
+        talle,
+        color,
+        stock,
+        sku: generateSku(productoId, talle, color),
+      })
+      .onConflictDoUpdate({
+        target: [
+          productVariantsTable.productoId,
+          productVariantsTable.talle,
+          productVariantsTable.color,
+        ],
+        set: { stock, updatedAt: new Date() },
+      })
+      .returning();
+    // El EAN-13 depende del id asignado → se completa después del insert.
+    if (row && !row.codigoBarras) {
+      await db
+        .update(productVariantsTable)
+        .set({ codigoBarras: generateEan13FromId(row.id) })
+        .where(eq(productVariantsTable.id, row.id));
+    }
+  }
+}
 
 router.post("/admin/productos", async (req, res) => {
   try {
@@ -228,7 +299,8 @@ router.post("/admin/productos", async (req, res) => {
       price: payload.price ?? "0",
       stock: payload.stock ?? 0,
       section: payload.section ?? "hombre",
-      featured: false,
+      estilo: payload.estilo ?? "",
+      featured: payload.featured ?? false,
       esComplemento: payload.esComplemento ?? false,
       images: payload.images ?? [],
       colors: payload.colors ?? [],
@@ -236,7 +308,11 @@ router.post("/admin/productos", async (req, res) => {
       salePrice: payload.salePrice ?? null,
     };
     const [created] = await db.insert(productsTable).values(values).returning();
-    res.status(201).json(toProducto(created));
+    await upsertVariantesForm(created.id, req.body?.variantes);
+    // Huella visual para la búsqueda por imagen del bot (fire-and-forget).
+    queueProductEmbeddings(created);
+    const variants = await loadVariantsMapRaw([created.id]);
+    res.status(201).json(toProducto(created, variants.get(created.id)));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo crear el producto" });
   }
@@ -250,20 +326,24 @@ router.put("/admin/productos/:id", async (req, res) => {
       return;
     }
     const updates = fromProducto(req.body ?? {});
-    if (Object.keys(updates).length === 0) {
+    const tieneVariantes = Array.isArray(req.body?.variantes);
+    if (Object.keys(updates).length === 0 && !tieneVariantes) {
       res.status(400).json({ error: "no_changes", message: "Sin cambios" });
       return;
     }
-    const [updated] = await db
-      .update(productsTable)
-      .set(updates)
-      .where(eq(productsTable.id, id))
-      .returning();
+    const [updated] =
+      Object.keys(updates).length > 0
+        ? await db.update(productsTable).set(updates).where(eq(productsTable.id, id)).returning()
+        : await db.select().from(productsTable).where(eq(productsTable.id, id));
     if (!updated) {
       res.status(404).json({ error: "not_found", message: "Producto no encontrado" });
       return;
     }
-    res.json(toProducto(updated));
+    await upsertVariantesForm(updated.id, req.body?.variantes);
+    // Si cambiaron las fotos, regenerar la huella visual (fire-and-forget).
+    if (updates.images) queueProductEmbeddings(updated);
+    const variants = await loadVariantsMapRaw([updated.id]);
+    res.json(toProducto(updated, variants.get(updated.id)));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el producto" });
   }
@@ -610,6 +690,8 @@ router.get("/admin/pedidos", async (_req, res) => {
           precio: it.price,
         })),
         tracking: o.trackingNumber,
+        transportista: o.transportista ?? null,
+        tracking_url: o.trackingUrl ?? null,
       })),
     );
   } catch {
@@ -649,6 +731,12 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
       stockApplied = false;
     }
 
+    // La reserva de 24 h del bot deja de correr: o ya se descontó el stock real
+    // (pago confirmado) o el pedido se cayó (cancelado).
+    if (PAID_STATUSES.has(status) || status === "cancelled") {
+      await liberarReservasPedido(id);
+    }
+
     await db
       .update(ordersTable)
       .set({ status, stockApplied, updatedAt: new Date() })
@@ -657,6 +745,41 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
     res.json({ ok: true, advertencias });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el pedido" });
+  }
+});
+
+// Datos de envío del pedido (transportista + link de seguimiento) que el bot
+// devuelve en GET /api/bot/envio. Marcarlo enviado es opcional (enviado:true).
+router.patch("/admin/pedidos/:id/envio", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const body = req.body ?? {};
+    const updates: Partial<typeof ordersTable.$inferInsert> = { updatedAt: new Date() };
+    if (body.transportista !== undefined) updates.transportista = String(body.transportista ?? "") || null;
+    if (body.tracking_url !== undefined) updates.trackingUrl = String(body.tracking_url ?? "") || null;
+    if (body.enviado === true) updates.status = "shipped";
+    const [updated] = await db
+      .update(ordersTable)
+      .set(updates)
+      .where(eq(ordersTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Pedido no encontrado" });
+      return;
+    }
+    res.json({
+      ok: true,
+      id: updated.id,
+      transportista: updated.transportista,
+      tracking_url: updated.trackingUrl,
+      estado: ESTADO_PEDIDO[updated.status] ?? updated.status,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo guardar el envío" });
   }
 });
 
@@ -1266,6 +1389,198 @@ router.delete("/admin/gastos/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo eliminar el gasto" });
+  }
+});
+
+// ─── PROMOS DEL BOT (argumento de cierre: "3x2", "20% de contado") ───────────
+function toPromoBot(p: typeof promosTable.$inferSelect) {
+  return {
+    id: p.id,
+    titulo: p.titulo,
+    descripcion: p.descripcion,
+    activo: p.activo,
+    vigente_desde: p.vigenteDesde,
+    vigente_hasta: p.vigenteHasta,
+  };
+}
+function fromPromoBot(body: Record<string, unknown>): Partial<typeof promosTable.$inferInsert> {
+  const out: Partial<typeof promosTable.$inferInsert> = {};
+  if (body.titulo !== undefined) out.titulo = String(body.titulo).trim();
+  if (body.descripcion !== undefined) out.descripcion = String(body.descripcion ?? "");
+  if (body.activo !== undefined) out.activo = Boolean(body.activo);
+  for (const [key, col] of [
+    ["vigente_desde", "vigenteDesde"],
+    ["vigente_hasta", "vigenteHasta"],
+  ] as const) {
+    if (body[key] !== undefined) {
+      const raw = String(body[key] ?? "").trim();
+      const d = raw ? new Date(raw) : null;
+      out[col] = d && !Number.isNaN(d.getTime()) ? d : null;
+    }
+  }
+  return out;
+}
+
+router.get("/admin/promos", async (_req, res) => {
+  try {
+    const rows = await db.select().from(promosTable).orderBy(desc(promosTable.updatedAt));
+    res.json(rows.map(toPromoBot));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las promos" });
+  }
+});
+
+router.post("/admin/promos", async (req, res) => {
+  try {
+    const payload = fromPromoBot(req.body ?? {});
+    if (!payload.titulo) {
+      res.status(400).json({ error: "invalid_titulo", message: "El título es obligatorio" });
+      return;
+    }
+    const [created] = await db
+      .insert(promosTable)
+      .values(payload as typeof promosTable.$inferInsert)
+      .returning();
+    res.status(201).json(toPromoBot(created));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo crear la promo" });
+  }
+});
+
+router.put("/admin/promos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const updates = { ...fromPromoBot(req.body ?? {}), updatedAt: new Date() };
+    const [updated] = await db
+      .update(promosTable)
+      .set(updates)
+      .where(eq(promosTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Promo no encontrada" });
+      return;
+    }
+    res.json(toPromoBot(updated));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar la promo" });
+  }
+});
+
+router.delete("/admin/promos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const [deleted] = await db
+      .delete(promosTable)
+      .where(eq(promosTable.id, id))
+      .returning({ id: promosTable.id });
+    if (!deleted) {
+      res.status(404).json({ error: "not_found", message: "Promo no encontrada" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo eliminar la promo" });
+  }
+});
+
+// ─── DERIVACIONES A HUMANO (las crea el bot) ─────────────────────────────────
+router.get("/admin/derivaciones", async (_req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(derivacionesTable)
+      .orderBy(desc(derivacionesTable.createdAt))
+      .limit(100);
+    res.json(
+      rows.map((d) => ({
+        id: d.id,
+        telefono: d.telefono,
+        cliente_nombre: d.clienteNombre,
+        motivo: d.motivo,
+        prioridad: d.prioridad,
+        atendida: d.atendida,
+        fecha: d.createdAt,
+      })),
+    );
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las derivaciones" });
+  }
+});
+
+router.patch("/admin/derivaciones/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const atendida = req.body?.atendida !== false;
+    const [updated] = await db
+      .update(derivacionesTable)
+      .set({ atendida })
+      .where(eq(derivacionesTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Derivación no encontrada" });
+      return;
+    }
+    res.json({ ok: true, id: updated.id, atendida: updated.atendida });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar la derivación" });
+  }
+});
+
+// ─── AVISOS "CUANDO ENTRE TALLE" (captura de demanda del bot) ────────────────
+router.get("/admin/avisos-stock", async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id: avisosStockTable.id,
+        telefono: avisosStockTable.telefono,
+        producto_id: avisosStockTable.productoId,
+        producto: productsTable.name,
+        talle: avisosStockTable.talle,
+        notificado: avisosStockTable.notificado,
+        fecha: avisosStockTable.createdAt,
+      })
+      .from(avisosStockTable)
+      .leftJoin(productsTable, eq(avisosStockTable.productoId, productsTable.id))
+      .orderBy(desc(avisosStockTable.createdAt))
+      .limit(200);
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los avisos" });
+  }
+});
+
+router.patch("/admin/avisos-stock/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+      return;
+    }
+    const notificado = req.body?.notificado !== false;
+    const [updated] = await db
+      .update(avisosStockTable)
+      .set({ notificado })
+      .where(eq(avisosStockTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Aviso no encontrado" });
+      return;
+    }
+    res.json({ ok: true, id: updated.id, notificado: updated.notificado });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el aviso" });
   }
 });
 

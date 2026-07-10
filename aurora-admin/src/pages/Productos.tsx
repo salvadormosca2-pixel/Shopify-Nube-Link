@@ -12,6 +12,12 @@ import { SkeletonTable } from "../components/ui/Skeleton";
 import { ErrorState, EmptyState } from "../components/ui/DataState";
 import { formatARS, pct } from "../lib/format";
 
+interface Variante {
+  talle: string;
+  color: string | null;
+  stock: number;
+}
+
 interface Producto {
   id: string | number;
   nombre: string;
@@ -19,6 +25,7 @@ interface Producto {
   categoria?: string;
   marca?: string;
   genero?: string;
+  estilo?: string;
   precio_contado: number;
   precio_tarjeta: number;
   talles?: string[];
@@ -27,7 +34,9 @@ interface Producto {
   imagenes?: string[];
   sku?: string;
   activo: boolean;
+  destacado?: boolean;
   es_complemento?: boolean;
+  variantes?: Variante[];
 }
 
 interface Categoria {
@@ -39,6 +48,22 @@ const GENEROS = ["mujer", "hombre", "unisex"];
 const TALLES = ["XS", "S", "M", "L", "XL", "XXL", "36", "38", "40", "42", "44", "46"];
 const COLORES = ["Negro", "Blanco", "Gris", "Azul", "Rojo", "Verde", "Beige", "Marrón"];
 
+// Estilos sugeridos según la categoría (el campo acepta cualquier texto igual).
+const ESTILOS_POR_CATEGORIA: Record<string, string[]> = {
+  remera: ["oversize", "slim", "basica", "estampada"],
+  remeras: ["oversize", "slim", "basica", "estampada"],
+  pantalon: ["mom", "chupin", "recto", "cargo", "wide leg"],
+  pantalones: ["mom", "chupin", "recto", "cargo", "wide leg"],
+  jean: ["mom", "chupin", "recto", "cargo", "wide leg"],
+  jeans: ["mom", "chupin", "recto", "cargo", "wide leg"],
+  buzo: ["oversize", "canguro", "clasico"],
+  buzos: ["oversize", "canguro", "clasico"],
+  campera: ["puffer", "jean", "cuero", "rompeviento"],
+  camperas: ["puffer", "jean", "cuero", "rompeviento"],
+  camisa: ["oversize", "slim", "clasica"],
+  camisas: ["oversize", "slim", "clasica"],
+};
+
 const empty = (): Producto => ({
   id: "",
   nombre: "",
@@ -46,6 +71,7 @@ const empty = (): Producto => ({
   categoria: "",
   marca: "",
   genero: "unisex",
+  estilo: "",
   precio_contado: 0,
   precio_tarjeta: 0,
   talles: [],
@@ -54,7 +80,9 @@ const empty = (): Producto => ({
   imagenes: [],
   sku: "",
   activo: true,
+  destacado: false,
   es_complemento: false,
+  variantes: [],
 });
 
 export function Productos() {
@@ -302,6 +330,30 @@ export function Productos() {
                   ))}
                 </Select>
               </Field>
+              <Field label="Estilo">
+                <TextInput
+                  list="estilos-sugeridos"
+                  value={form.estilo ?? ""}
+                  onChange={(e) => setForm({ ...form, estilo: e.target.value })}
+                  placeholder={
+                    (ESTILOS_POR_CATEGORIA[(form.categoria ?? "").toLowerCase()] ?? ["oversize", "slim"])
+                      .slice(0, 3)
+                      .join(", ") + "..."
+                  }
+                />
+                <datalist id="estilos-sugeridos">
+                  {[
+                    ...new Set([
+                      ...(ESTILOS_POR_CATEGORIA[(form.categoria ?? "").toLowerCase()] ?? []),
+                      ...productos.map((p) => p.estilo ?? "").filter(Boolean),
+                    ]),
+                  ].map((e) => (
+                    <option key={e} value={e} />
+                  ))}
+                </datalist>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="SKU / Código">
                 <TextInput
                   value={form.sku ?? ""}
@@ -339,6 +391,14 @@ export function Productos() {
                 onChange={(v) => setForm({ ...form, colores: v })}
               />
             </Field>
+            <Field label="Stock por talle (crea/actualiza las variantes)">
+              <StockPorTalle
+                talles={form.talles ?? []}
+                colores={form.colores ?? []}
+                value={form.variantes ?? []}
+                onChange={(variantes) => setForm({ ...form, variantes })}
+              />
+            </Field>
             <Field label="Fotos del producto (la primera es la principal)">
               <ImageUploader
                 value={form.imagenes ?? (form.imagen ? [form.imagen] : [])}
@@ -353,6 +413,15 @@ export function Productos() {
                 className="h-4 w-4 accent-acento"
               />
               Producto activo
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={form.destacado ?? false}
+                onChange={(e) => setForm({ ...form, destacado: e.target.checked })}
+                className="h-4 w-4 accent-acento"
+              />
+              Destacado / más vendido (el bot lo recomienda primero)
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-300">
               <input
@@ -374,6 +443,76 @@ export function Productos() {
         loading={saving}
         message={`¿Eliminar "${toDelete?.nombre}"? Esta acción no se puede deshacer.`}
       />
+    </div>
+  );
+}
+
+// Mini-tabla talle (× color) → cantidad. Edita el stock físico de las variantes;
+// al guardar el producto se crean/actualizan en producto_variantes.
+function StockPorTalle({
+  talles,
+  colores,
+  value,
+  onChange,
+}: {
+  talles: string[];
+  colores: string[];
+  value: Variante[];
+  onChange: (v: Variante[]) => void;
+}) {
+  if (talles.length === 0) {
+    return <p className="text-xs text-gray-500">Seleccioná los talles arriba para cargar el stock.</p>;
+  }
+  const cols = colores.length > 0 ? colores : [null];
+  // Filas visibles: talles × colores elegidos + variantes existentes que no entren ahí.
+  const keys = new Set<string>();
+  const rows: Array<{ talle: string; color: string | null }> = [];
+  for (const talle of talles) {
+    for (const color of cols) {
+      keys.add(`${talle}|${color ?? ""}`);
+      rows.push({ talle, color });
+    }
+  }
+  for (const v of value) {
+    if (!keys.has(`${v.talle}|${v.color ?? ""}`)) rows.push({ talle: v.talle, color: v.color });
+  }
+
+  const stockDe = (talle: string, color: string | null) =>
+    value.find((v) => v.talle === talle && (v.color ?? "") === (color ?? ""))?.stock ?? 0;
+
+  const setStock = (talle: string, color: string | null, stock: number) => {
+    const rest = value.filter((v) => !(v.talle === talle && (v.color ?? "") === (color ?? "")));
+    onChange([...rest, { talle, color, stock: Math.max(0, Math.trunc(stock) || 0) }]);
+  };
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-borde">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-borde text-left text-xs text-gray-500">
+            <th className="px-3 py-2">Talle</th>
+            {colores.length > 0 && <th className="px-3 py-2">Color</th>}
+            <th className="px-3 py-2">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ talle, color }) => (
+            <tr key={`${talle}|${color ?? ""}`} className="border-b border-borde/50 last:border-0">
+              <td className="px-3 py-1.5 font-medium text-white">{talle}</td>
+              {colores.length > 0 && <td className="px-3 py-1.5 text-gray-400">{color ?? "—"}</td>}
+              <td className="px-3 py-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  value={stockDe(talle, color)}
+                  onChange={(e) => setStock(talle, color, Number(e.target.value))}
+                  className="input-field w-24 py-1"
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

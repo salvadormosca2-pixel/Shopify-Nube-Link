@@ -4,6 +4,7 @@ import { ordersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { applyOrderStock } from "../lib/stock-movements";
+import { liberarReservasPedido } from "../lib/reservas";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
 const router: IRouter = Router();
@@ -113,6 +114,8 @@ router.post("/payment/webhook", async (req, res) => {
               if (!order.stockApplied) {
                 await applyOrderStock(order.items ?? [], -1);
               }
+              // La reserva de 24 h del bot ya no corre: el stock real quedó descontado.
+              await liberarReservasPedido(orderId);
               await db
                 .update(ordersTable)
                 .set({

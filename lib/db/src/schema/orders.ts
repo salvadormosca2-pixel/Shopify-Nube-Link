@@ -25,6 +25,9 @@ export const ordersTable = pgTable("orders", {
   shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   paymentId: text("payment_id"),
+  // Datos de envío que carga el encargado al despachar (para seguimiento del bot).
+  transportista: text("transportista"),
+  trackingUrl: text("tracking_url"),
   // Canal de la venta: 'online' (tienda/bot) o 'local' (POS mostrador).
   canal: text("canal").notNull().default("online"),
   // Medio de pago: efectivo | transferencia | debito | credito | mercado_pago.

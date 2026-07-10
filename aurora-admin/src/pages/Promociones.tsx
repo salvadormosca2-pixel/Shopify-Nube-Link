@@ -120,6 +120,8 @@ export function Promociones() {
         </button>
       </PageHeader>
 
+      <PromoBot />
+
       {list.loading ? (
         <SkeletonCards count={6} />
       ) : list.error ? (
@@ -276,6 +278,146 @@ export function Promociones() {
         loading={saving}
         message={`¿Eliminar "${toDelete?.titulo}"? Esta acción no se puede deshacer.`}
       />
+    </div>
+  );
+}
+
+// ─── Promo del bot ────────────────────────────────────────────────────────────
+// Promo comercial vigente ("3x2 en remeras", "20% de contado") que el bot de
+// WhatsApp usa como argumento de cierre (GET /api/bot/promo-activa).
+interface PromoBotItem {
+  id: string | number;
+  titulo: string;
+  descripcion?: string;
+  activo: boolean;
+  vigente_hasta?: string | null;
+}
+
+function PromoBot() {
+  const list = useApi<PromoBotItem[]>(() => api.get(`/admin/promos`).then((r) => r.data), []);
+  const [titulo, setTitulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const promos = list.data ?? [];
+
+  const crear = async () => {
+    if (!titulo.trim()) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      await api.post(`/admin/promos`, {
+        titulo: titulo.trim(),
+        descripcion,
+        activo: true,
+        vigente_hasta: hasta || null,
+      });
+      setTitulo("");
+      setDescripcion("");
+      setHasta("");
+      list.refetch();
+    } catch (e) {
+      setErr(apiError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggle = async (p: PromoBotItem) => {
+    try {
+      await api.put(`/admin/promos/${p.id}`, { activo: !p.activo });
+      list.refetch();
+    } catch (e) {
+      setErr(apiError(e));
+    }
+  };
+
+  const borrar = async (p: PromoBotItem) => {
+    try {
+      await api.delete(`/admin/promos/${p.id}`);
+      list.refetch();
+    } catch (e) {
+      setErr(apiError(e));
+    }
+  };
+
+  return (
+    <div className="card mb-6 space-y-3">
+      <div>
+        <p className="font-medium text-white">Promo del bot (argumento de cierre)</p>
+        <p className="text-xs text-gray-500">
+          Ej. "3x2 en remeras" o "20% de descuento pagando en efectivo". El bot de WhatsApp la usa
+          para cerrar la venta.
+        </p>
+      </div>
+      {err && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          {err}
+        </div>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[180px] flex-1">
+          <TextInput
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Título (ej. 3x2 en remeras)"
+          />
+        </div>
+        <div className="min-w-[220px] flex-[2]">
+          <TextInput
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            placeholder="Detalle / condiciones (opcional)"
+          />
+        </div>
+        <TextInput
+          type="date"
+          value={hasta}
+          onChange={(e) => setHasta(e.target.value)}
+          className="w-40"
+          title="Vigente hasta (opcional)"
+        />
+        <button className="btn-primary" onClick={crear} disabled={saving || !titulo.trim()}>
+          {saving ? "Guardando..." : "Agregar"}
+        </button>
+      </div>
+      {promos.length > 0 && (
+        <ul className="space-y-1.5">
+          {promos.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-borde px-3 py-2"
+            >
+              <div className="min-w-0">
+                <span className="font-medium text-white">{p.titulo}</span>
+                {p.descripcion && (
+                  <span className="ml-2 truncate text-xs text-gray-500">{p.descripcion}</span>
+                )}
+                {p.vigente_hasta && (
+                  <span className="ml-2 text-xs text-gray-500">hasta {String(p.vigente_hasta).slice(0, 10)}</span>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {p.activo ? <Badge tone="acento">Activa</Badge> : <Badge tone="gris">Inactiva</Badge>}
+                <button
+                  onClick={() => toggle(p)}
+                  className="rounded-md px-2 py-1 text-xs text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                >
+                  {p.activo ? "Desactivar" : "Activar"}
+                </button>
+                <button
+                  onClick={() => borrar(p)}
+                  className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
