@@ -7,13 +7,15 @@
   VITE_API_URL = "https://workspacealfis-jeans-production.up.railway.app"
 
 # Panel admin bajo /admin (mismo dominio) proxeando al sitio del panel.
-# /admin pelado y /admin/* van directo por proxy (sin redirección → sin loop).
+# /admin SIN barra redirige a /admin/ (con barra): el panel usa base "/admin/"
+# y su router sólo monta con la barra final; sin ella la página queda en blanco.
 [[redirects]]
   from   = "/admin"
-  to     = "https://aurora-admin-alfis.netlify.app/admin/"
-  status = 200
+  to     = "/admin/"
+  status = 301
   force  = true
 
+# /admin/ y todo lo de adentro (incluidos los assets) van por proxy al panel.
 [[redirects]]
   from   = "/admin/*"
   to     = "https://aurora-admin-alfis.netlify.app/admin/:splat"
