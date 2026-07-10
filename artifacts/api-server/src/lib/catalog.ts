@@ -109,3 +109,5 @@ export function getSucursales(): unknown[] {
 export function getCombos(): unknown[] {
   return jsonArrayFromEnv("COMBOS_JSON");
 }
+
+// redeploy: forzar rebuild (build anterior fallo por ECONNRESET al bajar onnxruntime)
