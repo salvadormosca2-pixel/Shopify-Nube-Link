@@ -36,6 +36,9 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
     categoria: p.category,
     genero: p.section,
     estilo: p.estilo ?? "",
+    // `precio` = precio efectivo (número único, listo para el caption del bot).
+    // Se mantienen precio_contado/precio_tarjeta para la tienda.
+    precio: sale != null ? sale : price,
     precio_contado: sale != null ? sale : price,
     precio_tarjeta: price,
     talles,

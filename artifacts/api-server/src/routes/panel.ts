@@ -74,6 +74,9 @@ router.get("/productos", async (req, res) => {
     if (genero) rows = rows.filter((p) => p.section === genero);
     if (estilo) rows = rows.filter((p) => p.estilo.toLowerCase() === estilo.toLowerCase());
 
+    const lim = parseInt(String((req.query as Record<string, string>).limit ?? ""), 10);
+    if (!Number.isNaN(lim) && lim > 0) rows = rows.slice(0, lim);
+
     const variants = await loadVariantsMap(rows.map((p) => p.id));
     res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id))));
   } catch {
