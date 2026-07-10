@@ -62,6 +62,10 @@ export const calificacionesTable = pgTable("calificaciones", {
   score: integer("score"),
   motivo: text("motivo").notNull().default(""),
   conversacionId: text("conversacion_id").notNull().default(""),
+  // Facturable = lead caliente NUEVO para ese teléfono (la primera vez que un
+  // teléfono califica como caliente). Las repeticiones del mismo teléfono
+  // caliente NO se vuelven a facturar.
+  facturable: boolean("facturable").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

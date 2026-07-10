@@ -470,21 +470,55 @@ router.post("/bot/presupuestos", crearPresupuesto);
 router.post("/presupuestos", botAuth, crearPresupuesto);
 
 // Lead calificado: puntaje/motivo de la conversación que deja el bot.
+// Un lead es "caliente" si la calificación lo dice (caliente/hot/interesado) o
+// el score es alto (>=70). Es FACTURABLE sólo la PRIMERA vez que un teléfono
+// califica como caliente: repetir el mismo teléfono caliente NO se factura de
+// nuevo (es_caliente_nuevo=false → facturable=false).
+function esCaliente(calificacion: string, score: number | null): boolean {
+  const c = calificacion.toLowerCase();
+  if (/(caliente|hot|interesad|calificad|compra)/.test(c)) return true;
+  return score != null && score >= 70;
+}
 const registrarLead = async (req: Request, res: Response) => {
   try {
     const body = req.body ?? {};
     const scoreNum = Number(body.score);
+    const score = Number.isFinite(scoreNum) ? Math.trunc(scoreNum) : null;
+    const telefono = normalizePhone(body.telefono ?? body.cliente_telefono);
+    const calificacion = String(body.calificacion ?? "");
+
+    const caliente = esCaliente(calificacion, score);
+    // ¿Ya hubo un lead caliente facturado para este teléfono?
+    let yaFacturado = false;
+    if (caliente && telefono) {
+      const [prev] = await db
+        .select({ id: calificacionesTable.id })
+        .from(calificacionesTable)
+        .where(and(eq(calificacionesTable.telefono, telefono), eq(calificacionesTable.facturable, true)))
+        .limit(1);
+      yaFacturado = !!prev;
+    }
+    const esCalienteNuevo = caliente && !yaFacturado;
+    const facturable = esCalienteNuevo; // sólo se factura el caliente nuevo
+
     const [row] = await db
       .insert(calificacionesTable)
       .values({
-        telefono: normalizePhone(body.telefono ?? body.cliente_telefono),
-        calificacion: String(body.calificacion ?? ""),
-        score: Number.isFinite(scoreNum) ? Math.trunc(scoreNum) : null,
+        telefono,
+        calificacion,
+        score,
         motivo: String(body.motivo ?? ""),
         conversacionId: String(body.conversacion_id ?? ""),
+        facturable,
       })
       .returning();
-    res.status(201).json({ ok: true, id: row.id });
+    res.status(201).json({
+      ok: true,
+      id: row.id,
+      caliente,
+      es_caliente_nuevo: esCalienteNuevo,
+      facturable,
+    });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo registrar la calificación" });
   }

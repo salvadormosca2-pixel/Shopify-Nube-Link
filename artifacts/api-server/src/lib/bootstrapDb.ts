@@ -55,6 +55,7 @@ const STATEMENTS = [
     conversacion_id TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE calificaciones ADD COLUMN IF NOT EXISTS facturable BOOLEAN NOT NULL DEFAULT false`,
   `CREATE TABLE IF NOT EXISTS avisos_stock (
     id SERIAL PRIMARY KEY,
     telefono TEXT NOT NULL,
