@@ -675,6 +675,7 @@ type PedidoItemBody = {
 const FORMA_PAGO_MAP: Record<string, string> = {
   efectivo: "efectivo",
   transferencia: "transferencia",
+  tarjeta: "tarjeta",
   debito: "debito",
   "tarjeta debito": "debito",
   credito: "credito",
@@ -710,48 +711,53 @@ router.post("/bot/pedido", async (req, res) => {
       return;
     }
 
-    // Normalizar ítems y resolver ids.
-    const parsed = rawItems.map((it) => ({
-      productId: parseInt(String(it.producto_id ?? it.id), 10),
-      talle: String(it.talle ?? "").trim(),
-      color: it.color != null ? String(it.color).trim() : "",
-      cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)),
-    }));
-    if (parsed.some((p) => Number.isNaN(p.productId))) {
-      res.status(400).json({ error: "invalid_product", message: "Falta el id de algún producto" });
+    // Forma de entrega y de pago.
+    const formaEntrega = String(body.forma_entrega ?? "retiro").toLowerCase().trim() === "envio" ? "envio" : "retiro";
+    const formaPagoRaw = String(body.forma_pago ?? "").toLowerCase().trim();
+
+    // Regla logística: un ENVÍO no se paga en efectivo (se paga antes de despachar).
+    if (formaEntrega === "envio" && formaPagoRaw.includes("efectivo")) {
+      res.status(400).json({
+        error: "envio_efectivo",
+        message: "Los envíos no se pueden pagar en efectivo. Ofrecé transferencia o tarjeta.",
+      });
       return;
     }
 
-    // Traer los productos para calcular precio y nombre del lado del servidor
-    // (no confiamos en el precio que manda el bot).
-    const ids = [...new Set(parsed.map((p) => p.productId))];
-    const products = await db.select().from(productsTable).where(inArray(productsTable.id, ids));
-    const byId = new Map(products.map((p) => [p.id, p]));
+    // Normalizar ítems. El bot puede mandar producto_id O nombre; se resuelve
+    // contra el catálogo para obtener el id (necesario para descontar stock).
+    const allProducts = await db.select().from(productsTable);
+    const byId = new Map(allProducts.map((p) => [p.id, p]));
+    const byName = new Map(allProducts.map((p) => [p.name.toLowerCase().trim(), p]));
 
     const items = [];
     let subtotal = 0;
-    for (const p of parsed) {
-      const prod = byId.get(p.productId);
-      if (!prod) {
-        res.status(400).json({ error: "invalid_product", message: `Producto ${p.productId} no encontrado` });
-        return;
-      }
-      const precio = prod.salePrice != null ? parseFloat(prod.salePrice) : parseFloat(prod.price);
-      // Si el producto tiene un solo color y el bot no mandó color, usar ese.
-      const color = p.color || (prod.colors?.length === 1 ? prod.colors[0] : "");
+    for (const it of rawItems) {
+      const cantidad = Math.max(1, Math.trunc(Number(it.cantidad) || 1));
+      const idNum = parseInt(String(it.producto_id ?? it.id), 10);
+      const nombre = String((it as { nombre?: string }).nombre ?? "").toLowerCase().trim();
+      const prod = (!Number.isNaN(idNum) && byId.get(idNum)) || (nombre && byName.get(nombre)) || null;
+      // Precio: el que cerró el bot (si vino) manda; si no, el del catálogo.
+      const precioBot = Number((it as { precio?: number | string }).precio);
+      const precio = precioBot > 0
+        ? precioBot
+        : prod
+          ? (prod.salePrice != null ? parseFloat(prod.salePrice) : parseFloat(prod.price))
+          : 0;
+      const color = (it.color != null ? String(it.color).trim() : "") || (prod?.colors?.length === 1 ? prod.colors[0] : "");
       items.push({
-        productId: prod.id,
-        productName: prod.name,
-        size: p.talle,
+        productId: prod?.id ?? 0,
+        productName: prod?.name ?? String((it as { nombre?: string }).nombre ?? "Producto"),
+        size: String(it.talle ?? "").trim(),
         color,
-        quantity: p.cantidad,
+        quantity: cantidad,
         price: precio,
       });
-      subtotal += precio * p.cantidad;
+      subtotal += precio * cantidad;
     }
 
     const envio = Number(body.envio) || 0;
-    const total = subtotal + envio;
+    const total = Number(body.monto_total) > 0 ? Number(body.monto_total) : subtotal + envio;
 
     const [order] = await db
       .insert(ordersTable)
@@ -762,16 +768,17 @@ router.post("/bot/pedido", async (req, res) => {
         customerLastName: String(cliente.apellido ?? cliente.lastName ?? ""),
         customerEmail: String(cliente.email ?? ""),
         customerPhone: String(cliente.telefono ?? cliente.phone ?? ""),
-        customerAddress: String(cliente.direccion ?? cliente.address ?? ""),
-        customerCity: String(cliente.ciudad ?? cliente.city ?? ""),
-        customerProvince: String(cliente.provincia ?? cliente.province ?? ""),
-        customerPostalCode: String(cliente.cp ?? cliente.postalCode ?? ""),
+        customerAddress: String(body.envio_direccion ?? cliente.direccion ?? cliente.address ?? ""),
+        customerCity: String(body.envio_localidad ?? cliente.ciudad ?? cliente.city ?? ""),
+        customerProvince: String(body.envio_provincia ?? cliente.provincia ?? cliente.province ?? ""),
+        customerPostalCode: String(body.envio_cp ?? cliente.cp ?? cliente.postalCode ?? ""),
         items,
         shippingCost: String(envio),
         total: String(total),
         paymentId: null,
         canal: body.canal === "local" ? "local" : "online",
-        medioPago: FORMA_PAGO_MAP[String(body.forma_pago ?? "").toLowerCase().trim()] ?? null,
+        formaEntrega,
+        medioPago: FORMA_PAGO_MAP[formaPagoRaw] ?? null, // null = "a definir" (lo elige el dueño al confirmar)
         stockApplied: false, // el bot NO descuenta stock al crear
       })
       .returning();
@@ -782,14 +789,17 @@ router.post("/bot/pedido", async (req, res) => {
 
     res.status(201).json({
       ok: true,
+      pedido_id: order.id,
       id: order.id,
+      numero_pedido: order.trackingNumber,
       tracking: order.trackingNumber,
       estado: "pendiente_verificacion",
+      forma_entrega: formaEntrega,
       total,
       subtotal,
       envio,
       productos: items.map((i) => ({
-        producto_id: i.productId,
+        producto_id: i.productId || null,
         nombre: i.productName,
         talle: i.size,
         color: i.color || null,

@@ -98,6 +98,7 @@ const STATEMENTS = [
   `ALTER TABLE devoluciones ADD COLUMN IF NOT EXISTS motivo TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE devoluciones ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'solicitada'`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS estado_envio TEXT NOT NULL DEFAULT 'preparando'`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS forma_entrega TEXT NOT NULL DEFAULT 'retiro'`,
   `CREATE TABLE IF NOT EXISTS promociones (
     id SERIAL PRIMARY KEY,
     titulo TEXT NOT NULL DEFAULT '',

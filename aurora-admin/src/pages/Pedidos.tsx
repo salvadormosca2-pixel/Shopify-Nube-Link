@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Printer, ArrowRight, Ban } from "lucide-react";
+import { Printer, ArrowRight, Ban, Store, Truck, CheckCircle2 } from "lucide-react";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { useAuth } from "../store/auth";
@@ -16,41 +16,40 @@ type Estado =
   | "pendiente_verificacion"
   | "pago_confirmado"
   | "preparando"
+  | "enviado"
   | "entregado"
   | "cancelado";
 
 interface PedidoItem {
   nombre?: string;
   talle?: string;
+  color?: string | null;
   cantidad?: number;
   precio?: number;
 }
 
 interface Pedido {
   id: string | number;
+  numero_pedido?: string;
   cliente_nombre?: string;
   telefono?: string;
   monto_total?: number;
   forma_pago?: string;
+  forma_entrega?: "retiro" | "envio" | string;
   canal?: string;
   estado?: Estado | string;
   productos?: PedidoItem[];
   direccion_envio?: string;
+  transportista?: string | null;
+  tracking?: string | null;
+  tracking_url?: string | null;
 }
-
-// Flujo de estados: cada estado apunta a sus siguientes estados válidos.
-const NEXT_STATES: Record<Estado, Estado[]> = {
-  pendiente_verificacion: ["pago_confirmado"],
-  pago_confirmado: ["preparando"],
-  preparando: ["entregado"],
-  entregado: [],
-  cancelado: [],
-};
 
 const ESTADO_LABEL: Record<Estado, string> = {
   pendiente_verificacion: "Pendiente verificación",
   pago_confirmado: "Pago confirmado",
   preparando: "Preparando",
+  enviado: "Enviado",
   entregado: "Entregado",
   cancelado: "Cancelado",
 };
@@ -59,19 +58,28 @@ const ESTADO_TONE: Record<Estado, BadgeTone> = {
   pendiente_verificacion: "ambar",
   pago_confirmado: "azul",
   preparando: "azul",
+  enviado: "azul",
   entregado: "acento",
   cancelado: "rojo",
 };
 
-const ESTADO_OPTIONS = (Object.keys(ESTADO_LABEL) as Estado[]).map((e) => ({
-  value: e,
-  label: ESTADO_LABEL[e],
-}));
+// Desde un estado, a qué estado(s) se puede avanzar directo (sin lógica especial).
+const NEXT_STATES: Record<Estado, Estado[]> = {
+  pendiente_verificacion: [], // se confirma con forma de pago (flujo aparte)
+  pago_confirmado: ["preparando"],
+  preparando: ["entregado"],
+  enviado: ["entregado"],
+  entregado: [],
+  cancelado: [],
+};
+
+const FORMAS_PAGO = ["efectivo", "tarjeta", "transferencia", "otro"];
+
+const ESTADO_OPTIONS = (Object.keys(ESTADO_LABEL) as Estado[]).map((e) => ({ value: e, label: ESTADO_LABEL[e] }));
 
 function estadoLabel(e?: string): string {
   return e && e in ESTADO_LABEL ? ESTADO_LABEL[e as Estado] : e || "—";
 }
-
 function estadoTone(e?: string): BadgeTone {
   return e && e in ESTADO_TONE ? ESTADO_TONE[e as Estado] : "gris";
 }
@@ -83,23 +91,53 @@ export function Pedidos() {
   const [selected, setSelected] = useState<Pedido | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [formaPago, setFormaPago] = useState("efectivo");
+  const [transportista, setTransportista] = useState("");
+  const [tracking, setTracking] = useState("");
 
   const list = useApi<Pedido[]>(
-    () =>
-      api
-        .get(`/admin/pedidos?estado=${estado}&canal=${canal}&limit=100`)
-        .then((r) => r.data),
+    () => api.get(`/admin/pedidos?estado=${estado}&canal=${canal}&limit=100`).then((r) => r.data),
     [estado, canal],
   );
 
   const pedidos = list.data ?? [];
 
-  const cambiarEstado = async (nuevo: Estado) => {
+  const abrir = (p: Pedido) => {
+    setActionError(null);
+    setFormaPago(p.forma_pago && FORMAS_PAGO.includes(p.forma_pago.toLowerCase()) ? p.forma_pago.toLowerCase() : "efectivo");
+    setTransportista(p.transportista ?? "");
+    setTracking(p.tracking_url ?? "");
+    setSelected(p);
+  };
+
+  const patchEstado = async (nuevo: Estado, extra?: Record<string, unknown>) => {
     if (!selected) return;
     setSaving(true);
     setActionError(null);
     try {
-      await api.patch(`/admin/pedidos/${selected.id}/estado`, { estado: nuevo });
+      await api.patch(`/admin/pedidos/${selected.id}/estado`, { estado: nuevo, ...extra });
+      setSelected(null);
+      list.refetch();
+    } catch (err) {
+      // 409 sin_stock trae {message, faltantes}
+      const anyErr = err as { response?: { data?: { faltantes?: string[]; message?: string } } };
+      const faltantes = anyErr?.response?.data?.faltantes;
+      setActionError(faltantes?.length ? `${anyErr.response?.data?.message} ${faltantes.join(" ")}` : apiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const despachar = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      await api.patch(`/admin/pedidos/${selected.id}/envio`, {
+        transportista,
+        tracking_url: tracking,
+        enviado: true,
+      });
       setSelected(null);
       list.refetch();
     } catch (err) {
@@ -110,28 +148,19 @@ export function Pedidos() {
   };
 
   const detalleEstado = (selected?.estado ?? "") as string;
-  const nextStates =
-    detalleEstado in NEXT_STATES ? NEXT_STATES[detalleEstado as Estado] : [];
+  const esEnvio = selected?.forma_entrega === "envio";
+  const nextStates = detalleEstado in NEXT_STATES ? NEXT_STATES[detalleEstado as Estado] : [];
   const finalizado = detalleEstado === "entregado" || detalleEstado === "cancelado";
   const items = selected?.productos ?? [];
-  const totalItems = items.reduce(
-    (acc, it) => acc + (it.cantidad ?? 0) * (it.precio ?? 0),
-    0,
-  );
 
   return (
     <div>
-      <PageHeader title="Pedidos" subtitle="Gestión y seguimiento de pedidos">
+      <PageHeader title="Pedidos" subtitle="El bot carga la venta; vos verificás y confirmás">
         <RefreshButton onClick={list.refetch} loading={list.loading} />
       </PageHeader>
 
       <div className="mb-4">
-        <FilterChips
-          options={ESTADO_OPTIONS}
-          value={estado}
-          onChange={setEstado}
-          allLabel="Todos"
-        />
+        <FilterChips options={ESTADO_OPTIONS} value={estado} onChange={setEstado} allLabel="Todos" />
       </div>
 
       {list.loading ? (
@@ -141,158 +170,126 @@ export function Pedidos() {
       ) : pedidos.length === 0 ? (
         <EmptyState message="Sin pedidos" />
       ) : (
-        <Table
-          headers={["Cliente", "Teléfono", "Monto", "Forma de pago", "Canal", "Estado"]}
-        >
+        <Table headers={["Pedido", "Cliente", "Entrega", "Monto", "Pago", "Estado"]}>
           {pedidos.map((p) => (
-            <Row key={p.id} onClick={() => {
-              setActionError(null);
-              setSelected(p);
-            }}>
+            <Row key={p.id} onClick={() => abrir(p)}>
+              <Cell mono className="text-gray-400">{p.numero_pedido || `#${p.id}`}</Cell>
               <Cell>
                 <span className="font-medium text-white">{p.cliente_nombre || "—"}</span>
-              </Cell>
-              <Cell className="text-gray-400">{p.telefono || "—"}</Cell>
-              <Cell mono className="text-white">
-                {formatARS(p.monto_total ?? 0)}
-              </Cell>
-              <Cell className="text-gray-400 capitalize">{p.forma_pago || "—"}</Cell>
-              <Cell>
-                <Badge tone="gris">{p.canal || "—"}</Badge>
+                <span className="block text-xs text-gray-500">{p.telefono || ""}</span>
               </Cell>
               <Cell>
-                <Badge tone={estadoTone(p.estado)}>{estadoLabel(p.estado)}</Badge>
+                {p.forma_entrega === "envio" ? (
+                  <Badge tone="azul"><Truck size={12} /> Envío</Badge>
+                ) : (
+                  <Badge tone="acento"><Store size={12} /> Retiro</Badge>
+                )}
               </Cell>
+              <Cell mono className="text-white">{formatARS(p.monto_total ?? 0)}</Cell>
+              <Cell className="text-gray-400 capitalize">{p.forma_pago || "A definir"}</Cell>
+              <Cell><Badge tone={estadoTone(p.estado)}>{estadoLabel(p.estado)}</Badge></Cell>
             </Row>
           ))}
         </Table>
       )}
 
-      {/* Detalle / ticket imprimible */}
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={`Pedido #${selected?.id ?? ""}`}
-        size="lg"
-      >
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Pedido ${selected?.numero_pedido || "#" + selected?.id}`} size="lg">
         {selected && (
           <div className="space-y-5">
             {actionError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                {actionError}
-              </div>
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{actionError}</div>
             )}
 
-            {/* Ticket imprimible */}
-            <div
-              id="ticket-imprimible"
-              className="mx-auto max-w-sm rounded-lg border border-borde bg-[#0E0E0E] p-5 font-mono text-sm text-gray-200"
-            >
-              <div className="mb-3 text-center">
-                <p className="text-base font-bold tracking-wide text-white">ALFIS JEANS</p>
-                <p className="text-xs text-gray-500">Pedido #{selected.id}</p>
-              </div>
+            {/* Qué hacer según tipo de entrega */}
+            <div className={`rounded-lg border px-3 py-2 text-sm ${esEnvio ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+              {esEnvio
+                ? <><Truck size={15} className="mb-0.5 mr-1 inline" /> <b>Envío</b> — coordinar envío + verificar que entró el pago antes de confirmar.</>
+                : <><Store size={15} className="mb-0.5 mr-1 inline" /> <b>Retiro en local</b> — cuando el cliente llegue, cobrá y confirmá eligiendo la forma de pago.</>}
+            </div>
 
-              <div className="mb-3 border-y border-dashed border-borde py-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Cliente</span>
-                  <span className="text-white">{selected.cliente_nombre || "—"}</span>
-                </div>
-                {selected.telefono && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Tel.</span>
-                    <span className="text-white">{selected.telefono}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Canal</span>
-                  <span className="uppercase text-white">{selected.canal || "—"}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                {items.length === 0 ? (
-                  <p className="text-center text-xs text-gray-500">Sin ítems</p>
-                ) : (
-                  items.map((it, i) => {
-                    const cant = it.cantidad ?? 0;
-                    const precio = it.precio ?? 0;
-                    return (
-                      <div key={i} className="flex justify-between gap-2">
-                        <span className="text-gray-300">
-                          {cant} x {it.nombre || "Producto"}
-                          {it.talle ? (
-                            <span className="text-gray-500"> ({it.talle})</span>
-                          ) : null}
-                        </span>
-                        <span className="whitespace-nowrap text-white">
-                          {formatARS(cant * precio)}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="mt-3 border-t border-dashed border-borde pt-2">
-                <div className="flex justify-between text-base font-bold text-white">
-                  <span>TOTAL</span>
-                  <span>{formatARS(selected.monto_total ?? totalItems)}</span>
-                </div>
-                <div className="mt-1 flex justify-between text-xs text-gray-500">
-                  <span>Forma de pago</span>
-                  <span className="capitalize text-gray-300">{selected.forma_pago || "—"}</span>
-                </div>
-              </div>
-
-              {selected.canal === "online" && selected.direccion_envio && (
-                <div className="mt-3 border-t border-dashed border-borde pt-2 text-xs">
+            {/* Datos del cliente */}
+            <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Cliente</span><span className="text-white">{selected.cliente_nombre || "—"}</span></div>
+              {selected.telefono && <div className="flex justify-between"><span className="text-gray-500">Teléfono</span><span className="text-white">{selected.telefono}</span></div>}
+              {esEnvio && selected.direccion_envio && (
+                <div className="mt-2 border-t border-dashed border-borde pt-2">
                   <p className="text-gray-500">Dirección de envío</p>
                   <p className="text-gray-200">{selected.direccion_envio}</p>
                 </div>
               )}
+            </div>
 
-              <p className="mt-4 text-center text-xs text-gray-600">¡Gracias por tu compra!</p>
+            {/* Ítems */}
+            <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
+              {items.length === 0 ? (
+                <p className="text-center text-xs text-gray-500">Sin ítems</p>
+              ) : items.map((it, i) => (
+                <div key={i} className="flex justify-between gap-2 py-0.5">
+                  <span className="text-gray-300">{it.cantidad ?? 1} × {it.nombre || "Producto"}
+                    {it.talle ? <span className="text-gray-500"> ({it.talle}{it.color ? `/${it.color}` : ""})</span> : null}</span>
+                  <span className="whitespace-nowrap text-white">{formatARS((it.cantidad ?? 1) * (it.precio ?? 0))}</span>
+                </div>
+              ))}
+              <div className="mt-2 flex justify-between border-t border-dashed border-borde pt-2 text-base font-bold text-white">
+                <span>TOTAL</span><span>{formatARS(selected.monto_total ?? 0)}</span>
+              </div>
             </div>
 
             <div className="flex justify-center">
-              <button className="btn-secondary" onClick={() => window.print()}>
-                <Printer size={15} /> Imprimir
-              </button>
+              <button className="btn-secondary" onClick={() => window.print()}><Printer size={15} /> Imprimir</button>
             </div>
 
-            {/* Acciones de estado */}
-            <div className="border-t border-borde pt-4">
-              <p className="mb-3 text-sm font-medium text-gray-300">
-                Estado actual:{" "}
-                <Badge tone={estadoTone(selected.estado)}>{estadoLabel(selected.estado)}</Badge>
-              </p>
+            {/* Acciones */}
+            <div className="space-y-3 border-t border-borde pt-4">
+              <p className="text-sm font-medium text-gray-300">Estado: <Badge tone={estadoTone(selected.estado)}>{estadoLabel(selected.estado)}</Badge></p>
+
+              {/* Confirmar pago (elige forma de pago) */}
+              {detalleEstado === "pendiente_verificacion" && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-xs text-gray-400">
+                    Forma de pago
+                    <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)}
+                      className="mt-1 block rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm capitalize text-white">
+                      {FORMAS_PAGO.map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </label>
+                  <button className="btn-primary" disabled={saving}
+                    onClick={() => patchEstado("pago_confirmado", { forma_pago: formaPago })}>
+                    <CheckCircle2 size={15} /> {saving ? "Confirmando..." : "Confirmar pedido"}
+                  </button>
+                </div>
+              )}
+
+              {/* Despacho (sólo envíos ya confirmados) */}
+              {esEnvio && (detalleEstado === "pago_confirmado" || detalleEstado === "preparando") && (
+                <div className="space-y-2 rounded-lg border border-borde p-3">
+                  <p className="text-xs font-medium text-gray-300">Despachar envío</p>
+                  <div className="flex flex-wrap gap-2">
+                    <input value={transportista} onChange={(e) => setTransportista(e.target.value)} placeholder="Transportista (Correo, Andreani...)"
+                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-white" />
+                    <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="N° de tracking / link"
+                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-white" />
+                  </div>
+                  <button className="btn-primary" disabled={saving} onClick={despachar}>
+                    <Truck size={15} /> {saving ? "Guardando..." : "Marcar como enviado"}
+                  </button>
+                </div>
+              )}
+
+              {/* Avances simples */}
               <div className="flex flex-wrap gap-2">
                 {nextStates.map((ns) => (
-                  <button
-                    key={ns}
-                    className="btn-primary"
-                    onClick={() => cambiarEstado(ns)}
-                    disabled={saving}
-                  >
-                    <ArrowRight size={15} />
-                    {saving ? "Guardando..." : `Avanzar a ${ESTADO_LABEL[ns]}`}
+                  <button key={ns} className="btn-primary" onClick={() => patchEstado(ns)} disabled={saving}>
+                    <ArrowRight size={15} /> {saving ? "Guardando..." : `Avanzar a ${ESTADO_LABEL[ns]}`}
                   </button>
                 ))}
                 {!finalizado && (
-                  <button
-                    className="btn-danger"
-                    onClick={() => cambiarEstado("cancelado")}
-                    disabled={saving}
-                  >
-                    <Ban size={15} />
-                    {saving ? "Guardando..." : "Cancelar pedido"}
+                  <button className="btn-danger" onClick={() => patchEstado("cancelado")} disabled={saving}>
+                    <Ban size={15} /> {saving ? "Guardando..." : "Cancelar pedido"}
                   </button>
                 )}
-                {finalizado && nextStates.length === 0 && (
-                  <p className="text-sm text-gray-500">
-                    Este pedido está {estadoLabel(selected.estado).toLowerCase()} y no admite cambios.
-                  </p>
+                {finalizado && (
+                  <p className="text-sm text-gray-500">Este pedido está {estadoLabel(selected.estado).toLowerCase()} y no admite cambios.</p>
                 )}
               </div>
             </div>

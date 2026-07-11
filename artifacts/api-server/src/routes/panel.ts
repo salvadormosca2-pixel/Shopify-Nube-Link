@@ -25,7 +25,7 @@ import { resumenFinanzas, serieDiaria, periodoAnterior, arDate } from "../lib/fi
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
 import { queueProductEmbeddings } from "../lib/imageSearch";
 import { loadVariantsMap, loadVariantsMapRaw, type VariantRow } from "../lib/variants";
-import { applyOrderStock } from "../lib/stock-movements";
+import { applyOrderStock, checkOrderStock } from "../lib/stock-movements";
 import { listSucursalesPublic } from "../lib/sucursales";
 import { listEstilosEnStock } from "../lib/crm";
 import { liberarReservasPedido } from "../lib/reservas";
@@ -654,7 +654,7 @@ const ESTADO_PEDIDO: Record<string, string> = {
   pending: "pendiente_verificacion",
   confirmed: "pago_confirmado",
   preparing: "preparando",
-  shipped: "preparando",
+  shipped: "enviado",
   delivered: "entregado",
   cancelled: "cancelado",
 };
@@ -662,40 +662,72 @@ const ESTADO_ORDER: Record<string, string> = {
   pendiente_verificacion: "pending",
   pago_confirmado: "confirmed",
   preparando: "preparing",
+  enviado: "shipped",
   entregado: "delivered",
   cancelado: "cancelled",
 };
 const MEDIO_PAGO_LABEL: Record<string, string> = {
   efectivo: "Efectivo",
   transferencia: "Transferencia",
+  tarjeta: "Tarjeta",
   debito: "Débito",
   credito: "Crédito",
   mercado_pago: "Mercado Pago",
+  otro: "Otro",
+};
+// forma_pago que elige el dueño al confirmar → valor canónico de medio_pago.
+const MEDIO_PAGO_ORDER: Record<string, string> = {
+  efectivo: "efectivo",
+  transferencia: "transferencia",
+  tarjeta: "tarjeta",
+  debito: "debito",
+  credito: "credito",
+  "mercado pago": "mercado_pago",
+  mercado_pago: "mercado_pago",
+  otro: "otro",
 };
 
-router.get("/admin/pedidos", async (_req, res) => {
+router.get("/admin/pedidos", async (req, res) => {
   try {
-    const rows = await db.select().from(ordersTable).orderBy(sql`${ordersTable.createdAt} DESC`);
+    const { estado, canal, limit } = req.query as Record<string, string>;
+    let rows = await db.select().from(ordersTable).orderBy(sql`${ordersTable.createdAt} DESC`);
+    if (estado) rows = rows.filter((o) => (ESTADO_PEDIDO[o.status] ?? "pendiente_verificacion") === estado);
+    if (canal) rows = rows.filter((o) => (o.canal ?? "online") === canal);
+    const lim = parseInt(String(limit ?? ""), 10);
+    if (!Number.isNaN(lim) && lim > 0) rows = rows.slice(0, lim);
     res.json(
-      rows.map((o) => ({
-        id: o.id,
-        cliente_nombre: `${o.customerFirstName} ${o.customerLastName}`.trim(),
-        telefono: o.customerPhone,
-        monto_total: parseFloat(o.total),
-        forma_pago: o.medioPago ? MEDIO_PAGO_LABEL[o.medioPago] ?? o.medioPago : "Mercado Pago",
-        canal: o.canal ?? "online",
-        estado: ESTADO_PEDIDO[o.status] ?? "pendiente_verificacion",
-        direccion_envio: `${o.customerAddress}, ${o.customerCity}, ${o.customerProvince}`,
-        productos: (o.items ?? []).map((it) => ({
-          nombre: it.productName,
-          talle: it.size,
-          cantidad: it.quantity,
-          precio: it.price,
-        })),
-        tracking: o.trackingNumber,
-        transportista: o.transportista ?? null,
-        tracking_url: o.trackingUrl ?? null,
-      })),
+      rows.map((o) => {
+        const envio = o.formaEntrega === "envio";
+        return {
+          id: o.id,
+          numero_pedido: o.trackingNumber,
+          cliente_nombre: `${o.customerFirstName} ${o.customerLastName}`.trim(),
+          cliente_apellido: o.customerLastName,
+          telefono: o.customerPhone,
+          monto_total: parseFloat(o.total),
+          forma_pago: o.medioPago ? MEDIO_PAGO_LABEL[o.medioPago] ?? o.medioPago : "A definir",
+          forma_entrega: o.formaEntrega ?? "retiro",
+          canal: o.canal ?? "online",
+          estado: ESTADO_PEDIDO[o.status] ?? "pendiente_verificacion",
+          // Dirección sólo si es envío (para el panel).
+          direccion_envio: envio ? [o.customerAddress, o.customerCity, o.customerProvince, o.customerPostalCode].filter(Boolean).join(", ") : "",
+          envio_direccion: o.customerAddress,
+          envio_localidad: o.customerCity,
+          envio_provincia: o.customerProvince,
+          envio_cp: o.customerPostalCode,
+          productos: (o.items ?? []).map((it) => ({
+            nombre: it.productName,
+            talle: it.size,
+            color: it.color || null,
+            cantidad: it.quantity,
+            precio: it.price,
+          })),
+          tracking: o.trackingNumber,
+          transportista: o.transportista ?? null,
+          tracking_url: o.trackingUrl ?? null,
+          estado_envio: o.estadoEnvio ?? "preparando",
+        };
+      }),
     );
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los pedidos" });
@@ -723,9 +755,22 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
 
     let advertencias: string[] = [];
     let stockApplied = order.stockApplied;
+    const confirmando = PAID_STATUSES.has(status) && !order.stockApplied;
 
-    if (PAID_STATUSES.has(status) && !order.stockApplied) {
-      // Confirmación del pago → descontar stock de las variantes del pedido.
+    // Al confirmar, el dueño elige con qué se pagó (dropdown del panel).
+    const set: Record<string, unknown> = { status, updatedAt: new Date() };
+    if (req.body?.forma_pago) {
+      const fp = String(req.body.forma_pago).toLowerCase().trim();
+      set.medioPago = MEDIO_PAGO_ORDER[fp] ?? fp;
+    }
+
+    if (confirmando) {
+      // No confirmar si falta stock: avisar y frenar (sin tocar nada).
+      const faltantes = await checkOrderStock(order.items ?? []);
+      if (faltantes.length > 0) {
+        res.status(409).json({ error: "sin_stock", message: "No hay stock suficiente para confirmar.", faltantes });
+        return;
+      }
       ({ advertencias } = await applyOrderStock(order.items ?? [], -1));
       stockApplied = true;
     } else if (status === "cancelled" && order.stockApplied) {
@@ -733,6 +778,7 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
       ({ advertencias } = await applyOrderStock(order.items ?? [], +1));
       stockApplied = false;
     }
+    set.stockApplied = stockApplied;
 
     // La reserva de 24 h del bot deja de correr: o ya se descontó el stock real
     // (pago confirmado) o el pedido se cayó (cancelado).
@@ -740,10 +786,7 @@ router.patch("/admin/pedidos/:id/estado", async (req, res) => {
       await liberarReservasPedido(id);
     }
 
-    await db
-      .update(ordersTable)
-      .set({ status, stockApplied, updatedAt: new Date() })
-      .where(eq(ordersTable.id, id));
+    await db.update(ordersTable).set(set).where(eq(ordersTable.id, id));
 
     res.json({ ok: true, advertencias });
   } catch {

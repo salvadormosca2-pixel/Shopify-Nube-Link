@@ -33,6 +33,8 @@ export const ordersTable = pgTable("orders", {
   estadoEnvio: text("estado_envio").notNull().default("preparando"),
   // Canal de la venta: 'online' (tienda/bot) o 'local' (POS mostrador).
   canal: text("canal").notNull().default("online"),
+  // Cómo recibe el cliente: 'retiro' (en el local) o 'envio' (a domicilio).
+  formaEntrega: text("forma_entrega").notNull().default("retiro"),
   // Medio de pago: efectivo | transferencia | debito | credito | mercado_pago.
   // Null en pedidos online legados (se muestran como Mercado Pago).
   medioPago: text("medio_pago"),

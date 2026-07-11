@@ -13,6 +13,33 @@ export type OrderItem = {
   quantity: number;
 };
 
+// Chequeo previo (sin mutar): ¿alcanza el stock para descontar estos ítems?
+// Devuelve la lista de faltantes (vacía = todo OK). El fallback legado
+// (products.stock) se considera suficiente sólo si stock >= cantidad.
+export async function checkOrderStock(items: OrderItem[]): Promise<string[]> {
+  const faltantes: string[] = [];
+  for (const it of items ?? []) {
+    const qty = Math.max(0, Math.trunc(Number(it.quantity) || 0));
+    if (qty === 0) continue;
+    const nombre = it.productName ?? `Producto #${it.productId}`;
+    const talle = String(it.size ?? "");
+    const color = it.color != null ? String(it.color) : "";
+    const talleVariants = await db
+      .select()
+      .from(productVariantsTable)
+      .where(and(eq(productVariantsTable.productoId, it.productId), eq(productVariantsTable.talle, talle)));
+    let target = talleVariants.find((v) => v.color === color);
+    if (!target && talleVariants.length === 1) target = talleVariants[0];
+    if (target) {
+      if (target.stock < qty) faltantes.push(`"${nombre}" talle ${target.talle}${target.color ? ` (${target.color})` : ""}: hay ${target.stock}, se piden ${qty}.`);
+      continue;
+    }
+    const [prod] = await db.select().from(productsTable).where(eq(productsTable.id, it.productId));
+    if (prod && prod.stock < qty) faltantes.push(`"${nombre}": hay ${prod.stock}, se piden ${qty}.`);
+  }
+  return faltantes;
+}
+
 // dir = -1 descuenta (venta confirmada); dir = +1 repone (cancelación).
 export async function applyOrderStock(
   items: OrderItem[],
