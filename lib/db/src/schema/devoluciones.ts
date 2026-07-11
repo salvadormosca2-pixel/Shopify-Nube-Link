@@ -9,6 +9,9 @@ export const devolucionesTable = pgTable("devoluciones", {
   monto: decimal("monto", { precision: 12, scale: 2 }).notNull().default("0"),
   modo: text("modo"), // efectivo | saldo (sólo devoluciones)
   clienteTelefono: text("cliente_telefono").notNull().default(""),
+  motivo: text("motivo").notNull().default(""),
+  // Workflow de la solicitud: solicitada|aprobada|recibida|resuelta|rechazada.
+  estado: text("estado").notNull().default("solicitada"),
   nota: text("nota").notNull().default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

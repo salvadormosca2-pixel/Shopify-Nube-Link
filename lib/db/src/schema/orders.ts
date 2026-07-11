@@ -28,6 +28,9 @@ export const ordersTable = pgTable("orders", {
   // Datos de envío que carga el encargado al despachar (para seguimiento del bot).
   transportista: text("transportista"),
   trackingUrl: text("tracking_url"),
+  // Estado logístico del envío (sección Envíos del panel), independiente del
+  // status del pedido: preparando|despachado|en_camino|entregado.
+  estadoEnvio: text("estado_envio").notNull().default("preparando"),
   // Canal de la venta: 'online' (tienda/bot) o 'local' (POS mostrador).
   canal: text("canal").notNull().default("online"),
   // Medio de pago: efectivo | transferencia | debito | credito | mercado_pago.

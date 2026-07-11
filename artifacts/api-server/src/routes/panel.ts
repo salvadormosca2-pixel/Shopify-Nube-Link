@@ -1181,9 +1181,26 @@ router.post("/admin/cambios", async (req, res) => {
 // si es saldo a favor queda registrado para la ficha del cliente.
 router.post("/admin/devoluciones", async (req, res) => {
   try {
-    const orderId = parseInt(String(req.body?.order_id), 10);
-    const modo = String(req.body?.modo ?? "efectivo"); // efectivo | saldo
-    const rawItems: Array<{ item_index?: number; cantidad?: number }> = Array.isArray(req.body?.items) ? req.body.items : [];
+    const b = req.body ?? {};
+    const rawItems: Array<{ item_index?: number; cantidad?: number }> = Array.isArray(b.items) ? b.items : [];
+    // Sección Envíos → crea una SOLICITUD de devolución/cambio (sin items, sin
+    // tocar stock): {pedido_id, cliente, motivo, tipo}. El stock se repone recién
+    // cuando se procesa con items (flujo de Cambios/Devoluciones del POS).
+    if (rawItems.length === 0 && (b.motivo !== undefined || b.pedido_id !== undefined)) {
+      const pedidoId = parseInt(String(b.pedido_id ?? b.order_id), 10);
+      const [row] = await db.insert(devolucionesTable).values({
+        orderId: Number.isNaN(pedidoId) ? 0 : pedidoId,
+        tipo: String(b.tipo ?? "cambio"),
+        motivo: String(b.motivo ?? ""),
+        estado: "solicitada",
+        clienteTelefono: String(b.cliente ?? b.cliente_telefono ?? ""),
+        nota: "Solicitud desde el panel",
+      }).returning();
+      res.status(201).json({ ok: true, id: row.id, estado: row.estado });
+      return;
+    }
+    const orderId = parseInt(String(b.order_id), 10);
+    const modo = String(b.modo ?? "efectivo"); // efectivo | saldo
     const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
     if (!order) {
       res.status(404).json({ error: "not_found", message: "Venta no encontrada" });
@@ -1495,13 +1512,14 @@ router.delete("/admin/promos/:id", async (req, res) => {
 });
 
 // ─── DERIVACIONES A HUMANO (las crea el bot) ─────────────────────────────────
-router.get("/admin/derivaciones", async (_req, res) => {
+router.get("/admin/derivaciones", async (req, res) => {
   try {
+    const lim = parseInt(String((req.query as Record<string, string>).limit ?? ""), 10);
     const rows = await db
       .select()
       .from(derivacionesTable)
       .orderBy(desc(derivacionesTable.createdAt))
-      .limit(100);
+      .limit(!Number.isNaN(lim) && lim > 0 ? lim : 100);
     res.json(
       rows.map((d) => ({
         id: d.id,
@@ -1510,7 +1528,9 @@ router.get("/admin/derivaciones", async (_req, res) => {
         motivo: d.motivo,
         prioridad: d.prioridad,
         atendida: d.atendida,
+        estado: d.estado || (d.atendida ? "resuelta" : "pendiente"),
         fecha: d.createdAt,
+        created_at: d.createdAt,
       })),
     );
   } catch {
@@ -1525,17 +1545,26 @@ router.patch("/admin/derivaciones/:id", async (req, res) => {
       res.status(400).json({ error: "invalid_id", message: "ID inválido" });
       return;
     }
-    const atendida = req.body?.atendida !== false;
+    // Acepta {estado} (panel nuevo) o {atendida} (compat). Se mantienen en sync.
+    const body = req.body ?? {};
+    const set: { estado?: string; atendida?: boolean } = {};
+    if (body.estado !== undefined) {
+      set.estado = String(body.estado);
+      set.atendida = String(body.estado) === "resuelta";
+    } else if (body.atendida !== undefined) {
+      set.atendida = body.atendida !== false;
+      set.estado = set.atendida ? "resuelta" : "pendiente";
+    }
     const [updated] = await db
       .update(derivacionesTable)
-      .set({ atendida })
+      .set(set)
       .where(eq(derivacionesTable.id, id))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "not_found", message: "Derivación no encontrada" });
       return;
     }
-    res.json({ ok: true, id: updated.id, atendida: updated.atendida });
+    res.json({ ok: true, id: updated.id, estado: updated.estado, atendida: updated.atendida });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar la derivación" });
   }

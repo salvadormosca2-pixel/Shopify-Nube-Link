@@ -17,6 +17,11 @@ export const clientesTable = pgTable("clientes", {
   genero: text("genero").notNull().default(""),
   talle: text("talle").notNull().default(""),
   estiloPreferido: text("estilo_preferido").notNull().default(""),
+  // Campos editables desde el CRM del panel.
+  calificacion: text("calificacion").notNull().default(""), // caliente|interesado|curioso|inactivo
+  score: integer("score").notNull().default(0),
+  productosInteres: text("productos_interes").notNull().default(""), // CSV
+  observaciones: text("observaciones").notNull().default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -29,6 +34,8 @@ export const derivacionesTable = pgTable("derivaciones", {
   motivo: text("motivo").notNull().default(""),
   prioridad: text("prioridad").notNull().default("media"),
   atendida: boolean("atendida").notNull().default(false),
+  // Estado del workflow del panel: pendiente|en_proceso|resuelta.
+  estado: text("estado").notNull().default("pendiente"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -51,6 +58,8 @@ export const presupuestosTable = pgTable("presupuestos", {
     .notNull()
     .default([]),
   total: decimal("total", { precision: 10, scale: 2 }).notNull().default("0"),
+  // Seguimiento del presupuesto desde el panel: pendiente | enviado | aceptado | rechazado.
+  estado: text("estado").notNull().default("pendiente"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

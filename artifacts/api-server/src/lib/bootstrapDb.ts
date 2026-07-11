@@ -88,6 +88,54 @@ const STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_stock_reservas_activas
      ON stock_reservas (producto_id) WHERE activa`,
+  // ─── Secciones del panel (2026-07-10): columnas + tablas nuevas ────────────
+  `ALTER TABLE derivaciones ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'pendiente'`,
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS calificacion TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS score INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS productos_interes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS observaciones TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'pendiente'`,
+  `ALTER TABLE devoluciones ADD COLUMN IF NOT EXISTS motivo TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE devoluciones ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'solicitada'`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS estado_envio TEXT NOT NULL DEFAULT 'preparando'`,
+  `CREATE TABLE IF NOT EXISTS promociones (
+    id SERIAL PRIMARY KEY,
+    titulo TEXT NOT NULL DEFAULT '',
+    producto_id INTEGER NOT NULL,
+    precio_promo NUMERIC(12,2) NOT NULL DEFAULT 0,
+    fecha_inicio TEXT NOT NULL DEFAULT '',
+    fecha_fin TEXT NOT NULL DEFAULT '',
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS combos (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL DEFAULT '',
+    productos JSON NOT NULL DEFAULT '[]',
+    precio_combo NUMERIC(12,2) NOT NULL DEFAULT 0,
+    imagen TEXT NOT NULL DEFAULT '',
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS usuarios (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    password_hash TEXT NOT NULL DEFAULT '',
+    rol TEXT NOT NULL DEFAULT 'vendedor',
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS maestros (
+    id SERIAL PRIMARY KEY,
+    tipo TEXT NOT NULL,
+    nombre TEXT NOT NULL DEFAULT '',
+    hex TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
 ];
 
 // Seed de la sucursal de Catamarca si la tabla está vacía (era el motivo por el
