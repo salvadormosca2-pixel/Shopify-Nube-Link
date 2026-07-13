@@ -279,9 +279,14 @@ const ESTADO_ENVIO_BOT: Record<string, string> = {
 };
 
 function estadoParaElBot(order: { status: string; estadoEnvio: string }): string {
-  if (order.status === "pending") return "pendiente_verificacion";
   if (order.status === "cancelled") return "cancelado";
-  return ESTADO_ENVIO_BOT[order.estadoEnvio] ?? order.estadoEnvio ?? "preparado";
+  // Si ya salió del local, eso es lo que le importa al cliente: manda el estado
+  // logístico. (Un pedido puede estar despachado con el pago aún sin confirmar
+  // en el sistema; decirle "pendiente de verificación" sería confundirlo.)
+  const logistico = ESTADO_ENVIO_BOT[order.estadoEnvio];
+  if (logistico && order.estadoEnvio !== "preparando") return logistico;
+  if (order.status === "pending") return "pendiente_verificacion";
+  return logistico ?? "preparado";
 }
 
 function resumenItems(items: { quantity: number }[] | null | undefined): string {
