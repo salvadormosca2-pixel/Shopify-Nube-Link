@@ -27,6 +27,10 @@ export const ordersTable = pgTable("orders", {
   paymentId: text("payment_id"),
   // Datos de envío que carga el encargado al despachar (para seguimiento del bot).
   transportista: text("transportista"),
+  // Código de seguimiento del CORREO (ej "AA123456789AR"). Ojo: NO confundir con
+  // `trackingNumber`, que es el número interno del pedido (ej "A-000123").
+  // Antes el código que se cargaba en Envíos se guardaba por error en trackingUrl.
+  codigoSeguimiento: text("codigo_seguimiento"),
   trackingUrl: text("tracking_url"),
   // Estado logístico del envío (sección Envíos del panel), independiente del
   // status del pedido: preparando|despachado|en_camino|entregado.

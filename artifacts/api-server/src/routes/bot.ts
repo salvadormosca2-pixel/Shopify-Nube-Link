@@ -267,6 +267,29 @@ const ESTADO_PEDIDO_BOT: Record<string, string> = {
   cancelled: "cancelado",
 };
 
+// Estado que le importa al cliente cuando pregunta "¿dónde está mi pedido?".
+// Sale del estado LOGÍSTICO que el encargado carga en la sección Envíos
+// (preparando|despachado|en_camino|entregado), NO del status de pago.
+// Excepción: si el pago todavía no se confirmó, eso es lo que hay que decirle.
+const ESTADO_ENVIO_BOT: Record<string, string> = {
+  preparando: "preparado",
+  despachado: "enviado",
+  en_camino: "enviado",
+  entregado: "entregado",
+};
+
+function estadoParaElBot(order: { status: string; estadoEnvio: string }): string {
+  if (order.status === "pending") return "pendiente_verificacion";
+  if (order.status === "cancelled") return "cancelado";
+  return ESTADO_ENVIO_BOT[order.estadoEnvio] ?? order.estadoEnvio ?? "preparado";
+}
+
+function resumenItems(items: { quantity: number }[] | null | undefined): string {
+  const total = (items ?? []).reduce((a, i) => a + (i.quantity || 0), 0);
+  if (total === 0) return "";
+  return `${total} ${total === 1 ? "prenda" : "prendas"}`;
+}
+
 router.get("/bot/envio", async (req, res) => {
   try {
     const telefono = String(req.query.telefono ?? "");
@@ -274,19 +297,38 @@ router.get("/bot/envio", async (req, res) => {
       res.status(400).json({ error: "invalid_request", message: "Falta el teléfono (?telefono=...)" });
       return;
     }
-    const [order] = await ordersByPhone(telefono);
+    // ordersByPhone ya normaliza a dígitos de los DOS lados y matchea por los
+    // últimos 10 → tolera +54, 9, 0, 15, guiones y espacios. Ordena por fecha desc.
+    const orders = await ordersByPhone(telefono);
+    const [order] = orders;
     if (!order) {
       res.json({ encontrado: false });
       return;
     }
+
+    const estado = estadoParaElBot(order);
+    const enviado = estado === "enviado" || estado === "entregado";
+
     res.json({
       encontrado: true,
       pedido_id: order.id,
-      estado: ESTADO_PEDIDO_BOT[order.status] ?? order.status,
-      transportista: order.transportista ?? null,
-      tracking: order.trackingNumber,
-      tracking_url: order.trackingUrl ?? null,
+      numero_pedido: order.trackingNumber, // el código interno del pedido
+      origen: order.canal === "local" ? "local" : "web",
+      estado,
+      forma_entrega: order.formaEntrega,
+      transportista: order.transportista || null,
+      // El código del correo sólo tiene sentido cuando ya se despachó.
+      tracking: enviado ? order.codigoSeguimiento || null : null,
+      tracking_url: enviado ? order.trackingUrl || null : null,
+      fecha_envio: order.updatedAt ?? order.createdAt,
       fecha: order.createdAt,
+      items_resumen: resumenItems(order.items),
+      // Si tiene más de un pedido, el bot puede ofrecer los otros.
+      otros_pedidos: orders.slice(1, 5).map((o) => ({
+        pedido_id: o.id,
+        numero_pedido: o.trackingNumber,
+        estado: estadoParaElBot(o),
+      })),
     });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo consultar el envío" });

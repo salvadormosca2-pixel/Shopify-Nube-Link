@@ -166,6 +166,19 @@ const STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS publicaciones_destino_fecha_idx
      ON publicaciones (destino_id, created_at)`,
+  // Código de seguimiento del correo. Hasta ahora, lo que el encargado cargaba en
+  // la sección Envíos se guardaba en `tracking_url` (la columna del link), y el
+  // bot devolvía `tracking_number` (el número interno del pedido). Se agrega la
+  // columna correcta y se RESCATA lo ya cargado: si tracking_url no es un link,
+  // era en realidad el código.
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS codigo_seguimiento TEXT`,
+  `UPDATE orders
+      SET codigo_seguimiento = tracking_url,
+          tracking_url = NULL
+    WHERE codigo_seguimiento IS NULL
+      AND tracking_url IS NOT NULL
+      AND tracking_url <> ''
+      AND tracking_url NOT ILIKE 'http%'`,
   // Config del panel (clave/valor). Hoy guarda qué etiqueta de Chatwoot controla
   // el bot y si su presencia lo apaga o lo prende.
   `CREATE TABLE IF NOT EXISTS config_panel (

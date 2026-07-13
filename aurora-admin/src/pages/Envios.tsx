@@ -224,8 +224,8 @@ function Despachos() {
                   <TextInput
                     value={ed.tracking}
                     onChange={(ev) => setEdit(e, { tracking: ev.target.value })}
-                    placeholder="Tracking"
-                    className="min-w-[140px]"
+                    placeholder="Cód. seguimiento del correo"
+                    className="min-w-[170px]"
                   />
                 </Cell>
                 <Cell>

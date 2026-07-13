@@ -224,7 +224,11 @@ router.get("/admin/envios", async (req, res) => {
       cliente_nombre: `${o.customerFirstName} ${o.customerLastName}`.trim(),
       direccion: [o.customerAddress, o.customerCity, o.customerProvince].filter(Boolean).join(", "),
       transportista: o.transportista ?? "",
-      tracking: o.trackingNumber,
+      // `tracking` = el código del CORREO que carga el encargado (antes se
+      // devolvía trackingNumber, el número interno: parecía que no se guardaba).
+      tracking: o.codigoSeguimiento ?? "",
+      tracking_url: o.trackingUrl ?? "",
+      numero_pedido: o.trackingNumber,
       estado_envio: o.estadoEnvio || "preparando",
       estado: o.estadoEnvio || "preparando",
     })));
@@ -241,7 +245,9 @@ router.patch("/admin/envios/:id", async (req, res) => {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (b.estado !== undefined) set.estadoEnvio = String(b.estado);
     if (b.transportista !== undefined) set.transportista = String(b.transportista);
-    if (b.tracking !== undefined) set.trackingUrl = String(b.tracking) || null;
+    // El código del correo va a SU columna (antes pisaba tracking_url).
+    if (b.tracking !== undefined) set.codigoSeguimiento = String(b.tracking) || null;
+    if (b.tracking_url !== undefined) set.trackingUrl = String(b.tracking_url) || null;
     const [updated] = await db.update(ordersTable).set(set).where(eq(ordersTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "not_found", message: "Envío no encontrado" }); return; }
     res.json({ ok: true, id: updated.id, estado: updated.estadoEnvio });
