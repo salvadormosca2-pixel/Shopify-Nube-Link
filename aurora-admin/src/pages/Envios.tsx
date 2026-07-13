@@ -172,6 +172,32 @@ function Despachos() {
     }
   };
 
+  // Al despachar, el encargado tiene el código del correo en la mano: se lo
+  // pedimos ahí mismo. Sin código, el bot no le puede dar seguimiento al cliente.
+  const [despachar, setDespachar] = useState<Envio | null>(null);
+  const [despachoForm, setDespachoForm] = useState({ transportista: "", tracking: "" });
+
+  const abrirDespacho = (e: Envio) => {
+    setDespachoForm({ transportista: e.transportista ?? "", tracking: e.tracking ?? "" });
+    setDespachar(e);
+  };
+
+  const confirmarDespacho = async () => {
+    if (!despachar) return;
+    await patch(despachar, {
+      estado: "despachado",
+      transportista: despachoForm.transportista.trim(),
+      tracking: despachoForm.tracking.trim(),
+    });
+    setDespachar(null);
+  };
+
+  // Avanzar: si el paso siguiente es "despachado", primero pedimos los datos.
+  const avanzar = (e: Envio, next: string) => {
+    if (next === "despachado") abrirDespacho(e);
+    else patch(e, { estado: next });
+  };
+
   return (
     <div>
       <FilterBar>
@@ -246,7 +272,7 @@ function Despachos() {
                     <button
                       className="btn-primary"
                       disabled={rowBusy || !next}
-                      onClick={() => next && patch(e, { estado: next })}
+                      onClick={() => next && avanzar(e, next)}
                     >
                       <ArrowRight size={14} />
                       {next ? `Avanzar (${ENVIO_LABEL[next]})` : "Finalizado"}
@@ -258,6 +284,62 @@ function Despachos() {
           })}
         </Table>
       )}
+
+      {/* Al despachar: cargar transportista + número de seguimiento del correo.
+          Es lo que después el bot le da al cliente para rastrear. */}
+      <Modal
+        open={!!despachar}
+        onClose={() => setDespachar(null)}
+        title="Despachar pedido"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setDespachar(null)}>
+              Cancelar
+            </button>
+            <button
+              className="btn-primary"
+              onClick={confirmarDespacho}
+              disabled={busy !== null || !despachoForm.tracking.trim()}
+            >
+              <ArrowRight size={15} />
+              {busy !== null ? "Guardando..." : "Marcar como despachado"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gris">
+            Cargá el número que te da el correo. Es el que el bot le pasa al cliente para que
+            rastree su pedido.
+          </p>
+
+          <Field label="Transportista">
+            <TextInput
+              value={despachoForm.transportista}
+              onChange={(ev) =>
+                setDespachoForm({ ...despachoForm, transportista: ev.target.value })
+              }
+              placeholder="Correo Argentino"
+            />
+          </Field>
+
+          <Field label="Número de seguimiento del correo">
+            <TextInput
+              autoFocus
+              value={despachoForm.tracking}
+              onChange={(ev) => setDespachoForm({ ...despachoForm, tracking: ev.target.value })}
+              placeholder="AA123456789AR"
+            />
+          </Field>
+
+          {!despachoForm.tracking.trim() && (
+            <p className="rounded-md border border-pale-ambar-txt/20 bg-pale-ambar px-3 py-2 text-xs text-pale-ambar-txt">
+              Sin el número de seguimiento, el bot no va a poder decirle al cliente dónde está su
+              pedido.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
