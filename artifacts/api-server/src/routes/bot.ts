@@ -290,6 +290,108 @@ function resumenItems(items: { quantity: number }[] | null | undefined): string 
   return `${total} ${total === 1 ? "prenda" : "prendas"}`;
 }
 
+// ─── SEGUIMIENTO POR CÓDIGO DE COMPRA + NOMBRE ───────────────────────────────
+// Buscar por teléfono es frágil (el cliente escribe desde otro número, o el
+// número de la conversación no es el de la compra). El circuito correcto:
+// el cliente da su CÓDIGO DE COMPRA (AJ-XXXXXXX, el que se le entrega al comprar
+// = orders.tracking_number) y su nombre, y se valida que coincidan.
+//
+// OJO, son dos códigos distintos y no hay que confundirlos:
+//   - AJ-XXXXXXX  -> IDENTIFICA el pedido. No sirve para rastrear.
+//   - codigo_seguimiento -> el del CORREO (se carga en Envíos al despachar).
+//     ESE es el que el cliente usa para rastrear en la web del transportista.
+
+/** "aj p56ofqoh" / "p56ofqoh" / "AJ-P56OFQOH" → "AJP56OFQOH" (para comparar). */
+function normalizarCodigoCompra(raw: unknown): string {
+  const limpio = String(raw ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, ""); // saca guiones, espacios, puntos
+  if (!limpio) return "";
+  return limpio.startsWith("AJ") ? limpio : `AJ${limpio}`;
+}
+
+/** Sin acentos, minúsculas, en palabras. "Ismael Nour" → ["ismael","nour"]. */
+function tokensNombre(...partes: unknown[]): string[] {
+  return partes
+    .map((p) => String(p ?? ""))
+    .join(" ")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // saca los acentos
+    .toLowerCase()
+    .split(/[^a-z0-9ñ]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Identidad flexible: alcanza con que UNA de las palabras que dio el cliente
+ * coincida con el nombre del pedido (el nombre solo confirma; el que identifica
+ * de verdad es el código). Así no rebota por un segundo nombre o un typo.
+ */
+function identidadCoincide(
+  dados: string[],
+  pedido: { customerFirstName: string; customerLastName: string },
+): boolean {
+  if (dados.length === 0) return false;
+  const delPedido = new Set(tokensNombre(pedido.customerFirstName, pedido.customerLastName));
+  return dados.some((t) => delPedido.has(t));
+}
+
+router.post("/bot/seguimiento", async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const codigo = normalizarCodigoCompra(body["codigo"] ?? body["codigo_compra"]);
+    const dados = tokensNombre(body["nombre"], body["apellido"]);
+
+    if (!codigo) {
+      res.status(400).json({
+        error: "invalid_request",
+        message: "Falta el código de compra (AJ-XXXXXXX)",
+      });
+      return;
+    }
+
+    // Se compara normalizado de los DOS lados: el cliente puede escribirlo con o
+    // sin "AJ-", en minúsculas o con espacios.
+    const [order] = await db
+      .select()
+      .from(ordersTable)
+      .where(
+        sql`upper(regexp_replace(${ordersTable.trackingNumber}, '[^A-Za-z0-9]', '', 'g')) = ${codigo}`,
+      )
+      .limit(1);
+
+    if (!order) {
+      res.json({ encontrado: false });
+      return;
+    }
+
+    if (!identidadCoincide(dados, order)) {
+      // No se filtra NADA del pedido: el bot pide que verifique nombre y código.
+      res.json({ encontrado: true, identidad_ok: false });
+      return;
+    }
+
+    const estado = order.estadoEnvio || "preparando";
+    const despachado = estado !== "preparando";
+
+    res.json({
+      encontrado: true,
+      identidad_ok: true,
+      numero_pedido: order.trackingNumber, // el AJ- que dio el cliente
+      estado, // preparando | despachado | en_camino | entregado
+      forma_entrega: order.formaEntrega,
+      transportista: order.transportista || null,
+      // El código del CORREO: sólo existe una vez despachado.
+      codigo_transportista: despachado ? order.codigoSeguimiento || null : null,
+      tracking_url: despachado ? order.trackingUrl || null : null,
+      items_resumen: resumenItems(order.items),
+      fecha: order.createdAt,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo consultar el seguimiento" });
+  }
+});
+
 router.get("/bot/envio", async (req, res) => {
   try {
     const telefono = String(req.query.telefono ?? "");
