@@ -173,6 +173,7 @@ const STATEMENTS = [
   // era en realidad el código.
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS codigo_seguimiento TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS fecha_despacho TIMESTAMP`,
+  `ALTER TABLE caja_movimientos ADD COLUMN IF NOT EXISTS responsable TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS aviso_despacho_enviado BOOLEAN NOT NULL DEFAULT false`,
   `UPDATE orders
       SET codigo_seguimiento = tracking_url,

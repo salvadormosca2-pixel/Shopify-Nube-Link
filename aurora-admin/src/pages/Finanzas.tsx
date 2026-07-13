@@ -234,6 +234,20 @@ function Kpi({ label, value, pct, invert }: { label: string; value: string; pct?
   );
 }
 
+// Los medios se guardan crudos (debito, credito, mercado_pago). Acá se muestran
+// como los nombra el negocio: efectivo, tarjeta, transferencia.
+const MEDIO_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  debito: "Tarjeta de débito",
+  credito: "Tarjeta de crédito",
+  tarjeta: "Tarjeta",
+  mercado_pago: "Mercado Pago",
+};
+
+const medioLabel = (k: string) =>
+  MEDIO_LABEL[k.toLowerCase()] ?? k.replace(/_/g, " ");
+
 function Breakdown({ title, data }: { title: string; data: Record<string, number> }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
   return (
@@ -245,7 +259,7 @@ function Breakdown({ title, data }: { title: string; data: Record<string, number
         <div className="space-y-1">
           {entries.map(([k, v]) => (
             <div key={k} className="flex justify-between text-sm">
-              <span className="capitalize text-gris">{k.replace("_", " ")}</span>
+              <span className="text-gris">{medioLabel(k)}</span>
               <span className="text-tinta">{formatARS(v)}</span>
             </div>
           ))}

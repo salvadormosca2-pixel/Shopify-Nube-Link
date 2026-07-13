@@ -5,7 +5,24 @@ import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Field, Select } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
+import { Badge } from "../components/ui/Badge";
 import { formatARS, formatDateTime } from "../lib/format";
+
+// Cómo se nombra cada medio de pago en el negocio (en la base están crudos).
+const MEDIO_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  debito: "Tarjeta débito",
+  credito: "Tarjeta crédito",
+  mercado_pago: "Mercado Pago",
+};
+
+interface ItemMov {
+  producto?: string;
+  talle?: string;
+  color?: string;
+  cantidad?: number;
+}
 
 interface Movimiento {
   id: number;
@@ -15,6 +32,11 @@ interface Movimiento {
   monto: number;
   nota: string;
   created_at: string;
+  // Quién sacó la plata (retiros y gastos).
+  responsable?: string;
+  // Qué se vendió (ventas del mostrador).
+  numero_pedido?: string | null;
+  items?: ItemMov[];
 }
 interface Resumen {
   monto_inicial: number;
@@ -154,7 +176,11 @@ export function Caja() {
         <Kpi
           label="Otros medios"
           value={formatARS(otrosMedios.reduce((a, [, v]) => a + v, 0))}
-          hint={otrosMedios.map(([m, v]) => `${m}: ${formatARS(v)}`).join(" · ") || "—"}
+          hint={
+            otrosMedios
+              .map(([m, v]) => `${MEDIO_LABEL[m] ?? m}: ${formatARS(v)}`)
+              .join(" · ") || "—"
+          }
         />
       </div>
 
@@ -178,20 +204,54 @@ export function Caja() {
           <p className="py-4 text-sm text-gris-2">Todavía no hay movimientos.</p>
         ) : (
           <div className="space-y-1">
-            {data.movimientos.map((m) => (
-              <div key={m.id} className="flex items-center justify-between border-b border-borde py-1.5 text-sm">
-                <div>
-                  <span className="text-tinta">{TIPO_LABEL[m.tipo] ?? m.tipo}</span>
-                  {m.categoria && <span className="ml-2 text-xs text-gris-2">{m.categoria}</span>}
-                  {m.nota && <span className="ml-2 text-xs text-gris-2">· {m.nota}</span>}
-                  <span className="ml-2 text-xs text-gris-2">{formatDateTime(m.created_at)}</span>
+            {data.movimientos.map((m) => {
+              const sale = m.tipo === "retiro" || m.tipo === "gasto";
+              return (
+                <div key={m.id} className="flex items-start justify-between gap-3 border-b border-borde py-2 text-sm">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-medium text-tinta">{TIPO_LABEL[m.tipo] ?? m.tipo}</span>
+                      {/* Cómo pagó (ventas) */}
+                      {m.medio_pago && <Badge tone="gris">{MEDIO_LABEL[m.medio_pago] ?? m.medio_pago}</Badge>}
+                      {m.numero_pedido && (
+                        <span className="font-mono text-[11px] text-gris-2">{m.numero_pedido}</span>
+                      )}
+                      {m.categoria && <span className="text-xs text-gris-2">{m.categoria}</span>}
+                      <span className="text-xs text-gris-2">{formatDateTime(m.created_at)}</span>
+                    </div>
+
+                    {/* Qué se vendió */}
+                    {(m.items?.length ?? 0) > 0 && (
+                      <p className="mt-0.5 text-xs text-gris">
+                        {m.items!
+                          .map((i) => `${i.cantidad}× ${i.producto}${i.talle ? ` · ${i.talle}` : ""}`)
+                          .join("  |  ")}
+                      </p>
+                    )}
+
+                    {/* Quién retiró y para qué */}
+                    {sale && (
+                      <p className="mt-0.5 text-xs text-gris">
+                        {m.responsable ? (
+                          <>
+                            Retiró: <span className="font-medium text-tinta">{m.responsable}</span>
+                          </>
+                        ) : (
+                          <span className="text-pale-ambar-txt">Sin responsable registrado</span>
+                        )}
+                        {m.nota && ` · ${m.nota}`}
+                      </p>
+                    )}
+                    {!sale && m.nota && <p className="mt-0.5 text-xs text-gris">{m.nota}</p>}
+                  </div>
+
+                  <span className={`shrink-0 font-mono ${sale ? "text-pale-rojo-txt" : "text-tinta"}`}>
+                    {sale ? "-" : "+"}
+                    {formatARS(m.monto)}
+                  </span>
                 </div>
-                <span className={m.tipo === "retiro" || m.tipo === "gasto" ? "text-pale-rojo-txt" : "text-acento"}>
-                  {m.tipo === "retiro" || m.tipo === "gasto" ? "-" : "+"}
-                  {formatARS(m.monto)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -229,8 +289,13 @@ function MovModal({ tipo, onClose, onSaved }: { tipo: "retiro" | "gasto" | "ingr
   const [monto, setMonto] = useState("");
   const [categoria, setCategoria] = useState("mercaderia");
   const [nota, setNota] = useState("");
+  const [responsable, setResponsable] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Si sale plata de la caja, hay que saber quién la sacó y para qué.
+  const saleGuita = tipo === "retiro" || tipo === "gasto";
+  const faltaDato = saleGuita && (!responsable.trim() || !nota.trim());
 
   const save = async () => {
     setBusy(true); setError(null);
@@ -240,6 +305,7 @@ function MovModal({ tipo, onClose, onSaved }: { tipo: "retiro" | "gasto" | "ingr
         monto: Number(monto) || 0,
         categoria: tipo === "gasto" ? categoria : undefined,
         nota: nota.trim() || undefined,
+        responsable: responsable.trim() || undefined,
       });
       onSaved();
     } catch (e) { setError(apiError(e)); } finally { setBusy(false); }
@@ -251,6 +317,18 @@ function MovModal({ tipo, onClose, onSaved }: { tipo: "retiro" | "gasto" | "ingr
         <Field label="Monto">
           <input type="number" value={monto} onChange={(e) => setMonto(e.target.value)} className="input-field" autoFocus placeholder="0" />
         </Field>
+
+        {saleGuita && (
+          <Field label="¿Quién retira la plata?">
+            <input
+              value={responsable}
+              onChange={(e) => setResponsable(e.target.value)}
+              className="input-field"
+              placeholder="Nombre de la persona"
+            />
+          </Field>
+        )}
+
         {tipo === "gasto" && (
           <Field label="Categoría">
             <Select value={categoria} onChange={(e) => setCategoria(e.target.value)}>
@@ -260,11 +338,25 @@ function MovModal({ tipo, onClose, onSaved }: { tipo: "retiro" | "gasto" | "ingr
             </Select>
           </Field>
         )}
-        <Field label="Nota (opcional)">
-          <input value={nota} onChange={(e) => setNota(e.target.value)} className="input-field" />
+
+        <Field label={saleGuita ? "Motivo (¿para qué se saca la plata?)" : "Nota (opcional)"}>
+          <input
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            className="input-field"
+            placeholder={saleGuita ? "Ej: pago al proveedor de telas" : ""}
+          />
         </Field>
+
+        {saleGuita && (
+          <p className="text-xs text-gris-2">
+            Queda registrado quién sacó la plata y para qué. Si al cerrar la caja falta dinero,
+            esto es lo que permite saber a quién preguntarle.
+          </p>
+        )}
+
         {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
-        <button onClick={save} disabled={busy || !(Number(monto) > 0)} className="btn-primary w-full justify-center">
+        <button onClick={save} disabled={busy || !(Number(monto) > 0) || faltaDato} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />} Registrar
         </button>
       </div>

@@ -31,6 +31,9 @@ export const cajaMovimientosTable = pgTable("caja_movimientos", {
   categoria: text("categoria"), // sólo gastos
   monto: decimal("monto", { precision: 12, scale: 2 }).notNull(),
   nota: text("nota").notNull().default(""),
+  // Quién sacó la plata (obligatorio en retiros y gastos). Sin esto, un faltante
+  // de caja no se le puede atribuir a nadie.
+  responsable: text("responsable").notNull().default(""),
   orderId: integer("order_id"), // venta que originó el movimiento (si aplica)
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

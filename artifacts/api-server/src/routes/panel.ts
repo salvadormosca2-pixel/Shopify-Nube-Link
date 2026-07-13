@@ -1070,6 +1070,25 @@ router.get("/admin/caja", async (req, res) => {
       .from(cajaMovimientosTable)
       .where(eq(cajaMovimientosTable.cajaId, caja.id))
       .orderBy(desc(cajaMovimientosTable.id));
+
+    // Los pedidos de las ventas del día, para poder mostrar QUÉ se vendió.
+    const orderIds = movimientos.map((m) => m.orderId).filter((x): x is number => x != null);
+    type ItemVenta = { productName: string; size: string; color: string; quantity: number };
+    const ventas = new Map<number, { trackingNumber: string; items: ItemVenta[] }>();
+    if (orderIds.length > 0) {
+      const rows = await db
+        .select({
+          id: ordersTable.id,
+          trackingNumber: ordersTable.trackingNumber,
+          items: ordersTable.items,
+        })
+        .from(ordersTable)
+        .where(inArray(ordersTable.id, orderIds));
+      for (const r of rows) {
+        ventas.set(r.id, { trackingNumber: r.trackingNumber, items: r.items ?? [] });
+      }
+    }
+
     res.json({
       fecha,
       abierta: caja.estado === "abierta",
@@ -1088,16 +1107,29 @@ router.get("/admin/caja", async (req, res) => {
         abierta_at: caja.abiertaAt,
         cerrada_at: caja.cerradaAt,
       },
-      movimientos: movimientos.map((m) => ({
-        id: m.id,
-        tipo: m.tipo,
-        medio_pago: m.medioPago,
-        categoria: m.categoria,
-        monto: parseFloat(m.monto),
-        nota: m.nota,
-        order_id: m.orderId,
-        created_at: m.createdAt,
-      })),
+      movimientos: movimientos.map((m) => {
+        const venta = m.orderId != null ? ventas.get(m.orderId) : undefined;
+        return {
+          id: m.id,
+          tipo: m.tipo,
+          medio_pago: m.medioPago,
+          categoria: m.categoria,
+          monto: parseFloat(m.monto),
+          nota: m.nota,
+          responsable: m.responsable,
+          order_id: m.orderId,
+          created_at: m.createdAt,
+          // Qué se vendió: sin esto un movimiento decía sólo "Venta $12.000"
+          // y había que ir a Pedidos para saber de qué era.
+          numero_pedido: venta?.trackingNumber ?? null,
+          items: (venta?.items ?? []).map((i) => ({
+            producto: i.productName,
+            talle: i.size,
+            color: i.color,
+            cantidad: i.quantity,
+          })),
+        };
+      }),
       resumen: resumenCaja(parseFloat(caja.montoInicial), movimientos),
     });
   } catch {
@@ -1159,6 +1191,27 @@ router.post("/admin/caja/movimiento", async (req, res) => {
       res.status(400).json({ error: "sin_caja", message: "No hay una caja abierta. Abrí la caja primero." });
       return;
     }
+    // Si sale plata de la caja, hay que saber QUIÉN la sacó y PARA QUÉ.
+    // Sin esto, un faltante en el arqueo no se le puede atribuir a nadie.
+    const responsable = String(req.body?.responsable ?? "").trim();
+    const nota = String(req.body?.nota ?? "").trim();
+    if (tipo === "retiro" || tipo === "gasto") {
+      if (!responsable) {
+        res.status(400).json({
+          error: "falta_responsable",
+          message: "Poné quién retira la plata (nombre de la persona).",
+        });
+        return;
+      }
+      if (!nota) {
+        res.status(400).json({
+          error: "falta_motivo",
+          message: "Poné el motivo del retiro (para qué se saca la plata).",
+        });
+        return;
+      }
+    }
+
     const [mov] = await db
       .insert(cajaMovimientosTable)
       .values({
@@ -1166,7 +1219,8 @@ router.post("/admin/caja/movimiento", async (req, res) => {
         tipo,
         categoria: tipo === "gasto" && req.body?.categoria ? String(req.body.categoria) : null,
         monto: String(monto),
-        nota: req.body?.nota != null ? String(req.body.nota) : "",
+        nota,
+        responsable,
       })
       .returning();
     res.status(201).json({ ok: true, id: mov.id });
