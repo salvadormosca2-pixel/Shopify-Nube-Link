@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { ordersTable, productsTable } from "@workspace/db/schema";
 import { desc, sql, and, ne, type SQL } from "drizzle-orm";
 import { loadVariantsMap, buildAvailability } from "./variants";
+import { generoOf } from "./sections";
 
 // Sólo dígitos ("+54 9 383 456-7890" → "5493834567890").
 export function normalizePhone(raw: unknown): string {
@@ -26,9 +27,23 @@ export async function ordersByPhone(phone: string) {
   return db.select().from(ordersTable).where(cond).orderBy(desc(ordersTable.createdAt));
 }
 
-// Estilos con productos EN STOCK, opcionalmente filtrado por categoría.
-// Devuelve ["oversize","slim",...] ordenado por cantidad de productos.
-export async function listEstilosEnStock(categoria?: string): Promise<string[]> {
+export type EstilosEnStock = {
+  categoria: string | null;
+  genero: string | null;
+  /** Estilos del género pedido (o de todos, si no se pidió ninguno). */
+  estilos: string[];
+  /** Siempre presente: qué estilo existe en cada género, para no mezclarlos. */
+  por_genero: Record<"hombre" | "mujer" | "unisex", string[]>;
+};
+
+// Estilos con productos EN STOCK, filtrables por categoría y género.
+// Un estilo sólo aparece en el género donde realmente hay stock: no hay remeras
+// boxy de hombre ni manga larga de mujer, así que el bot no puede ofrecerlas.
+// Los unisex se suman al género pedido (mismo criterio que matchesSection).
+export async function listEstilosEnStock(
+  categoria?: string,
+  genero?: string,
+): Promise<EstilosEnStock> {
   const conds: SQL[] = [ne(productsTable.estilo, "")];
   if (categoria) {
     conds.push(sql`lower(${productsTable.category}) = ${categoria.toLowerCase()}`);
@@ -39,6 +54,8 @@ export async function listEstilosEnStock(categoria?: string): Promise<string[]> 
     .where(and(...conds));
 
   const variants = await loadVariantsMap(rows.map((p) => p.id));
+  // (género, estilo) → cuántos productos con stock. La clave lleva el género
+  // para que "clásico" de hombre y "clásica" de mujer no se pisen entre sí.
   const counts = new Map<string, number>();
   for (const p of rows) {
     const { disponible } = buildAvailability(variants.get(p.id), {
@@ -46,8 +63,36 @@ export async function listEstilosEnStock(categoria?: string): Promise<string[]> 
       stock: p.stock,
     });
     if (!disponible) continue;
-    const key = p.estilo.trim().toLowerCase();
+    const key = `${generoOf(p.section)}|${p.estilo.trim().toLowerCase()}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([estilo]) => estilo);
+
+  // Más productos primero: el estilo que más tenemos es el que más conviene ofrecer.
+  const ordenados = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([key]) => {
+      const [g, estilo] = key.split("|");
+      return { genero: g, estilo };
+    });
+
+  const por_genero = { hombre: [] as string[], mujer: [] as string[], unisex: [] as string[] };
+  for (const { genero: g, estilo } of ordenados) {
+    const bucket = por_genero[g as keyof typeof por_genero];
+    if (bucket && !bucket.includes(estilo)) bucket.push(estilo);
+  }
+
+  const pedido = genero ? generoOf(genero) : null;
+  const estilos: string[] = [];
+  for (const { genero: g, estilo } of ordenados) {
+    // Sin género pedido devolvemos todos; con género, los suyos + los unisex.
+    if (pedido && g !== pedido && g !== "unisex") continue;
+    if (!estilos.includes(estilo)) estilos.push(estilo);
+  }
+
+  return {
+    categoria: categoria ? categoria.toLowerCase() : null,
+    genero: pedido,
+    estilos,
+    por_genero,
+  };
 }

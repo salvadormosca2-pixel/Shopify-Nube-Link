@@ -80,11 +80,13 @@ router.get("/bot/productos", async (req, res) => {
 });
 
 // Estilos con productos EN STOCK de una categoría (para que el bot pregunte
-// "¿la buscás oversize o slim?"). GET /bot/estilos?categoria=remeras.
+// "¿la buscás oversize o slim?"). GET /bot/estilos?categoria=remeras&genero=hombre.
+// Sin `genero` igual devuelve `por_genero`, así el bot nunca ofrece un estilo
+// que en ese género no existe (no hay remeras boxy de hombre).
 router.get("/bot/estilos", async (req, res) => {
   try {
-    const { categoria } = req.query as Record<string, string>;
-    res.json(await listEstilosEnStock(categoria));
+    const { categoria, genero } = req.query as Record<string, string>;
+    res.json(await listEstilosEnStock(categoria, genero));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los estilos" });
   }

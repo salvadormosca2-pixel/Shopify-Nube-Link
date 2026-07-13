@@ -48,12 +48,14 @@ router.get("/categorias", async (_req, res) => {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las categorías" });
   }
 });
-// Estilos con productos EN STOCK (opcional ?categoria=). Alimenta el filtro del
-// bot ("mostrame solo las oversize") y las sugerencias del form de producto.
+// Estilos con productos EN STOCK (opcional ?categoria=, ?genero=). Alimenta los
+// filtros de la web y las sugerencias del form de producto: devuelve el array
+// plano de siempre (el detalle por género lo usa /bot/estilos).
 router.get("/estilos", async (req, res) => {
   try {
-    const { categoria } = req.query as Record<string, string>;
-    res.json(await listEstilosEnStock(categoria));
+    const { categoria, genero } = req.query as Record<string, string>;
+    const { estilos } = await listEstilosEnStock(categoria, genero);
+    res.json(estilos);
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los estilos" });
   }
