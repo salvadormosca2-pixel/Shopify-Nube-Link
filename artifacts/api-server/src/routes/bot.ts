@@ -384,6 +384,7 @@ router.post("/bot/seguimiento", async (req, res) => {
       // El código del CORREO: sólo existe una vez despachado.
       codigo_transportista: despachado ? order.codigoSeguimiento || null : null,
       tracking_url: despachado ? order.trackingUrl || null : null,
+      fecha_despacho: despachado ? order.fechaDespacho ?? null : null,
       items_resumen: resumenItems(order.items),
       fecha: order.createdAt,
     });
@@ -422,7 +423,7 @@ router.get("/bot/envio", async (req, res) => {
       // El código del correo sólo tiene sentido cuando ya se despachó.
       tracking: enviado ? order.codigoSeguimiento || null : null,
       tracking_url: enviado ? order.trackingUrl || null : null,
-      fecha_envio: order.updatedAt ?? order.createdAt,
+      fecha_envio: enviado ? order.fechaDespacho ?? null : null,
       fecha: order.createdAt,
       items_resumen: resumenItems(order.items),
       // Si tiene más de un pedido, el bot puede ofrecer los otros.

@@ -248,6 +248,19 @@ router.patch("/admin/envios/:id", async (req, res) => {
     // El código del correo va a SU columna (antes pisaba tracking_url).
     if (b.tracking !== undefined) set.codigoSeguimiento = String(b.tracking) || null;
     if (b.tracking_url !== undefined) set.trackingUrl = String(b.tracking_url) || null;
+
+    // Sella la fecha de despacho la PRIMERA vez que sale de "preparando".
+    // No se pisa después: si el encargado corrige el código o el transportista,
+    // la fecha del despacho real tiene que seguir siendo la misma.
+    if (b.estado !== undefined && String(b.estado) !== "preparando") {
+      const [actual] = await db
+        .select({ fechaDespacho: ordersTable.fechaDespacho })
+        .from(ordersTable)
+        .where(eq(ordersTable.id, id))
+        .limit(1);
+      if (actual && !actual.fechaDespacho) set.fechaDespacho = new Date();
+    }
+
     const [updated] = await db.update(ordersTable).set(set).where(eq(ordersTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "not_found", message: "Envío no encontrado" }); return; }
     res.json({ ok: true, id: updated.id, estado: updated.estadoEnvio });

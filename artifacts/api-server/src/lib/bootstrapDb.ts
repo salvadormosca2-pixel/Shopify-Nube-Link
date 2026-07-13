@@ -172,6 +172,7 @@ const STATEMENTS = [
   // columna correcta y se RESCATA lo ya cargado: si tracking_url no es un link,
   // era en realidad el código.
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS codigo_seguimiento TEXT`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS fecha_despacho TIMESTAMP`,
   `UPDATE orders
       SET codigo_seguimiento = tracking_url,
           tracking_url = NULL
