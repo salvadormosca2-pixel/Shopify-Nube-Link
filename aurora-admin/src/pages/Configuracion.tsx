@@ -44,12 +44,17 @@ interface MaestroFieldDef {
   placeholder?: string;
 }
 
+// OJO: los campos son los de la tabla `sucursales`. El form tenía "telefono",
+// que el backend descarta en silencio (la columna es `whatsapp`): se editaba y
+// volvía vacío. `envios` y `cambios` son los textos que el bot le lee al cliente.
 interface Local {
   id?: string | number;
   nombre?: string;
   direccion?: string;
   horarios?: string;
-  telefono?: string;
+  whatsapp?: string;
+  envios?: string;
+  cambios?: string;
   [key: string]: unknown;
 }
 
@@ -355,8 +360,16 @@ function LocalCard() {
             <dd className="whitespace-pre-line text-tinta">{local.horarios || "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gris-2">Teléfono</dt>
-            <dd className="text-tinta">{local.telefono || "—"}</dd>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">WhatsApp</dt>
+            <dd className="text-tinta">{local.whatsapp || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">Envíos</dt>
+            <dd className="whitespace-pre-line text-tinta">{local.envios || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">Cambios</dt>
+            <dd className="whitespace-pre-line text-tinta">{local.cambios || "—"}</dd>
           </div>
         </dl>
       )}
@@ -406,11 +419,27 @@ function LocalCard() {
                 placeholder="Lun a Vie 9 a 18 hs&#10;Sáb 9 a 13 hs"
               />
             </Field>
-            <Field label="Teléfono">
+            <Field label="WhatsApp">
               <TextInput
-                value={form.telefono ?? ""}
-                onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                placeholder="+54 9 ..."
+                value={form.whatsapp ?? ""}
+                onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                placeholder="+54 9 383 ..."
+              />
+            </Field>
+            <Field label="Envíos (se lo dice el bot al cliente)">
+              <TextArea
+                rows={3}
+                value={form.envios ?? ""}
+                onChange={(e) => setForm({ ...form, envios: e.target.value })}
+                placeholder="Retiro sin cargo en el local. Envíos a todo el país..."
+              />
+            </Field>
+            <Field label="Cambios y devoluciones (se lo dice el bot al cliente)">
+              <TextArea
+                rows={3}
+                value={form.cambios ?? ""}
+                onChange={(e) => setForm({ ...form, cambios: e.target.value })}
+                placeholder="Cambios dentro de los 30 días con la prenda sin uso y con etiqueta."
               />
             </Field>
           </div>

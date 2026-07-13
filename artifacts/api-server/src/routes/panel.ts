@@ -16,6 +16,7 @@ import {
   derivacionesTable,
   avisosStockTable,
   promosTable,
+  maestrosTable,
 } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
@@ -36,8 +37,13 @@ const router: IRouter = Router();
 // ─── Aliases públicos que usa el panel (categorías reales, maestros) ─────────
 router.get("/categorias", async (_req, res) => {
   try {
-    const rows = await db.selectDistinct({ categoria: productsTable.category }).from(productsTable);
-    res.json(rows.map((r, i) => ({ id: i + 1, nombre: r.categoria })));
+    // Se siembra la primera vez con las categorías que ya tienen los productos;
+    // a partir de ahí manda la tabla `maestros` (ids reales, editable).
+    const enProductos = await db
+      .selectDistinct({ categoria: productsTable.category })
+      .from(productsTable);
+    const seed = enProductos.map((r) => r.categoria).filter(Boolean);
+    res.json(await listarMaestro("categoria", seed));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las categorías" });
   }
@@ -130,17 +136,53 @@ router.get("/promociones", async (_req, res) => {
 // Combos / looks configurables por env (COMBOS_JSON); [] si aún no hay datos.
 router.get("/combos", (_req, res) => res.json(getCombos()));
 
-// Marcas y métodos de pago no tienen tabla propia: listas estáticas para el ABM.
-router.get("/marcas", (_req, res) => res.json([]));
-router.get("/metodos-pago", (_req, res) =>
-  res.json([
-    { id: 1, nombre: "Efectivo (solo local)" },
-    { id: 2, nombre: "Transferencia" },
-    { id: 3, nombre: "Tarjeta débito" },
-    { id: 4, nombre: "Tarjeta crédito" },
-    { id: 5, nombre: "Mercado Pago" },
-  ]),
-);
+// Maestros (categorías, marcas, métodos de pago): SIEMPRE desde la tabla
+// `maestros`, que es donde el ABM del panel guarda. Antes categorías salía
+// derivada de los productos con ids falsos (i+1) y marcas devolvía [] fijo: lo
+// que agregabas no aparecía nunca, y peor, el id falso apuntaba a otra fila de
+// `maestros` (borrar la "categoría 3" podía borrar un talle).
+// La primera vez se siembra con lo que ya existía, para no arrancar en blanco.
+async function listarMaestro(tipo: string, seed: string[]): Promise<{ id: number; nombre: string }[]> {
+  let rows = await db
+    .select({ id: maestrosTable.id, nombre: maestrosTable.nombre })
+    .from(maestrosTable)
+    .where(eq(maestrosTable.tipo, tipo))
+    .orderBy(maestrosTable.nombre);
+
+  if (rows.length === 0 && seed.length > 0) {
+    await db.insert(maestrosTable).values(seed.map((nombre) => ({ tipo, nombre, hex: "" })));
+    rows = await db
+      .select({ id: maestrosTable.id, nombre: maestrosTable.nombre })
+      .from(maestrosTable)
+      .where(eq(maestrosTable.tipo, tipo))
+      .orderBy(maestrosTable.nombre);
+  }
+  return rows;
+}
+
+const METODOS_PAGO_SEED = [
+  "Efectivo (solo local)",
+  "Transferencia",
+  "Tarjeta débito",
+  "Tarjeta crédito",
+  "Mercado Pago",
+];
+
+router.get("/marcas", async (_req, res) => {
+  try {
+    res.json(await listarMaestro("marca", []));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las marcas" });
+  }
+});
+
+router.get("/metodos-pago", async (_req, res) => {
+  try {
+    res.json(await listarMaestro("metodo_pago", METODOS_PAGO_SEED));
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los métodos de pago" });
+  }
+});
 
 // All /admin/* panel routes require the same admin key as the rest of the API.
 router.use("/admin", adminAuth);
