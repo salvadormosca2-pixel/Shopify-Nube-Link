@@ -323,7 +323,7 @@ export default function Home() {
                   key={cat}
                   onClick={() => handleCategoryClick(cat)}
                   data-testid={cat === "todos" ? "btn-category-todos" : `btn-category-${cat}`}
-                  className={`px-5 py-3.5 text-sm font-light tracking-wide whitespace-nowrap transition-all duration-300 border-b-2 -mb-px ${
+                  className={`px-5 py-3.5 text-sm font-light tracking-wide uppercase whitespace-nowrap transition-all duration-300 border-b-2 -mb-px ${
                     activeCategory === cat
                       ? "border-foreground text-foreground"
                       : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"
@@ -336,7 +336,7 @@ export default function Home() {
               <button
                 data-testid="button-toggle-filters"
                 onClick={() => setShowFilters(!showFilters)}
-                className={`ml-auto px-5 py-3.5 flex items-center gap-2 text-sm font-light tracking-wide whitespace-nowrap transition-colors duration-300 border-b-2 -mb-px ${
+                className={`ml-auto px-5 py-3.5 flex items-center gap-2 text-sm font-light tracking-wide uppercase whitespace-nowrap transition-colors duration-300 border-b-2 -mb-px ${
                   showFilters || hasActiveFilters
                     ? "border-foreground text-foreground"
                     : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"

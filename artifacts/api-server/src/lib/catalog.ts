@@ -3,6 +3,7 @@
 // stay consistent with the admin panel.
 import { productsTable } from "@workspace/db/schema";
 import { buildAvailability, type VariantRow } from "./variants";
+import { generoOf } from "./sections";
 
 type DbProduct = typeof productsTable.$inferSelect;
 
@@ -34,7 +35,7 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
     nombre: p.name,
     descripcion: p.description,
     categoria: p.category,
-    genero: p.section,
+    genero: generoOf(p.section),
     estilo: p.estilo ?? "",
     // `precio` = precio efectivo (número único, listo para el caption del bot).
     // Se mantienen precio_contado/precio_tarjeta para la tienda.
@@ -69,7 +70,7 @@ export function toPromo(p: DbProduct, variants?: VariantRow[]) {
     producto_id: p.id,
     nombre: p.name,
     categoria: p.category,
-    genero: p.section,
+    genero: generoOf(p.section),
     estilo: p.estilo ?? "",
     imagen: optimizeCloudinary(p.images?.[0] ?? ""),
     imagenes: optimizeList(p.images ?? []),

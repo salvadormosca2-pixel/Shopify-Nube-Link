@@ -28,6 +28,7 @@ import { loadVariantsMap, loadVariantsMapRaw, type VariantRow } from "../lib/var
 import { applyOrderStock, checkOrderStock } from "../lib/stock-movements";
 import { listSucursalesPublic } from "../lib/sucursales";
 import { listEstilosEnStock } from "../lib/crm";
+import { normalizeSection, generoOf, matchesSection } from "../lib/sections";
 import { liberarReservasPedido } from "../lib/reservas";
 
 const router: IRouter = Router();
@@ -71,7 +72,7 @@ router.get("/productos", async (req, res) => {
       );
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
-    if (genero) rows = rows.filter((p) => p.section === genero);
+    if (genero) rows = rows.filter((p) => matchesSection(p.section, genero));
     if (estilo) rows = rows.filter((p) => p.estilo.toLowerCase() === estilo.toLowerCase());
 
     const lim = parseInt(String((req.query as Record<string, string>).limit ?? ""), 10);
@@ -156,7 +157,7 @@ function toProducto(p: DbProduct, variants?: VariantRow[]) {
     descripcion: p.description,
     categoria: p.category,
     marca: "",
-    genero: p.section,
+    genero: generoOf(p.section),
     estilo: p.estilo,
     precio_contado: sale != null ? sale : price,
     precio_tarjeta: price,
@@ -195,8 +196,8 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
   if (Array.isArray(body.talles)) out.sizes = body.talles.map(String);
   if (Array.isArray(body.colores)) out.colors = body.colores.map(String);
   if (body.genero !== undefined) {
-    const g = String(body.genero).toLowerCase().trim();
-    out.section = ["mujer", "hombre", "unisex"].includes(g) ? g : "hombre";
+    // "mujer" (vocabulario del panel) => "priority" (el que consulta la web).
+    out.section = normalizeSection(body.genero);
   }
   if (body.estilo !== undefined) out.estilo = String(body.estilo).toLowerCase().trim();
   if (body.destacado !== undefined) out.featured = Boolean(body.destacado);
@@ -241,7 +242,7 @@ router.get("/admin/productos", async (req, res) => {
       );
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
-    if (genero) rows = rows.filter((p) => p.section === genero);
+    if (genero) rows = rows.filter((p) => matchesSection(p.section, genero));
 
     const variants = await loadVariantsMapRaw(rows.map((p) => p.id));
     res.json(rows.map((p) => toProducto(p, variants.get(p.id))));

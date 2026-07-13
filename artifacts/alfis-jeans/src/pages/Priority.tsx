@@ -172,9 +172,21 @@ export default function Priority() {
   const searchStr = useSearch();
   const urlParams = new URLSearchParams(searchStr);
   const activeCategory = urlParams.get("categoria") ?? "todas";
+  const urlQuery = urlParams.get("q") ?? "";
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(urlQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(urlQuery);
+
+  useEffect(() => {
+    setSearch(urlQuery);
+    setDebouncedSearch(urlQuery);
+    if (urlQuery) {
+      requestAnimationFrame(() => {
+        document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [urlQuery]);
+
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
@@ -334,7 +346,7 @@ export default function Priority() {
                 <button
                   key={cat}
                   onClick={() => handleCategoryClick(cat)}
-                  className={`px-5 py-3 text-sm font-light tracking-wide whitespace-nowrap transition-all duration-300 border-b -mb-px ${
+                  className={`px-5 py-3 text-sm font-light tracking-wide uppercase whitespace-nowrap transition-all duration-300 border-b -mb-px ${
                     activeCategory === cat
                       ? "border-foreground text-foreground"
                       : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"
@@ -346,7 +358,7 @@ export default function Priority() {
 
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`ml-auto px-5 py-3 flex items-center gap-2 text-sm font-light tracking-wide whitespace-nowrap transition-colors duration-300 border-b -mb-px ${
+                className={`ml-auto px-5 py-3 flex items-center gap-2 text-sm font-light tracking-wide uppercase whitespace-nowrap transition-colors duration-300 border-b -mb-px ${
                   showFilters || hasActiveFilters
                     ? "border-foreground text-foreground"
                     : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-foreground"

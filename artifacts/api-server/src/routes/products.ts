@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
-import { eq, ilike, and, ne, or, sql, type SQL } from "drizzle-orm";
+import { eq, ilike, and, ne, or, inArray, sql, type SQL } from "drizzle-orm";
+import { sectionsFor } from "../lib/sections";
 
 const router: IRouter = Router();
 
@@ -12,7 +13,7 @@ router.get("/products", async (req, res) => {
     const conditions: SQL[] = [];
 
     if (section) {
-      conditions.push(eq(productsTable.section, section));
+      conditions.push(inArray(productsTable.section, sectionsFor(section)));
     }
 
     if (category) {
@@ -77,7 +78,7 @@ router.get("/products/categories", async (req, res) => {
   try {
     const { section } = req.query as Record<string, string>;
     const query = section
-      ? db.selectDistinct({ category: productsTable.category }).from(productsTable).where(eq(productsTable.section, section))
+      ? db.selectDistinct({ category: productsTable.category }).from(productsTable).where(inArray(productsTable.section, sectionsFor(section)))
       : db.selectDistinct({ category: productsTable.category }).from(productsTable);
     const results = await query;
     const categories = results.map(r => r.category);

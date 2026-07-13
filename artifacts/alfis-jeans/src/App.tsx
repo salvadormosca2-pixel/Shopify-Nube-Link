@@ -15,6 +15,7 @@ const Confirmation = lazy(() => import("@/pages/Confirmation"));
 const Tracking = lazy(() => import("@/pages/Tracking"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Priority = lazy(() => import("@/pages/Priority"));
+const Buscar = lazy(() => import("@/pages/Buscar"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -43,6 +44,7 @@ function Router() {
               <Route path="/seguimiento" component={Tracking} />
               <Route path="/contacto" component={Contact} />
               <Route path="/priority" component={Priority} />
+              <Route path="/buscar" component={Buscar} />
               <Route component={NotFound} />
             </Switch>
           </Layout>

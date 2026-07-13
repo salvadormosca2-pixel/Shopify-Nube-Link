@@ -75,6 +75,11 @@ paths:
           schema:
             type: string
           description: Filter by color (e.g. NEGRO, BLANCO)
+        - name: section
+          in: query
+          schema:
+            type: string
+          description: Filter by section (hombre or priority). Omit to search all sections.
       responses:
         "200":
           description: List of products
@@ -88,6 +93,12 @@ paths:
       operationId: getCategories
       tags: [products]
       summary: Get available categories
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+          description: Filter by section (hombre or priority)
       responses:
         "200":
           description: List of categories

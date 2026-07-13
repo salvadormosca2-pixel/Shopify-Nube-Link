@@ -5,6 +5,7 @@ import { eq, desc, gte } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { v2 as cloudinary } from "cloudinary";
 import { queueProductEmbeddings, backfillAllEmbeddings } from "../lib/imageSearch";
+import { normalizeSection } from "../lib/sections";
 
 cloudinary.config({
   cloud_name: process.env["CLOUDINARY_CLOUD_NAME"],
@@ -127,11 +128,7 @@ router.patch("/admin/products/:id", async (req, res) => {
     }
 
     if (section !== undefined) {
-      if (section !== "hombre" && section !== "priority") {
-        res.status(400).json({ error: "invalid_section", message: "Section must be 'hombre' or 'priority'" });
-        return;
-      }
-      updates.section = section;
+      updates.section = normalizeSection(section);
     }
 
     if (Object.keys(updates).length === 0) {
@@ -179,7 +176,7 @@ router.post("/admin/products", async (req, res) => {
     }
     const s = parseInt(stock ?? "0", 10);
 
-    const sectionValue = section === "priority" ? "priority" : "hombre";
+    const sectionValue = normalizeSection(section);
 
     const values: typeof productsTable.$inferInsert = {
       name: name.trim(),

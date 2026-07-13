@@ -22,7 +22,7 @@ function SearchBar({ variant = "desktop", onDone }: { variant?: "desktop" | "mob
     e.preventDefault();
     const q = value.trim();
     if (!q) return;
-    navigate(`/?q=${encodeURIComponent(q)}`);
+    navigate(`/buscar?q=${encodeURIComponent(q)}`);
     onDone?.();
   };
 

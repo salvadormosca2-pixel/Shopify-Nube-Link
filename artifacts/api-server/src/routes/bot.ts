@@ -21,6 +21,7 @@ import { toProductoPublic, toPromo, isPromo, optimizeCloudinary } from "../lib/c
 import { loadVariantsMap, buildAvailability } from "../lib/variants";
 import { listSucursalesPublic } from "../lib/sucursales";
 import { searchProductsByImage, ImageSearchError } from "../lib/imageSearch";
+import { matchesSection } from "../lib/sections";
 import { normalizePhone, ordersByPhone, listEstilosEnStock } from "../lib/crm";
 import { crearReservasPedido } from "../lib/reservas";
 
@@ -63,7 +64,7 @@ router.get("/bot/productos", async (req, res) => {
       );
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
-    if (genero) rows = rows.filter((p) => p.section === genero);
+    if (genero) rows = rows.filter((p) => matchesSection(p.section, genero));
     if (estilo) rows = rows.filter((p) => p.estilo.toLowerCase() === estilo.toLowerCase());
 
     const lim = parseInt(String((req.query as Record<string, string>).limit ?? ""), 10);
