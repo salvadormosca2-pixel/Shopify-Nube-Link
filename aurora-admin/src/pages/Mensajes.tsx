@@ -39,13 +39,15 @@ interface Mensaje {
   created_at?: string;
 }
 
-// Color de cada etiqueta que pone el bot, por temperatura del lead.
-// El resto (etiquetas nuevas que agregue el workflow) cae en azul.
+// Las 7 etiquetas que usa el bot, coloreadas por temperatura del lead.
+// Cualquier etiqueta nueva que agregue el workflow aparece igual, en azul.
 const TONO_ETIQUETA: Record<string, "acento" | "ambar" | "rojo" | "azul" | "gris"> = {
-  comprador: "acento", // ya compró
+  "venta-cerrada": "acento", // vendido
+  comprador: "acento", // ya compró antes
   caliente: "rojo", // a punto de comprar
   interesado: "ambar",
   curioso: "azul",
+  humano: "gris", // lo atiende una persona
   "bot-apagado": "gris", // control: el bot no responde acá
 };
 
