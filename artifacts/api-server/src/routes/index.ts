@@ -14,6 +14,7 @@ import botRouter from "./bot";
 import storageRouter from "./storage";
 import uploadsRouter from "./uploads";
 import whatsappRouter from "./whatsapp";
+import reportesRouter from "./reportes";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(botRouter);
 router.use(storageRouter);
 router.use(uploadsRouter);
 router.use(whatsappRouter);
+router.use(reportesRouter);
 
 export default router;
