@@ -29,8 +29,11 @@ interface Resumen {
 interface CajaResp {
   fecha: string;
   abierta: boolean;
+  // La caja abierta quedó de un día anterior (no se cerró al terminar).
+  de_otro_dia?: boolean;
   caja: null | {
     id: number;
+    fecha?: string;
     estado: string;
     monto_inicial: number;
     monto_cierre_teorico: number | null;
@@ -121,11 +124,21 @@ export function Caja() {
 
   return (
     <div>
-      <PageHeader title="Caja" subtitle={`Abierta · ${data.fecha}`}>
+      <PageHeader
+        title="Caja"
+        subtitle={data.de_otro_dia ? `Quedó abierta del ${data.fecha}` : `Abierta · ${data.fecha}`}
+      >
         <button onClick={() => setCerrarModal(true)} className="btn-secondary">
           <Lock size={16} /> Cerrar caja
         </button>
       </PageHeader>
+
+      {data.de_otro_dia && (
+        <div className="mb-4 rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm text-pale-ambar-txt">
+          Esta caja quedó abierta del <strong>{data.fecha}</strong> y nunca se cerró.{" "}
+          <strong>Cerrala</strong> para poder abrir la de hoy.
+        </div>
+      )}
 
       {/* Resumen */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

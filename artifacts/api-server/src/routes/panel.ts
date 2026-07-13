@@ -1039,14 +1039,30 @@ router.post("/admin/ventas", async (req, res) => {
 router.get("/admin/caja", async (req, res) => {
   try {
     const fecha = String(req.query.fecha ?? "").trim() || todayInAr();
-    const [caja] = await db
+    let [caja] = await db
       .select()
       .from(cajasTable)
       .where(eq(cajasTable.fecha, fecha))
       .orderBy(desc(cajasTable.id))
       .limit(1);
+
+    // Si no hay caja de hoy pero quedó uma abierta de otro día (no se cerró al
+    // terminar la jornada), hay que MOSTRARLA: si no, el panel ofrece "abrir
+    // caja" y al intentarlo el backend rechaza con "ya hay una caja abierta",
+    // sin decir cuál. El dueño quedaba trabado sin entender por qué.
+    let deOtroDia = false;
     if (!caja) {
-      res.json({ fecha, abierta: false, caja: null, movimientos: [], resumen: null });
+      [caja] = await db
+        .select()
+        .from(cajasTable)
+        .where(eq(cajasTable.estado, "abierta"))
+        .orderBy(desc(cajasTable.id))
+        .limit(1);
+      deOtroDia = !!caja;
+    }
+
+    if (!caja) {
+      res.json({ fecha, abierta: false, caja: null, movimientos: [], resumen: null, de_otro_dia: false });
       return;
     }
     const movimientos = await db
@@ -1057,6 +1073,9 @@ router.get("/admin/caja", async (req, res) => {
     res.json({
       fecha,
       abierta: caja.estado === "abierta",
+      // true = esta caja quedó abierta de un día anterior; hay que cerrarla
+      // antes de poder abrir la de hoy.
+      de_otro_dia: deOtroDia,
       caja: {
         id: caja.id,
         fecha: caja.fecha,
@@ -1095,7 +1114,16 @@ router.post("/admin/caja/abrir", async (req, res) => {
       .where(eq(cajasTable.estado, "abierta"))
       .limit(1);
     if (abierta) {
-      res.status(409).json({ error: "caja_abierta", message: "Ya hay una caja abierta" });
+      const suFecha = String(abierta.fecha);
+      const esDeHoy = suFecha === todayInAr();
+      res.status(409).json({
+        error: "caja_abierta",
+        message: esDeHoy
+          ? "La caja de hoy ya está abierta."
+          : `Quedó abierta la caja del ${suFecha}. Cerrala antes de abrir la de hoy.`,
+        caja_id: abierta.id,
+        fecha: suFecha,
+      });
       return;
     }
     const [caja] = await db
