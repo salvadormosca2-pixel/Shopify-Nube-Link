@@ -5,6 +5,7 @@ import { ordersTable, productsTable } from "@workspace/db/schema";
 import { desc, sql, and, ne, type SQL } from "drizzle-orm";
 import { loadVariantsMap, buildAvailability } from "./variants";
 import { generoOf } from "./sections";
+import { canonEstilo, etiquetaEstilo } from "./estilos";
 
 // Sólo dígitos ("+54 9 383 456-7890" → "5493834567890").
 export function normalizePhone(raw: unknown): string {
@@ -54,8 +55,9 @@ export async function listEstilosEnStock(
     .where(and(...conds));
 
   const variants = await loadVariantsMap(rows.map((p) => p.id));
-  // (género, estilo) → cuántos productos con stock. La clave lleva el género
-  // para que "clásico" de hombre y "clásica" de mujer no se pisen entre sí.
+  // (género, estilo canónico) → cuántos productos con stock. La clave lleva el
+  // género para no mezclarlos, y el estilo va canonizado para que "clasica" y
+  // "clasico" no salgan como dos estilos distintos.
   const counts = new Map<string, number>();
   for (const p of rows) {
     const { disponible } = buildAvailability(variants.get(p.id), {
@@ -63,7 +65,11 @@ export async function listEstilosEnStock(
       stock: p.stock,
     });
     if (!disponible) continue;
-    const key = `${generoOf(p.section)}|${p.estilo.trim().toLowerCase()}`;
+    const canon = canonEstilo(p.estilo);
+    if (!canon) continue;
+    // La etiqueta concuerda con la prenda de ESTE producto ("remera clásica",
+    // "suéter clásico"), no con la categoría pedida, que puede venir vacía.
+    const key = `${generoOf(p.section)}|${etiquetaEstilo(canon, p.category)}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 

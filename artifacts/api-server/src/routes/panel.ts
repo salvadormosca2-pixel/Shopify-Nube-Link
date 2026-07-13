@@ -30,6 +30,7 @@ import { applyOrderStock, checkOrderStock } from "../lib/stock-movements";
 import { listSucursalesPublic } from "../lib/sucursales";
 import { listEstilosEnStock } from "../lib/crm";
 import { normalizeSection, generoOf, matchesSection } from "../lib/sections";
+import { matchesEstilo } from "../lib/estilos";
 import { liberarReservasPedido } from "../lib/reservas";
 
 const router: IRouter = Router();
@@ -81,7 +82,7 @@ router.get("/productos", async (req, res) => {
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
     if (genero) rows = rows.filter((p) => matchesSection(p.section, genero));
-    if (estilo) rows = rows.filter((p) => p.estilo.toLowerCase() === estilo.toLowerCase());
+    if (estilo) rows = rows.filter((p) => matchesEstilo(p.estilo, estilo));
 
     const lim = parseInt(String((req.query as Record<string, string>).limit ?? ""), 10);
     if (!Number.isNaN(lim) && lim > 0) rows = rows.slice(0, lim);
