@@ -5,8 +5,8 @@ import { AlertTriangle, Inbox } from "lucide-react";
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="card flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <AlertTriangle className="text-red-400" size={32} />
-      <p className="text-sm text-gray-300">{message}</p>
+      <AlertTriangle className="text-pale-rojo-txt" size={32} />
+      <p className="text-sm text-gris">{message}</p>
       {onRetry && (
         <button className="btn-secondary" onClick={onRetry}>
           Reintentar
@@ -25,7 +25,7 @@ export function EmptyState({
   icon?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-gray-500">
+    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-gris-2">
       {icon ?? <Inbox size={28} />}
       <p className="text-sm">{message}</p>
     </div>

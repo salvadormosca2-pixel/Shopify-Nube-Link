@@ -140,7 +140,7 @@ export function Stock() {
 
       {/* Tira de alerta superior */}
       {paraReponer > 0 ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-400">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm font-medium text-pale-ambar-txt">
           <AlertTriangle size={18} />
           {formatNumber(paraReponer)} {paraReponer === 1 ? "variante" : "variantes"} para reponer
         </div>
@@ -165,7 +165,7 @@ export function Stock() {
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 active
                   ? "border-acento/40 bg-acento/10 text-acento"
-                  : "border-borde text-gray-400 hover:bg-[#1E1E1E]"
+                  : "border-borde text-gris hover:bg-dark-hover"
               }`}
             >
               {t.label}
@@ -178,7 +178,7 @@ export function Stock() {
       {tab === "actual" && (
         <>
           <div className="mb-4">
-            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-300">
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={soloReponer}
@@ -201,21 +201,21 @@ export function Stock() {
                 const estado = estadoDe(v);
                 const stockColor =
                   estado === "sin_stock"
-                    ? "text-red-400"
+                    ? "text-pale-rojo-txt"
                     : estado === "bajo"
-                      ? "text-amber-400"
-                      : "text-white";
+                      ? "text-pale-ambar-txt"
+                      : "text-tinta";
                 const key = String(v.id);
                 const draft = minDraft[key] ?? String(v.stock_minimo);
                 return (
                   <Row key={v.id}>
                     <Cell>
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-tinta">
                         {v.producto_nombre || `#${v.producto_id}`}
                       </span>
                     </Cell>
-                    <Cell className="text-gray-400">{v.talle || "—"}</Cell>
-                    <Cell className="text-gray-400">{v.color || "—"}</Cell>
+                    <Cell className="text-gris">{v.talle || "—"}</Cell>
+                    <Cell className="text-gris">{v.color || "—"}</Cell>
                     <Cell mono className={stockColor}>
                       {formatNumber(v.stock)}
                     </Cell>
@@ -255,27 +255,27 @@ export function Stock() {
           <div className="mb-4 grid grid-cols-2 gap-4 sm:max-w-md">
             <div className="card">
               <div className="flex items-start justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <span className="text-xs font-medium uppercase tracking-wide text-gris-2">
                   Para reponer
                 </span>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pale-ambar text-pale-ambar-txt">
                   <PackageMinus size={16} />
                 </span>
               </div>
-              <p className="mt-3 font-mono text-3xl font-bold text-white">
+              <p className="mt-3 font-mono text-3xl font-bold text-tinta">
                 {formatNumber(paraReponer)}
               </p>
             </div>
             <div className="card">
               <div className="flex items-start justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <span className="text-xs font-medium uppercase tracking-wide text-gris-2">
                   Sin stock
                 </span>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pale-rojo text-pale-rojo-txt">
                   <PackageX size={16} />
                 </span>
               </div>
-              <p className="mt-3 font-mono text-3xl font-bold text-white">
+              <p className="mt-3 font-mono text-3xl font-bold text-tinta">
                 {formatNumber(sinStock)}
               </p>
             </div>
@@ -297,8 +297,8 @@ export function Stock() {
                     key={i}
                     className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
                       critico
-                        ? "border-red-500/30 bg-red-500/10 text-red-400"
-                        : "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                        ? "border-pale-rojo-txt/20 bg-pale-rojo text-pale-rojo-txt"
+                        : "border-pale-azul-txt/20 bg-pale-azul text-pale-azul-txt"
                     }`}
                   >
                     {critico ? <AlertTriangle size={16} /> : <ArrowDownUp size={16} />}
@@ -331,7 +331,7 @@ export function Stock() {
         {mov && (
           <div className="space-y-4">
             {movError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {movError}
               </div>
             )}

@@ -158,7 +158,7 @@ export function EnviarComunidadModal({
     >
       <div className="space-y-5">
         {error && (
-          <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          <div className="flex items-start gap-2 rounded-md border border-pale-rojo-txt/20 bg-pale-rojo p-3 text-sm text-pale-rojo-txt">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             <span>{error}</span>
           </div>
@@ -170,14 +170,14 @@ export function EnviarComunidadModal({
             {progreso.map((p) => (
               <div key={p.publicacion_id} className="rounded-md border border-borde p-3">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-white">{p.destino}</p>
+                  <p className="font-medium text-tinta">{p.destino}</p>
                   {p.estado === "en_curso" ? (
-                    <span className="flex items-center gap-2 text-sm text-gray-400">
+                    <span className="flex items-center gap-2 text-sm text-gris">
                       <Loader2 size={14} className="animate-spin" />
                       enviando {Math.min(p.enviados + p.fallidos + 1, p.total)}/{p.total}...
                     </span>
                   ) : (
-                    <span className="flex items-center gap-2 text-sm text-gray-300">
+                    <span className="flex items-center gap-2 text-sm text-gris">
                       <CheckCircle2 size={14} className="text-acento" />
                       {p.enviados} enviados
                       {p.fallidos > 0 && <Badge tone="gris">{p.fallidos} fallidos</Badge>}
@@ -185,7 +185,7 @@ export function EnviarComunidadModal({
                   )}
                 </div>
                 {p.errores && p.errores.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-xs text-red-300">
+                  <ul className="mt-2 space-y-1 text-xs text-pale-rojo-txt">
                     {p.errores.map((e, i) => (
                       <li key={i}>
                         Producto #{e.producto_id}: {e.error}
@@ -196,7 +196,7 @@ export function EnviarComunidadModal({
               </div>
             ))}
             {!terminado && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gris-2">
                 Se manda de a un producto por vez, con pausas de 4 a 8 segundos entre cada uno para
                 no gatillar el baneo de WhatsApp. Podés cerrar esto cuando termine.
               </p>
@@ -206,20 +206,20 @@ export function EnviarComunidadModal({
           <>
             {/* ─── Destinos ─── */}
             <div>
-              <p className="mb-2 text-sm font-medium text-gray-300">Destinos</p>
+              <p className="mb-2 text-sm font-medium text-gris">Destinos</p>
               {cargandoDestinos ? (
-                <p className="text-sm text-gray-500">Cargando destinos...</p>
+                <p className="text-sm text-gris-2">Cargando destinos...</p>
               ) : destinos.length === 0 ? (
-                <p className="rounded-md border border-borde p-3 text-sm text-gray-400">
+                <p className="rounded-md border border-borde p-3 text-sm text-gris">
                   No hay destinos cargados. Agregalos en{" "}
-                  <span className="text-white">Configuración → Destinos de WhatsApp</span>.
+                  <span className="text-tinta">Configuración → Destinos de WhatsApp</span>.
                 </p>
               ) : (
                 <div className="space-y-1.5">
                   {destinos.map((d) => (
                     <label
                       key={d.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border border-borde p-2.5 text-sm text-gray-300 transition hover:bg-[#1E1E1E]"
+                      className="flex cursor-pointer items-center gap-2 rounded-md border border-borde p-2.5 text-sm text-gris transition hover:bg-dark-hover"
                     >
                       <input
                         type="checkbox"
@@ -227,7 +227,7 @@ export function EnviarComunidadModal({
                         onChange={() => toggleDestino(d.id)}
                         className="h-4 w-4 accent-acento"
                       />
-                      <span className="text-white">{d.nombre}</span>
+                      <span className="text-tinta">{d.nombre}</span>
                       <Badge tone="gris">{d.tipo}</Badge>
                     </label>
                   ))}
@@ -237,13 +237,13 @@ export function EnviarComunidadModal({
 
             {/* ─── Preview ─── */}
             <div>
-              <p className="mb-2 text-sm font-medium text-gray-300">
+              <p className="mb-2 text-sm font-medium text-gris">
                 Se van a publicar {productos.length}{" "}
                 {productos.length === 1 ? "producto" : "productos"}
               </p>
 
               {excedido && (
-                <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
+                <div className="mb-2 flex items-start gap-2 rounded-md border border-pale-ambar-txt/20 bg-pale-ambar p-3 text-sm text-pale-ambar-txt">
                   <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                   <span>
                     Máximo {MAX_POR_TANDA} productos por envío (para no gatillar el baneo de
@@ -266,14 +266,14 @@ export function EnviarComunidadModal({
                         className="h-10 w-10 rounded-md border border-borde object-cover"
                       />
                     ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-md border border-borde text-gray-600">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md border border-borde text-gris-2">
                         <ImageOff size={16} />
                       </div>
                     )}
-                    <p className="flex-1 text-sm text-white">{p.nombre}</p>
+                    <p className="flex-1 text-sm text-tinta">{p.nombre}</p>
                     {/* El caption publica precio_tarjeta (mismo criterio que el bot). */}
                     {incluirPrecio && (
-                      <p className="font-mono text-xs text-gray-400">
+                      <p className="font-mono text-xs text-gris">
                         {formatARS(p.precio_tarjeta)}
                       </p>
                     )}
@@ -283,7 +283,7 @@ export function EnviarComunidadModal({
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={incluirPrecio}
@@ -293,7 +293,7 @@ export function EnviarComunidadModal({
               Incluir precio en el mensaje
             </label>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gris-2">
               Al final de la tanda se manda <strong>un solo</strong> mensaje de cierre invitando a
               contactarlos o a comprar desde la web. No se repite en cada producto.
             </p>

@@ -136,8 +136,8 @@ export function Promociones() {
               <div key={promo.id} className="card flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-white">{promo.titulo}</p>
-                    <p className="truncate text-xs text-gray-500">{productoNombre(promo)}</p>
+                    <p className="truncate font-medium text-tinta">{promo.titulo}</p>
+                    <p className="truncate text-xs text-gris-2">{productoNombre(promo)}</p>
                   </div>
                   {promo.activo ? (
                     <Badge tone="acento">Activa</Badge>
@@ -148,7 +148,7 @@ export function Promociones() {
 
                 <div className="flex items-baseline gap-2">
                   {original != null && (
-                    <span className="text-sm text-gray-500 line-through">{formatARS(original)}</span>
+                    <span className="text-sm text-gris-2 line-through">{formatARS(original)}</span>
                   )}
                   <span className="font-mono text-lg font-semibold text-acento">
                     {formatARS(promo.precio_promo)}
@@ -156,7 +156,7 @@ export function Promociones() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-gris">
                     <Clock size={14} />
                     {timeLeft(promo.fecha_fin)}
                   </span>
@@ -170,13 +170,13 @@ export function Promociones() {
                           fecha_fin: toDateInput(promo.fecha_fin),
                         })
                       }
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                     >
                       <Pencil size={15} />
                     </button>
                     <button
                       onClick={() => setToDelete(promo)}
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -208,7 +208,7 @@ export function Promociones() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -232,7 +232,7 @@ export function Promociones() {
                 ))}
               </Select>
               {!form.producto_id && formError && (
-                <span className="mt-1 block text-xs text-red-400">El producto es obligatorio.</span>
+                <span className="mt-1 block text-xs text-pale-rojo-txt">El producto es obligatorio.</span>
               )}
             </Field>
             <Field label="Precio promocional">
@@ -258,7 +258,7 @@ export function Promociones() {
                 />
               </Field>
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}
@@ -346,14 +346,14 @@ function PromoBot() {
   return (
     <div className="card mb-6 space-y-3">
       <div>
-        <p className="font-medium text-white">Promo del bot (argumento de cierre)</p>
-        <p className="text-xs text-gray-500">
+        <p className="font-medium text-tinta">Promo del bot (argumento de cierre)</p>
+        <p className="text-xs text-gris-2">
           Ej. "3x2 en remeras" o "20% de descuento pagando en efectivo". El bot de WhatsApp la usa
           para cerrar la venta.
         </p>
       </div>
       {err && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
           {err}
         </div>
       )}
@@ -391,25 +391,25 @@ function PromoBot() {
               className="flex items-center justify-between gap-2 rounded-lg border border-borde px-3 py-2"
             >
               <div className="min-w-0">
-                <span className="font-medium text-white">{p.titulo}</span>
+                <span className="font-medium text-tinta">{p.titulo}</span>
                 {p.descripcion && (
-                  <span className="ml-2 truncate text-xs text-gray-500">{p.descripcion}</span>
+                  <span className="ml-2 truncate text-xs text-gris-2">{p.descripcion}</span>
                 )}
                 {p.vigente_hasta && (
-                  <span className="ml-2 text-xs text-gray-500">hasta {String(p.vigente_hasta).slice(0, 10)}</span>
+                  <span className="ml-2 text-xs text-gris-2">hasta {String(p.vigente_hasta).slice(0, 10)}</span>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {p.activo ? <Badge tone="acento">Activa</Badge> : <Badge tone="gris">Inactiva</Badge>}
                 <button
                   onClick={() => toggle(p)}
-                  className="rounded-md px-2 py-1 text-xs text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                  className="rounded-md px-2 py-1 text-xs text-gris transition hover:bg-dark-hover hover:text-acento"
                 >
                   {p.activo ? "Desactivar" : "Activar"}
                 </button>
                 <button
                   onClick={() => borrar(p)}
-                  className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                  className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                 >
                   <Trash2 size={14} />
                 </button>

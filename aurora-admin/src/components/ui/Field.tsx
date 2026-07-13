@@ -11,7 +11,7 @@ export function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-400">
+      <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gris">
         {label}
       </span>
       {children}
@@ -62,7 +62,7 @@ export function MultiSelect({
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
               active
                 ? "border-acento/40 bg-acento/10 text-acento"
-                : "border-borde text-gray-400 hover:bg-[#1E1E1E]"
+                : "border-borde text-gris hover:bg-dark-hover"
             }`}
           >
             {o.label}

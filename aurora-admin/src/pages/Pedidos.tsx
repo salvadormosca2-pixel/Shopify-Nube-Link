@@ -173,10 +173,10 @@ export function Pedidos() {
         <Table headers={["Pedido", "Cliente", "Entrega", "Monto", "Pago", "Estado"]}>
           {pedidos.map((p) => (
             <Row key={p.id} onClick={() => abrir(p)}>
-              <Cell mono className="text-gray-400">{p.numero_pedido || `#${p.id}`}</Cell>
+              <Cell mono className="text-gris">{p.numero_pedido || `#${p.id}`}</Cell>
               <Cell>
-                <span className="font-medium text-white">{p.cliente_nombre || "—"}</span>
-                <span className="block text-xs text-gray-500">{p.telefono || ""}</span>
+                <span className="font-medium text-tinta">{p.cliente_nombre || "—"}</span>
+                <span className="block text-xs text-gris-2">{p.telefono || ""}</span>
               </Cell>
               <Cell>
                 {p.forma_entrega === "envio" ? (
@@ -185,8 +185,8 @@ export function Pedidos() {
                   <Badge tone="acento"><Store size={12} /> Retiro</Badge>
                 )}
               </Cell>
-              <Cell mono className="text-white">{formatARS(p.monto_total ?? 0)}</Cell>
-              <Cell className="text-gray-400 capitalize">{p.forma_pago || "A definir"}</Cell>
+              <Cell mono className="text-tinta">{formatARS(p.monto_total ?? 0)}</Cell>
+              <Cell className="text-gris capitalize">{p.forma_pago || "A definir"}</Cell>
               <Cell><Badge tone={estadoTone(p.estado)}>{estadoLabel(p.estado)}</Badge></Cell>
             </Row>
           ))}
@@ -197,11 +197,11 @@ export function Pedidos() {
         {selected && (
           <div className="space-y-5">
             {actionError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{actionError}</div>
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">{actionError}</div>
             )}
 
             {/* Qué hacer según tipo de entrega */}
-            <div className={`rounded-lg border px-3 py-2 text-sm ${esEnvio ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+            <div className={`rounded-lg border px-3 py-2 text-sm ${esEnvio ? "border-pale-azul-txt/20 bg-pale-azul text-pale-azul-txt" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
               {esEnvio
                 ? <><Truck size={15} className="mb-0.5 mr-1 inline" /> <b>Envío</b> — coordinar envío + verificar que entró el pago antes de confirmar.</>
                 : <><Store size={15} className="mb-0.5 mr-1 inline" /> <b>Retiro en local</b> — cuando el cliente llegue, cobrá y confirmá eligiendo la forma de pago.</>}
@@ -209,12 +209,12 @@ export function Pedidos() {
 
             {/* Datos del cliente */}
             <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">Cliente</span><span className="text-white">{selected.cliente_nombre || "—"}</span></div>
-              {selected.telefono && <div className="flex justify-between"><span className="text-gray-500">Teléfono</span><span className="text-white">{selected.telefono}</span></div>}
+              <div className="flex justify-between"><span className="text-gris-2">Cliente</span><span className="text-tinta">{selected.cliente_nombre || "—"}</span></div>
+              {selected.telefono && <div className="flex justify-between"><span className="text-gris-2">Teléfono</span><span className="text-tinta">{selected.telefono}</span></div>}
               {esEnvio && selected.direccion_envio && (
                 <div className="mt-2 border-t border-dashed border-borde pt-2">
-                  <p className="text-gray-500">Dirección de envío</p>
-                  <p className="text-gray-200">{selected.direccion_envio}</p>
+                  <p className="text-gris-2">Dirección de envío</p>
+                  <p className="text-gris">{selected.direccion_envio}</p>
                 </div>
               )}
             </div>
@@ -222,15 +222,15 @@ export function Pedidos() {
             {/* Ítems */}
             <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
               {items.length === 0 ? (
-                <p className="text-center text-xs text-gray-500">Sin ítems</p>
+                <p className="text-center text-xs text-gris-2">Sin ítems</p>
               ) : items.map((it, i) => (
                 <div key={i} className="flex justify-between gap-2 py-0.5">
-                  <span className="text-gray-300">{it.cantidad ?? 1} × {it.nombre || "Producto"}
-                    {it.talle ? <span className="text-gray-500"> ({it.talle}{it.color ? `/${it.color}` : ""})</span> : null}</span>
-                  <span className="whitespace-nowrap text-white">{formatARS((it.cantidad ?? 1) * (it.precio ?? 0))}</span>
+                  <span className="text-gris">{it.cantidad ?? 1} × {it.nombre || "Producto"}
+                    {it.talle ? <span className="text-gris-2"> ({it.talle}{it.color ? `/${it.color}` : ""})</span> : null}</span>
+                  <span className="whitespace-nowrap text-tinta">{formatARS((it.cantidad ?? 1) * (it.precio ?? 0))}</span>
                 </div>
               ))}
-              <div className="mt-2 flex justify-between border-t border-dashed border-borde pt-2 text-base font-bold text-white">
+              <div className="mt-2 flex justify-between border-t border-dashed border-borde pt-2 text-base font-bold text-tinta">
                 <span>TOTAL</span><span>{formatARS(selected.monto_total ?? 0)}</span>
               </div>
             </div>
@@ -241,15 +241,15 @@ export function Pedidos() {
 
             {/* Acciones */}
             <div className="space-y-3 border-t border-borde pt-4">
-              <p className="text-sm font-medium text-gray-300">Estado: <Badge tone={estadoTone(selected.estado)}>{estadoLabel(selected.estado)}</Badge></p>
+              <p className="text-sm font-medium text-gris">Estado: <Badge tone={estadoTone(selected.estado)}>{estadoLabel(selected.estado)}</Badge></p>
 
               {/* Confirmar pago (elige forma de pago) */}
               {detalleEstado === "pendiente_verificacion" && (
                 <div className="flex flex-wrap items-end gap-2">
-                  <label className="text-xs text-gray-400">
+                  <label className="text-xs text-gris">
                     Forma de pago
                     <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)}
-                      className="mt-1 block rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm capitalize text-white">
+                      className="mt-1 block rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm capitalize text-tinta">
                       {FORMAS_PAGO.map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </label>
@@ -263,12 +263,12 @@ export function Pedidos() {
               {/* Despacho (sólo envíos ya confirmados) */}
               {esEnvio && (detalleEstado === "pago_confirmado" || detalleEstado === "preparando") && (
                 <div className="space-y-2 rounded-lg border border-borde p-3">
-                  <p className="text-xs font-medium text-gray-300">Despachar envío</p>
+                  <p className="text-xs font-medium text-gris">Despachar envío</p>
                   <div className="flex flex-wrap gap-2">
                     <input value={transportista} onChange={(e) => setTransportista(e.target.value)} placeholder="Transportista (Correo, Andreani...)"
-                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-white" />
+                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-tinta" />
                     <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="N° de tracking / link"
-                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-white" />
+                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-tinta" />
                   </div>
                   <button className="btn-primary" disabled={saving} onClick={despachar}>
                     <Truck size={15} /> {saving ? "Guardando..." : "Marcar como enviado"}
@@ -289,7 +289,7 @@ export function Pedidos() {
                   </button>
                 )}
                 {finalizado && (
-                  <p className="text-sm text-gray-500">Este pedido está {estadoLabel(selected.estado).toLowerCase()} y no admite cambios.</p>
+                  <p className="text-sm text-gris-2">Este pedido está {estadoLabel(selected.estado).toLowerCase()} y no admite cambios.</p>
                 )}
               </div>
             </div>

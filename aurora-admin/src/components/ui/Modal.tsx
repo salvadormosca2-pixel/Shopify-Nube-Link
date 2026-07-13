@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 
-// Modal centrado: overlay negro 60%, card #141414 con borde, título display.
+// Modal centrado: overlay negro 40%, card blanca con borde fino, título display.
 export function Modal({
   open,
   onClose,
@@ -34,7 +34,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
       onMouseDown={onClose}
     >
       <div
@@ -42,8 +42,8 @@ export function Modal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-borde px-6 py-4">
-          <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
-          <button onClick={onClose} className="text-gray-500 transition hover:text-white">
+          <h2 className="font-display text-lg font-semibold text-tinta">{title}</h2>
+          <button onClick={onClose} className="text-gris-2 transition hover:text-tinta">
             <X size={20} />
           </button>
         </div>
@@ -90,7 +90,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm text-gray-300">{message}</p>
+      <p className="text-sm text-gris">{message}</p>
     </Modal>
   );
 }

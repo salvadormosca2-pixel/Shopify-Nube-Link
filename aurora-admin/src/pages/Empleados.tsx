@@ -162,9 +162,9 @@ export function Empleados() {
           {usuarios.map((u) => (
             <Row key={u.id}>
               <Cell>
-                <p className="font-medium text-white">{u.nombre}</p>
+                <p className="font-medium text-tinta">{u.nombre}</p>
               </Cell>
-              <Cell className="text-gray-400">{u.email}</Cell>
+              <Cell className="text-gris">{u.email}</Cell>
               <Cell>
                 <Badge tone={ROL_TONE[u.rol] ?? "gris"}>{ROL_LABEL[u.rol] ?? u.rol}</Badge>
               </Cell>
@@ -180,14 +180,14 @@ export function Empleados() {
                   <button
                     onClick={() => openEdit(u)}
                     title="Editar"
-                    className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                    className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                   >
                     <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => setActividadDe(u)}
                     title="Ver actividad"
-                    className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-azul"
+                    className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-azul"
                   >
                     <History size={15} />
                   </button>
@@ -195,7 +195,7 @@ export function Empleados() {
                     <button
                       onClick={() => setToDelete(u)}
                       title="Dar de baja"
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                     >
                       <UserMinus size={15} />
                     </button>
@@ -203,7 +203,7 @@ export function Empleados() {
                     <button
                       onClick={() => reactivar(u)}
                       title="Reactivar"
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                     >
                       <UserCheck size={15} />
                     </button>
@@ -235,7 +235,7 @@ export function Empleados() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -273,7 +273,7 @@ export function Empleados() {
                 ))}
               </Select>
             </Field>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}
@@ -347,9 +347,9 @@ function ActividadModal({
               className="relative border-l border-borde pl-4 pb-3 last:pb-0"
             >
               <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-acento" />
-              <p className="text-sm text-white">{a.accion || a.descripcion || "—"}</p>
+              <p className="text-sm text-tinta">{a.accion || a.descripcion || "—"}</p>
               {a.created_at && (
-                <p className="mt-0.5 font-mono text-xs text-gray-500">
+                <p className="mt-0.5 font-mono text-xs text-gris-2">
                   {formatDateTime(a.created_at)}
                 </p>
               )}

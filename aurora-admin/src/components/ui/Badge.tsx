@@ -4,12 +4,13 @@ import type { ReactNode } from "react";
 // rojo=sin/bajo stock o error, azul=info/en revisión, gris=inactivo.
 export type BadgeTone = "acento" | "ambar" | "rojo" | "azul" | "gris";
 
+// Pasteles lavados sobre papel blanco: el color sólo marca estado, nunca decora.
 const TONES: Record<BadgeTone, string> = {
-  acento: "bg-acento/10 text-acento border-acento/30",
-  ambar: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  rojo: "bg-red-500/10 text-red-400 border-red-500/30",
-  azul: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  gris: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
+  acento: "bg-pale-verde text-pale-verde-txt border-pale-verde-txt/15",
+  ambar: "bg-pale-ambar text-pale-ambar-txt border-pale-ambar-txt/15",
+  rojo: "bg-pale-rojo text-pale-rojo-txt border-pale-rojo-txt/15",
+  azul: "bg-pale-azul text-pale-azul-txt border-pale-azul-txt/15",
+  gris: "bg-papel text-gris border-borde",
 };
 
 export function Badge({
@@ -23,9 +24,9 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.05em] ${
         TONES[tone]
-      } ${mono ? "font-mono" : ""}`}
+      } ${mono ? "font-mono normal-case tracking-normal" : ""}`}
     >
       {children}
     </span>

@@ -1,7 +1,7 @@
-// Skeletons que imitan el layout real (bloques #2A2A2A/50 con pulse), no spinners.
+// Skeletons que imitan el layout real (bloques grises con pulse), no spinners.
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-[#2A2A2A]/50 ${className}`} />;
+  return <div className={`animate-pulse rounded-md bg-borde/50 ${className}`} />;
 }
 
 export function SkeletonCards({ count = 4 }: { count?: number }) {

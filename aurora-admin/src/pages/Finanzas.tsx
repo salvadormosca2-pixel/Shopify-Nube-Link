@@ -94,35 +94,35 @@ export function Finanzas() {
             key={p.key}
             onClick={() => { setPreset(p.key); setCustom(null); }}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              !custom && preset === p.key ? "bg-acento/10 text-acento" : "border border-borde text-gray-400 hover:bg-[#1E1E1E]"
+              !custom && preset === p.key ? "bg-acento/10 text-acento" : "border border-borde text-gris hover:bg-dark-hover"
             }`}
           >
             {p.label}
           </button>
         ))}
         <input type="date" value={r.desde} onChange={(e) => setCustom({ desde: e.target.value, hasta: r.hasta })} className="input-field w-auto py-1.5 text-sm" />
-        <span className="text-gray-500">→</span>
+        <span className="text-gris-2">→</span>
         <input type="date" value={r.hasta} onChange={(e) => setCustom({ desde: r.desde, hasta: e.target.value })} className="input-field w-auto py-1.5 text-sm" />
       </div>
 
       {fin.loading || !f ? (
-        <p className="text-sm text-gray-500">Cargando…</p>
+        <p className="text-sm text-gris-2">Cargando…</p>
       ) : (
         <>
           {/* Resultado grande */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-borde bg-card p-5">
-              <p className="text-xs uppercase tracking-wide text-gray-500">Ganancia del negocio</p>
-              <p className={`text-4xl font-bold ${f.resultado < 0 ? "text-red-400" : "text-acento"}`}>{formatARS(f.resultado)}</p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs uppercase tracking-wide text-gris-2">Ganancia del negocio</p>
+              <p className={`text-4xl font-bold ${f.resultado < 0 ? "text-pale-rojo-txt" : "text-acento"}`}>{formatARS(f.resultado)}</p>
+              <p className="mt-1 text-xs text-gris-2">
                 Ingresos {formatARS(f.ingresos)} − Egresos {formatARS(f.egresos)}
                 <Delta pct={f.comparacion.resultado_pct} />
               </p>
             </div>
             <div className="rounded-xl border border-borde bg-card p-5">
-              <p className="text-xs uppercase tracking-wide text-gray-500">Disponible después de retiros</p>
-              <p className={`text-4xl font-bold ${f.disponible < 0 ? "text-red-400" : "text-white"}`}>{formatARS(f.disponible)}</p>
-              <p className="mt-1 text-xs text-gray-500">Retiros del dueño: {formatARS(f.retiros)}</p>
+              <p className="text-xs uppercase tracking-wide text-gris-2">Disponible después de retiros</p>
+              <p className={`text-4xl font-bold ${f.disponible < 0 ? "text-pale-rojo-txt" : "text-tinta"}`}>{formatARS(f.disponible)}</p>
+              <p className="mt-1 text-xs text-gris-2">Retiros del dueño: {formatARS(f.retiros)}</p>
             </div>
           </div>
 
@@ -136,14 +136,14 @@ export function Finanzas() {
 
           {/* Gráfico ingresos vs egresos */}
           <div className="mt-4 rounded-xl border border-borde bg-card p-4">
-            <h3 className="mb-3 font-display font-semibold text-white">Ingresos vs Egresos por día</h3>
+            <h3 className="mb-3 font-display font-semibold text-tinta">Ingresos vs Egresos por día</h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={f.serie_diaria}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e1" />
                 <XAxis dataKey="fecha" tick={{ fill: "#888", fontSize: 11 }} />
                 <YAxis tick={{ fill: "#888", fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: "#141414", border: "1px solid #2a2a2a" }} />
-                <Line type="monotone" dataKey="ingresos" stroke="#39FF14" strokeWidth={2} dot={false} />
+                <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e8e6e1" }} />
+                <Line type="monotone" dataKey="ingresos" stroke="#111111" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="egresos" stroke="#ff5555" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -165,28 +165,28 @@ export function Finanzas() {
           {/* Gastos */}
           <div className="mt-4 rounded-xl border border-borde bg-card p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-display font-semibold text-white">Gastos del período</h3>
+              <h3 className="font-display font-semibold text-tinta">Gastos del período</h3>
               <button onClick={() => setGastoModal(true)} className="btn-secondary text-sm">
                 <Plus size={14} /> Cargar gasto
               </button>
             </div>
             {(gastos.data ?? []).length === 0 ? (
-              <p className="py-3 text-sm text-gray-500">Sin gastos cargados en el período.</p>
+              <p className="py-3 text-sm text-gris-2">Sin gastos cargados en el período.</p>
             ) : (
               <div className="space-y-1">
                 {(gastos.data ?? []).map((g) => (
                   <div key={g.id} className="flex items-center justify-between border-b border-borde py-1.5 text-sm">
                     <div>
-                      <span className="text-white">{g.categoria}</span>
+                      <span className="text-tinta">{g.categoria}</span>
                       {g.recurrente && <span className="ml-2 text-[0.65rem] text-acento">recurrente</span>}
-                      {g.nota && <span className="ml-2 text-xs text-gray-500">· {g.nota}</span>}
-                      <span className="ml-2 text-xs text-gray-600">{g.fecha}</span>
+                      {g.nota && <span className="ml-2 text-xs text-gris-2">· {g.nota}</span>}
+                      <span className="ml-2 text-xs text-gris-2">{g.fecha}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-red-400">-{formatARS(g.monto)}</span>
+                      <span className="text-pale-rojo-txt">-{formatARS(g.monto)}</span>
                       <button
                         onClick={async () => { await api.delete(`/admin/gastos/${g.id}`); gastos.refetch(); fin.refetch(); }}
-                        className="text-gray-500 hover:text-red-400"
+                        className="text-gris-2 hover:text-pale-rojo-txt"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -213,7 +213,7 @@ function Delta({ pct }: { pct: number }) {
   if (pct === 0) return null;
   const up = pct > 0;
   return (
-    <span className={`ml-2 inline-flex items-center gap-0.5 ${up ? "text-acento" : "text-red-400"}`}>
+    <span className={`ml-2 inline-flex items-center gap-0.5 ${up ? "text-acento" : "text-pale-rojo-txt"}`}>
       {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
       {Math.abs(pct)}%
     </span>
@@ -223,10 +223,10 @@ function Delta({ pct }: { pct: number }) {
 function Kpi({ label, value, pct, invert }: { label: string; value: string; pct?: number; invert?: boolean }) {
   return (
     <div className="rounded-lg border border-borde bg-card p-3">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-lg font-bold text-white">{value}</p>
+      <p className="text-xs uppercase tracking-wide text-gris-2">{label}</p>
+      <p className="text-lg font-bold text-tinta">{value}</p>
       {pct != null && pct !== 0 && (
-        <span className={`text-xs ${(invert ? -pct : pct) > 0 ? "text-acento" : "text-red-400"}`}>
+        <span className={`text-xs ${(invert ? -pct : pct) > 0 ? "text-acento" : "text-pale-rojo-txt"}`}>
           {pct > 0 ? "+" : ""}{pct}% vs período anterior
         </span>
       )}
@@ -238,15 +238,15 @@ function Breakdown({ title, data }: { title: string; data: Record<string, number
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
   return (
     <div className="rounded-lg border border-borde bg-card p-3">
-      <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">{title}</p>
+      <p className="mb-2 text-xs uppercase tracking-wide text-gris-2">{title}</p>
       {entries.length === 0 ? (
-        <p className="text-sm text-gray-600">—</p>
+        <p className="text-sm text-gris-2">—</p>
       ) : (
         <div className="space-y-1">
           {entries.map(([k, v]) => (
             <div key={k} className="flex justify-between text-sm">
-              <span className="capitalize text-gray-300">{k.replace("_", " ")}</span>
-              <span className="text-white">{formatARS(v)}</span>
+              <span className="capitalize text-gris">{k.replace("_", " ")}</span>
+              <span className="text-tinta">{formatARS(v)}</span>
             </div>
           ))}
         </div>
@@ -285,11 +285,11 @@ function GastoModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
         <Field label="Nota (opcional)">
           <input value={nota} onChange={(e) => setNota(e.target.value)} className="input-field" />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-gris">
           <input type="checkbox" checked={recurrente} onChange={(e) => setRecurrente(e.target.checked)} className="h-4 w-4 accent-acento" />
           Gasto recurrente (alquiler, sueldos…)
         </label>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
         <button onClick={save} disabled={busy || !(Number(monto) > 0)} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Guardar
         </button>

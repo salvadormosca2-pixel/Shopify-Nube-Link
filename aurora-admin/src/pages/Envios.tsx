@@ -108,7 +108,7 @@ export function Envios() {
               className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
                 active
                   ? "border-acento/40 bg-acento/10 text-acento"
-                  : "border-borde text-gray-400 hover:bg-[#1E1E1E]"
+                  : "border-borde text-gris hover:bg-dark-hover"
               }`}
             >
               {label}
@@ -186,7 +186,7 @@ function Despachos() {
       </FilterBar>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <div className="mb-4 rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
           {error}
         </div>
       )}
@@ -209,9 +209,9 @@ function Despachos() {
             return (
               <Row key={e.id}>
                 <Cell>
-                  <p className="font-medium text-white">{envioCliente(e)}</p>
+                  <p className="font-medium text-tinta">{envioCliente(e)}</p>
                 </Cell>
-                <Cell className="max-w-[220px] text-gray-400">{e.direccion || "—"}</Cell>
+                <Cell className="max-w-[220px] text-gris">{e.direccion || "—"}</Cell>
                 <Cell>
                   <TextInput
                     value={ed.transportista}
@@ -350,7 +350,7 @@ function Devoluciones() {
       </FilterBar>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <div className="mb-4 rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
           {error}
         </div>
       )}
@@ -370,16 +370,16 @@ function Devoluciones() {
             const rowBusy = busy === String(d.id);
             return (
               <Row key={d.id}>
-                <Cell mono className="text-white">
+                <Cell mono className="text-tinta">
                   {d.pedido_id ?? "—"}
                 </Cell>
-                <Cell className="text-gray-300">{devoCliente(d)}</Cell>
+                <Cell className="text-gris">{devoCliente(d)}</Cell>
                 <Cell>
                   <Badge tone={TIPO_TONE[tipo] ?? "gris"}>
                     {tipo === "devolucion" ? "Devolución" : "Cambio"}
                   </Badge>
                 </Cell>
-                <Cell className="max-w-[260px] text-gray-400">{d.motivo || "—"}</Cell>
+                <Cell className="max-w-[260px] text-gris">{d.motivo || "—"}</Cell>
                 <Cell>
                   <Badge tone={DEVO_TONE[est] ?? "gris"}>{DEVO_LABEL[est] ?? est}</Badge>
                 </Cell>
@@ -425,7 +425,7 @@ function Devoluciones() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}

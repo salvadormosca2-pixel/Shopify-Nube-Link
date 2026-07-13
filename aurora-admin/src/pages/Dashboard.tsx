@@ -41,12 +41,12 @@ interface AlertasResp {
   sin_stock?: number;
 }
 
-const AXIS = { stroke: "#6b7280", fontSize: 12 };
+const AXIS = { stroke: "#6f6d68", fontSize: 12 };
 const tooltipStyle = {
-  backgroundColor: "#141414",
-  border: "1px solid #2A2A2A",
+  backgroundColor: "#ffffff",
+  border: "1px solid #e8e6e1",
   borderRadius: 8,
-  color: "#e5e7eb",
+  color: "#111111",
 };
 
 export function Dashboard() {
@@ -121,7 +121,7 @@ export function Dashboard() {
         ) : (
           <>
             <div className="card">
-              <h3 className="mb-4 font-display text-sm font-semibold text-white">
+              <h3 className="mb-4 font-display text-sm font-semibold text-tinta">
                 Consultas — Últimos 7 días
               </h3>
               {line.length === 0 ? (
@@ -129,16 +129,16 @@ export function Dashboard() {
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={line}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e1" />
                     <XAxis dataKey="fecha" {...AXIS} />
                     <YAxis {...AXIS} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#2A2A2A" }} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#e8e6e1" }} />
                     <Line
                       type="monotone"
                       dataKey="total"
-                      stroke="#39FF14"
+                      stroke="#111111"
                       strokeWidth={2}
-                      dot={{ fill: "#39FF14", r: 3 }}
+                      dot={{ fill: "#111111", r: 3 }}
                       activeDot={{ r: 5 }}
                     />
                   </LineChart>
@@ -147,7 +147,7 @@ export function Dashboard() {
             </div>
 
             <div className="card">
-              <h3 className="mb-4 font-display text-sm font-semibold text-white">
+              <h3 className="mb-4 font-display text-sm font-semibold text-tinta">
                 Prendas Más Consultadas
               </h3>
               {bars.length === 0 ? (
@@ -155,11 +155,11 @@ export function Dashboard() {
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={bars}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e1" />
                     <XAxis dataKey="nombre" {...AXIS} />
                     <YAxis {...AXIS} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#1E1E1E" }} />
-                    <Bar dataKey="total" fill="#39FF14" radius={[4, 4, 0, 0]} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#f5f4f1" }} />
+                    <Bar dataKey="total" fill="#111111" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -170,11 +170,11 @@ export function Dashboard() {
 
       {/* Alertas y pendientes */}
       <div className="mt-6 card">
-        <h3 className="mb-4 font-display text-sm font-semibold text-white">Alertas y Pendientes</h3>
+        <h3 className="mb-4 font-display text-sm font-semibold text-tinta">Alertas y Pendientes</h3>
         {alertas.loading ? (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-12 animate-pulse rounded-lg bg-[#2A2A2A]/50" />
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-borde/50" />
             ))}
           </div>
         ) : alertas.error ? (
@@ -190,8 +190,8 @@ export function Dashboard() {
                   key={a.id ?? i}
                   className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm ${
                     danger
-                      ? "border-red-500/30 bg-red-500/10 text-red-300"
-                      : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+                      ? "border-pale-rojo-txt/20 bg-pale-rojo text-pale-rojo-txt"
+                      : "border-pale-azul-txt/20 bg-pale-azul text-pale-azul-txt"
                   }`}
                 >
                   {danger ? <AlertTriangle size={16} /> : <Clock size={16} />}

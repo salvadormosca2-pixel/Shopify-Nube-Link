@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// Tabla con estilos table-header / table-cell y filas con hover #1E1E1E.
+// Tabla con estilos table-header / table-cell y filas con hover papel.
 export function Table({ headers, children }: { headers: ReactNode[]; children: ReactNode }) {
   return (
     <div className="card overflow-x-auto p-0">
@@ -23,7 +23,7 @@ export function Table({ headers, children }: { headers: ReactNode[]; children: R
 export function Row({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return (
     <tr
-      className={`transition-colors hover:bg-[#1E1E1E] ${onClick ? "cursor-pointer" : ""}`}
+      className={`transition-colors hover:bg-dark-hover ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
     >
       {children}

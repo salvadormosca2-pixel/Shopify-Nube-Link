@@ -49,7 +49,7 @@ export function Cambios() {
 
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-2" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -78,10 +78,10 @@ export function Cambios() {
               }`}
             >
               <div className="flex justify-between text-sm">
-                <span className="font-medium text-white">{v.tracking}</span>
-                <span className="text-gray-400">{formatARS(v.total)}</span>
+                <span className="font-medium text-tinta">{v.tracking}</span>
+                <span className="text-gris">{formatARS(v.total)}</span>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gris-2">
                 {v.telefono || "sin teléfono"} · {v.canal} · {formatDate(v.fecha)}
               </p>
             </button>
@@ -90,13 +90,13 @@ export function Cambios() {
 
         {sel && (
           <div className="rounded-xl border border-borde bg-card p-4">
-            <h3 className="mb-2 font-display font-semibold text-white">Venta {sel.tracking}</h3>
+            <h3 className="mb-2 font-display font-semibold text-tinta">Venta {sel.tracking}</h3>
             <div className="space-y-2">
               {sel.items.map((it) => (
                 <div key={it.index} className="flex items-center justify-between border-b border-borde py-2 text-sm">
                   <div>
-                    <p className="text-white">{it.nombre}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-tinta">{it.nombre}</p>
+                    <p className="text-xs text-gris">
                       Talle {it.talle}{it.color ? ` · ${it.color}` : ""} · x{it.cantidad} · {formatARS(it.precio)}
                     </p>
                   </div>
@@ -152,12 +152,12 @@ function CambioModal({ venta, item, onClose, onDone }: { venta: Venta; item: Ite
   return (
     <Modal open onClose={onClose} title={`Cambiar talle · ${item.nombre}`}>
       <div className="space-y-3">
-        <p className="text-sm text-gray-400">Talle actual: <span className="text-white">{item.talle}</span></p>
+        <p className="text-sm text-gris">Talle actual: <span className="text-tinta">{item.talle}</span></p>
         <Field label="Talle nuevo">
           <input value={talle} onChange={(e) => setTalle(e.target.value.toUpperCase())} className="input-field" autoFocus placeholder="Ej: 42" />
         </Field>
-        <p className="text-xs text-gray-500">Repone el talle {item.talle} y descuenta el nuevo (si hay stock).</p>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        <p className="text-xs text-gris-2">Repone el talle {item.talle} y descuenta el nuevo (si hay stock).</p>
+        {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
         <button onClick={save} disabled={busy || !talle.trim()} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Repeat size={16} />} Confirmar cambio
         </button>
@@ -187,8 +187,8 @@ function DevolucionModal({ venta, item, onClose, onDone }: { venta: Venta; item:
   return (
     <Modal open onClose={onClose} title={`Devolver · ${item.nombre}`}>
       <div className="space-y-3">
-        <p className="text-sm text-gray-400">
-          {item.cantidad} × {formatARS(item.precio)} = <span className="text-white">{formatARS(item.precio * item.cantidad)}</span>
+        <p className="text-sm text-gris">
+          {item.cantidad} × {formatARS(item.precio)} = <span className="text-tinta">{formatARS(item.precio * item.cantidad)}</span>
         </p>
         <Field label="Modo de devolución">
           <Select value={modo} onChange={(e) => setModo(e.target.value)}>
@@ -196,8 +196,8 @@ function DevolucionModal({ venta, item, onClose, onDone }: { venta: Venta; item:
             <option value="saldo">Saldo a favor del cliente</option>
           </Select>
         </Field>
-        <p className="text-xs text-gray-500">Repone el stock del talle {item.talle}.</p>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        <p className="text-xs text-gris-2">Repone el stock del talle {item.talle}.</p>
+        {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
         <button onClick={save} disabled={busy} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Undo2 size={16} />} Confirmar devolución
         </button>

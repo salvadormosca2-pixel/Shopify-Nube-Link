@@ -69,7 +69,7 @@ export function Caja() {
     } catch (e) { setError(apiError(e)); } finally { setBusy(false); }
   };
 
-  if (caja.loading) return <p className="text-sm text-gray-500">Cargando caja…</p>;
+  if (caja.loading) return <p className="text-sm text-gris-2">Cargando caja…</p>;
 
   // ── Sin caja abierta hoy (o cerrada) → apertura ──
   const cerradaHoy = data?.caja && data.caja.estado === "cerrada";
@@ -79,7 +79,7 @@ export function Caja() {
         <PageHeader title="Caja" subtitle="Apertura de caja del día" />
         {cerradaHoy && data?.caja && (
           <div className="mb-4 rounded-xl border border-borde bg-card p-4">
-            <p className="text-sm text-gray-400">La caja de hoy ya fue cerrada.</p>
+            <p className="text-sm text-gris">La caja de hoy ya fue cerrada.</p>
             <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
               <Kpi label="Teórico" value={formatARS(data.caja.monto_cierre_teorico ?? 0)} />
               <Kpi label="Real" value={formatARS(data.caja.monto_cierre_real ?? 0)} />
@@ -94,7 +94,7 @@ export function Caja() {
         <div className="max-w-sm rounded-xl border border-borde bg-card p-5">
           <div className="mb-3 flex items-center gap-2 text-acento">
             <Wallet size={20} />
-            <h2 className="font-display text-lg font-semibold text-white">Abrir caja</h2>
+            <h2 className="font-display text-lg font-semibold text-tinta">Abrir caja</h2>
           </div>
           <Field label="Efectivo inicial del día">
             <input
@@ -106,7 +106,7 @@ export function Caja() {
               autoFocus
             />
           </Field>
-          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-sm text-pale-rojo-txt">{error}</p>}
           <button onClick={abrir} disabled={busy} className="btn-primary mt-4 w-full justify-center">
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />} Abrir caja
           </button>
@@ -160,20 +160,20 @@ export function Caja() {
 
       {/* Movimientos */}
       <div className="mt-4 rounded-xl border border-borde bg-card p-4">
-        <h3 className="mb-2 font-display font-semibold text-white">Movimientos</h3>
+        <h3 className="mb-2 font-display font-semibold text-tinta">Movimientos</h3>
         {data.movimientos.length === 0 ? (
-          <p className="py-4 text-sm text-gray-500">Todavía no hay movimientos.</p>
+          <p className="py-4 text-sm text-gris-2">Todavía no hay movimientos.</p>
         ) : (
           <div className="space-y-1">
             {data.movimientos.map((m) => (
               <div key={m.id} className="flex items-center justify-between border-b border-borde py-1.5 text-sm">
                 <div>
-                  <span className="text-white">{TIPO_LABEL[m.tipo] ?? m.tipo}</span>
-                  {m.categoria && <span className="ml-2 text-xs text-gray-500">{m.categoria}</span>}
-                  {m.nota && <span className="ml-2 text-xs text-gray-500">· {m.nota}</span>}
-                  <span className="ml-2 text-xs text-gray-600">{formatDateTime(m.created_at)}</span>
+                  <span className="text-tinta">{TIPO_LABEL[m.tipo] ?? m.tipo}</span>
+                  {m.categoria && <span className="ml-2 text-xs text-gris-2">{m.categoria}</span>}
+                  {m.nota && <span className="ml-2 text-xs text-gris-2">· {m.nota}</span>}
+                  <span className="ml-2 text-xs text-gris-2">{formatDateTime(m.created_at)}</span>
                 </div>
-                <span className={m.tipo === "retiro" || m.tipo === "gasto" ? "text-red-400" : "text-acento"}>
+                <span className={m.tipo === "retiro" || m.tipo === "gasto" ? "text-pale-rojo-txt" : "text-acento"}>
                   {m.tipo === "retiro" || m.tipo === "gasto" ? "-" : "+"}
                   {formatARS(m.monto)}
                 </span>
@@ -202,12 +202,12 @@ export function Caja() {
 }
 
 function Kpi({ label, value, hint, tone, big }: { label: string; value: string; hint?: string; tone?: "good" | "bad"; big?: boolean }) {
-  const color = tone === "bad" ? "text-red-400" : tone === "good" ? "text-acento" : "text-white";
+  const color = tone === "bad" ? "text-pale-rojo-txt" : tone === "good" ? "text-acento" : "text-tinta";
   return (
     <div className="rounded-lg border border-borde bg-card p-3">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-gris-2">{label}</p>
       <p className={`${big ? "text-2xl" : "text-lg"} font-bold ${color}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-[0.65rem] text-gray-600">{hint}</p>}
+      {hint && <p className="mt-0.5 text-[0.65rem] text-gris-2">{hint}</p>}
     </div>
   );
 }
@@ -250,7 +250,7 @@ function MovModal({ tipo, onClose, onSaved }: { tipo: "retiro" | "gasto" | "ingr
         <Field label="Nota (opcional)">
           <input value={nota} onChange={(e) => setNota(e.target.value)} className="input-field" />
         </Field>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
         <button onClick={save} disabled={busy || !(Number(monto) > 0)} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />} Registrar
         </button>
@@ -276,23 +276,23 @@ function CerrarModal({ teorico, onClose, onSaved }: { teorico: number; onClose: 
   return (
     <Modal open onClose={onClose} title="Cerrar caja">
       <div className="space-y-3">
-        <div className="flex justify-between text-sm text-gray-400">
+        <div className="flex justify-between text-sm text-gris">
           <span>Efectivo teórico</span>
-          <span className="font-semibold text-white">{formatARS(teorico)}</span>
+          <span className="font-semibold text-tinta">{formatARS(teorico)}</span>
         </div>
         <Field label="Efectivo real contado">
           <input type="number" value={real} onChange={(e) => setReal(e.target.value)} className="input-field" autoFocus placeholder="0" />
         </Field>
         {diferencia != null && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Diferencia</span>
-            <span className={diferencia < 0 ? "font-semibold text-red-400" : "font-semibold text-acento"}>
+            <span className="text-gris">Diferencia</span>
+            <span className={diferencia < 0 ? "font-semibold text-pale-rojo-txt" : "font-semibold text-acento"}>
               {diferencia < 0 ? "Faltante " : "Sobrante "}
               {formatARS(Math.abs(diferencia))}
             </span>
           </div>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
         <button onClick={save} disabled={busy || real === ""} className="btn-primary w-full justify-center">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />} Cerrar caja
         </button>

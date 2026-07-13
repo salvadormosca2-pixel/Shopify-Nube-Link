@@ -205,13 +205,13 @@ export function VentaRapida() {
           </div>
 
           {catalogo.loading ? (
-            <p className="mt-4 text-sm text-gray-500">Cargando catálogo…</p>
+            <p className="mt-4 text-sm text-gris-2">Cargando catálogo…</p>
           ) : variantes.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-gris-2">
               No hay variantes con stock cargado. Cargá stock por talle/color en la sección Stock.
             </p>
           ) : query.trim() && resultados.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">Sin resultados para “{query}”.</p>
+            <p className="mt-4 text-sm text-gris-2">Sin resultados para “{query}”.</p>
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {resultados.map((v) => (
@@ -223,13 +223,13 @@ export function VentaRapida() {
                   {v.imagen ? (
                     <img src={v.imagen} alt={v.producto_nombre} className="h-12 w-12 rounded-md object-cover" />
                   ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md border border-borde text-gray-600">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md border border-borde text-gris-2">
                       <ImageOff size={16} />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-white">{v.producto_nombre}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="truncate text-sm font-medium text-tinta">{v.producto_nombre}</p>
+                    <p className="text-xs text-gris">
                       {v.talle}
                       {v.color ? ` · ${v.color}` : ""} · stock {v.stock}
                     </p>
@@ -243,36 +243,36 @@ export function VentaRapida() {
 
         {/* ─── Ticket ─── */}
         <div className="rounded-xl border border-borde bg-card p-4">
-          <h2 className="mb-3 font-display text-lg font-semibold text-white">Ticket</h2>
+          <h2 className="mb-3 font-display text-lg font-semibold text-tinta">Ticket</h2>
 
           {items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">Agregá productos para empezar.</p>
+            <p className="py-8 text-center text-sm text-gris-2">Agregá productos para empezar.</p>
           ) : (
             <div className="space-y-2">
               {items.map((it) => (
                 <div key={it.variante_id} className="flex items-center gap-2 border-b border-borde pb-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-white">{it.nombre}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="truncate text-sm text-tinta">{it.nombre}</p>
+                    <p className="text-xs text-gris">
                       {it.talle}
                       {it.color ? ` · ${it.color}` : ""} · {formatARS(it.precio)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setCantidad(it.variante_id, it.cantidad - 1)} className="rounded p-1 text-gray-400 hover:bg-[#1E1E1E]">
+                    <button onClick={() => setCantidad(it.variante_id, it.cantidad - 1)} className="rounded p-1 text-gris hover:bg-dark-hover">
                       <Minus size={14} />
                     </button>
                     <input
                       value={it.cantidad}
                       onChange={(e) => setCantidad(it.variante_id, parseInt(e.target.value, 10) || 1)}
-                      className="w-10 rounded border border-borde bg-fondo text-center text-sm text-white"
+                      className="w-10 rounded border border-borde bg-fondo text-center text-sm text-tinta"
                     />
-                    <button onClick={() => setCantidad(it.variante_id, it.cantidad + 1)} className="rounded p-1 text-gray-400 hover:bg-[#1E1E1E]">
+                    <button onClick={() => setCantidad(it.variante_id, it.cantidad + 1)} className="rounded p-1 text-gris hover:bg-dark-hover">
                       <Plus size={14} />
                     </button>
                   </div>
-                  <span className="w-16 text-right text-sm font-medium text-white">{formatARS(it.precio * it.cantidad)}</span>
-                  <button onClick={() => removeItem(it.variante_id)} className="rounded p-1 text-gray-500 hover:text-red-400">
+                  <span className="w-16 text-right text-sm font-medium text-tinta">{formatARS(it.precio * it.cantidad)}</span>
+                  <button onClick={() => removeItem(it.variante_id)} className="rounded p-1 text-gris-2 hover:text-pale-rojo-txt">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -282,21 +282,21 @@ export function VentaRapida() {
 
           {/* Totales */}
           <div className="mt-3 space-y-1 text-sm">
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-gris">
               <span>Subtotal</span>
               <span>{formatARS(subtotal)}</span>
             </div>
-            <div className="flex items-center justify-between text-gray-400">
+            <div className="flex items-center justify-between text-gris">
               <span>Descuento ($)</span>
               <input
                 type="number"
                 value={descuento || ""}
                 onChange={(e) => setDescuento(Math.max(0, Number(e.target.value) || 0))}
-                className="w-24 rounded border border-borde bg-fondo px-2 py-1 text-right text-white"
+                className="w-24 rounded border border-borde bg-fondo px-2 py-1 text-right text-tinta"
                 placeholder="0"
               />
             </div>
-            <div className="flex justify-between border-t border-borde pt-2 text-base font-bold text-white">
+            <div className="flex justify-between border-t border-borde pt-2 text-base font-bold text-tinta">
               <span>Total</span>
               <span className="text-acento">{formatARS(total)}</span>
             </div>
@@ -325,7 +325,7 @@ export function VentaRapida() {
                   />
                 </Field>
                 <div>
-                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-400">Vuelto</span>
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gris">Vuelto</span>
                   <div className="input-field flex items-center font-semibold text-acento">
                     {vuelto != null ? formatARS(vuelto) : "—"}
                   </div>
@@ -342,7 +342,7 @@ export function VentaRapida() {
             </Field>
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-3 text-sm text-pale-rojo-txt">{error}</p>}
 
           <button
             onClick={confirmar}
@@ -394,17 +394,17 @@ function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl border border-borde bg-card p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center gap-2 text-acento">
           <CheckCircle2 size={22} />
-          <h2 className="font-display text-lg font-semibold text-white">Venta confirmada</h2>
+          <h2 className="font-display text-lg font-semibold text-tinta">Venta confirmada</h2>
         </div>
-        <p className="text-sm text-gray-400">Ticket {ticket.tracking}</p>
+        <p className="text-sm text-gris">Ticket {ticket.tracking}</p>
 
         <div className="my-3 space-y-1 rounded-lg border border-borde bg-fondo p-3 text-sm">
           {ticket.items.map((i, idx) => (
-            <div key={idx} className="flex justify-between text-gray-300">
+            <div key={idx} className="flex justify-between text-gris">
               <span>
                 {i.cantidad}× {i.nombre} {i.talle}
                 {i.color ? `/${i.color}` : ""}
@@ -412,12 +412,12 @@ function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => vo
               <span>{formatARS(i.precio * i.cantidad)}</span>
             </div>
           ))}
-          <div className="flex justify-between border-t border-borde pt-2 font-bold text-white">
+          <div className="flex justify-between border-t border-borde pt-2 font-bold text-tinta">
             <span>Total</span>
             <span className="text-acento">{formatARS(ticket.total)}</span>
           </div>
           {ticket.vuelto != null && (
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-gris">
               <span>Vuelto</span>
               <span>{formatARS(ticket.vuelto)}</span>
             </div>

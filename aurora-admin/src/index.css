@@ -1,21 +1,39 @@
 @import "tailwindcss";
 
 /* ================================================================
-   AURORA INDUMENTARIA — sistema visual
-   Tema oscuro neón. Rebrandeo: cambiá --color-acento y se propaga.
+   ALFIS — sistema visual
+   Editorial monocromo: papel blanco, tinta negra, bordes finos.
+   El negro es el único acento; el color queda reservado para estado
+   (stock bajo, error, pendiente) en pasteles lavados.
+   Rebranding: cambiá --color-acento y se propaga a todo el panel.
    ================================================================ */
 @theme {
-  --color-fondo: #0a0a0a;          /* fondo general */
-  --color-card: #141414;           /* superficie de cards/tablas */
-  --color-borde: #2a2a2a;          /* bordes */
-  --color-dark-hover: #1e1e1e;     /* hover filas/botones */
+  --color-fondo: #ffffff;          /* canvas */
+  --color-papel: #faf9f7;          /* superficie alterna (sidebar, thead) */
+  --color-card: #ffffff;           /* cards y tablas */
+  --color-borde: #e8e6e1;          /* bordes y divisores: 1px, siempre */
+  --color-dark-hover: #f5f4f1;     /* hover de filas y botones */
 
-  --color-acento: #39ff14;         /* ACENTO de marca (rebranding) */
-  --color-acento-dim: rgba(57, 255, 20, 0.15);
+  --color-tinta: #111111;          /* texto principal */
+  --color-gris: #6f6d68;           /* texto secundario */
+  --color-gris-2: #9b9891;         /* texto terciario / placeholders */
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-acento: #111111;         /* ACENTO = tinta. Sin neón, sin verde. */
+  --color-acento-dim: rgba(17, 17, 17, 0.06);
+
+  /* Pasteles lavados: sólo para estado semántico */
+  --color-pale-verde: #edf3ec;
+  --color-pale-verde-txt: #346538;
+  --color-pale-rojo: #fdebec;
+  --color-pale-rojo-txt: #9f2f2d;
+  --color-pale-ambar: #fbf3db;
+  --color-pale-ambar-txt: #956400;
+  --color-pale-azul: #e1f3fe;
+  --color-pale-azul-txt: #1f6c9f;
+
+  --font-sans: "Geist", "SF Pro Text", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Lyon Text", Georgia, serif;
+  --font-mono: "Geist Mono", "SF Mono", ui-monospace, monospace;
 }
 
 @layer base {
@@ -26,15 +44,25 @@
   }
   body {
     background-color: var(--color-fondo);
-    color: #e5e7eb;
+    color: var(--color-tinta);
     font-family: var(--font-sans);
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Scrollbar: track transparente, thumb #2a2a2a (hover = acento), 6px */
+  /* Títulos editoriales: serif, tracking apretado. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-weight: 400;
+  }
+
+  /* Scrollbar fino, gris; nunca protagonista. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2a2a transparent;
+    scrollbar-color: #d9d6d0 transparent;
   }
   *::-webkit-scrollbar {
     width: 6px;
@@ -44,11 +72,11 @@
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #d9d6d0;
     border-radius: 9999px;
   }
   *::-webkit-scrollbar-thumb:hover {
-    background: var(--color-acento);
+    background: var(--color-gris-2);
   }
 }
 
@@ -57,30 +85,34 @@
   background-color: var(--color-card);
   border: 1px solid var(--color-borde);
   border-radius: 0.75rem;
-  padding: 1.25rem;
+  padding: 1.5rem;
+  transition: box-shadow 0.2s ease;
 }
 
+/* CTA: negro sólido, texto blanco. Sin sombra, sin glow. */
 @utility btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--color-acento);
-  color: #000;
-  font-weight: 700;
-  border-radius: 0.5rem;
+  background-color: var(--color-tinta);
+  color: #fff;
+  font-weight: 500;
+  border-radius: 0.375rem;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   transition: all 0.15s ease;
   cursor: pointer;
   &:hover {
-    opacity: 0.9;
-    box-shadow: 0 0 20px var(--color-acento-dim);
+    background-color: #333;
+  }
+  &:active {
+    transform: scale(0.98);
   }
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.35;
     cursor: not-allowed;
-    box-shadow: none;
+    transform: none;
   }
 }
 
@@ -89,20 +121,25 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  background-color: #fff;
   border: 1px solid var(--color-borde);
-  color: #9ca3af;
-  border-radius: 0.5rem;
+  color: var(--color-tinta);
+  border-radius: 0.375rem;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   transition: all 0.15s ease;
   cursor: pointer;
   &:hover {
     background-color: var(--color-dark-hover);
-    border-color: var(--color-acento-dim);
+    border-color: #d9d6d0;
+  }
+  &:active {
+    transform: scale(0.98);
   }
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.35;
     cursor: not-allowed;
+    transform: none;
   }
 }
 
@@ -111,70 +148,89 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.5rem;
+  background-color: var(--color-pale-rojo);
+  color: var(--color-pale-rojo-txt);
+  border: 1px solid rgba(159, 47, 45, 0.2);
+  border-radius: 0.375rem;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   transition: all 0.15s ease;
   cursor: pointer;
   &:hover {
-    background-color: rgba(239, 68, 68, 0.25);
+    background-color: #fadfe0;
   }
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.35;
     cursor: not-allowed;
   }
 }
 
 @utility input-field {
   width: 100%;
-  background-color: var(--color-fondo);
+  background-color: #fff;
   border: 1px solid var(--color-borde);
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #e5e7eb;
+  color: var(--color-tinta);
   transition: all 0.15s ease;
   &::placeholder {
-    color: #4b5563;
+    color: var(--color-gris-2);
   }
   &:focus {
     outline: none;
-    border-color: var(--color-acento);
+    border-color: var(--color-tinta);
     box-shadow: 0 0 0 3px var(--color-acento-dim);
   }
 }
 
 @utility table-header {
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: 0.6875rem;
+  color: var(--color-gris);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.75rem 1rem;
+  letter-spacing: 0.06em;
+  padding: 0.875rem 1rem;
   text-align: left;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
+  background-color: var(--color-papel);
+  border-bottom: 1px solid var(--color-borde);
 }
 
 @utility table-cell {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   font-size: 0.875rem;
   border-top: 1px solid var(--color-borde);
   vertical-align: middle;
 }
 
-/* ---------------- Efectos ---------------- */
+/* ---------------- Efectos (planos, casi invisibles) ---------------- */
+/* Se conservan los nombres para no romper las páginas que ya los usan. */
 @utility glow-text {
-  text-shadow: 0 0 12px var(--color-acento-dim), 0 0 4px var(--color-acento-dim);
+  text-shadow: none;
 }
 
 @utility glow-border {
-  box-shadow: 0 0 0 1px var(--color-acento-dim), 0 0 30px var(--color-acento-dim),
-    inset 0 0 20px rgba(57, 255, 20, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* Grilla técnica tenue, para que el fondo no quede muerto. */
 @utility pattern-bg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%2339FF14' stroke-opacity='0.04' stroke-width='1'%3E%3Cpath d='M0 20h40M20 0v40'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23111111' stroke-opacity='0.03' stroke-width='1'%3E%3Cpath d='M0 20h40M20 0v40'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Entrada suave al montar. */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility aparece {
+  animation: aparecer 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

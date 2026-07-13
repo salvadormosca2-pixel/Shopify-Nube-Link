@@ -130,13 +130,13 @@ export function Combos() {
                     className="h-44 w-full rounded-t-xl object-cover"
                   />
                 ) : (
-                  <div className="flex h-44 w-full items-center justify-center border-b border-borde bg-fondo text-gray-700">
+                  <div className="flex h-44 w-full items-center justify-center border-b border-borde bg-fondo text-gris-2">
                     <Layers size={40} />
                   </div>
                 )}
                 <div className="flex flex-1 flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-display text-lg leading-tight text-white">{c.nombre}</h3>
+                    <h3 className="font-display text-lg leading-tight text-tinta">{c.nombre}</h3>
                     {c.activo ? (
                       <Badge tone="acento">Activo</Badge>
                     ) : (
@@ -146,12 +146,12 @@ export function Combos() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {ids.length === 0 ? (
-                      <span className="text-xs text-gray-600">Sin prendas</span>
+                      <span className="text-xs text-gris-2">Sin prendas</span>
                     ) : (
                       ids.map((id) => (
                         <span
                           key={id}
-                          className="rounded-md border border-borde bg-fondo px-2 py-0.5 text-xs text-gray-300"
+                          className="rounded-md border border-borde bg-fondo px-2 py-0.5 text-xs text-gris"
                         >
                           {nameById(id)}
                         </span>
@@ -166,13 +166,13 @@ export function Combos() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => openEdit(c)}
-                        className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                        className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                       >
                         <Pencil size={15} />
                       </button>
                       <button
                         onClick={() => setToDelete(c)}
-                        className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                        className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -205,7 +205,7 @@ export function Combos() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -218,7 +218,7 @@ export function Combos() {
             </Field>
             <Field label="Prendas incluidas">
               {productos.length === 0 ? (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gris-2">
                   {prods.loading ? "Cargando productos..." : "No hay productos disponibles"}
                 </p>
               ) : (
@@ -243,7 +243,7 @@ export function Combos() {
                 placeholder="https://..."
               />
             </Field>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}

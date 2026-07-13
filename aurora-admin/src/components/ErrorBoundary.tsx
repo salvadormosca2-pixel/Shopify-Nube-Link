@@ -25,9 +25,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-fondo p-6 text-center">
-          <AlertTriangle className="text-red-400" size={40} />
-          <h1 className="font-display text-xl font-bold text-white">Algo salió mal</h1>
-          <p className="max-w-md text-sm text-gray-400">{this.state.message}</p>
+          <AlertTriangle className="text-pale-rojo-txt" size={40} />
+          <h1 className="font-display text-xl font-bold text-tinta">Algo salió mal</h1>
+          <p className="max-w-md text-sm text-gris">{this.state.message}</p>
           <button className="btn-primary" onClick={() => window.location.reload()}>
             Recargar
           </button>

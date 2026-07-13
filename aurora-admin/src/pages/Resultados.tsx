@@ -45,12 +45,12 @@ interface Metricas {
   [key: string]: unknown;
 }
 
-const AXIS = { stroke: "#6b7280", fontSize: 12 };
+const AXIS = { stroke: "#6f6d68", fontSize: 12 };
 const tooltipStyle = {
-  backgroundColor: "#141414",
-  border: "1px solid #2A2A2A",
+  backgroundColor: "#ffffff",
+  border: "1px solid #e8e6e1",
   borderRadius: 8,
-  color: "#e5e7eb",
+  color: "#111111",
 };
 
 // Fecha ISO (yyyy-mm-dd) a partir de un Date.
@@ -216,21 +216,21 @@ export function Resultados() {
           {/* Serie temporal */}
           {serie.length > 0 && (
             <div className="card mt-6">
-              <h3 className="mb-4 font-display text-sm font-semibold text-white">
+              <h3 className="mb-4 font-display text-sm font-semibold text-tinta">
                 Evolución del período
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={serie}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e1" />
                   <XAxis dataKey="fecha" {...AXIS} />
                   <YAxis {...AXIS} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#2A2A2A" }} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#e8e6e1" }} />
                   <Line
                     type="monotone"
                     dataKey="total"
-                    stroke="#39FF14"
+                    stroke="#111111"
                     strokeWidth={2}
-                    dot={{ fill: "#39FF14", r: 3 }}
+                    dot={{ fill: "#111111", r: 3 }}
                     activeDot={{ r: 5 }}
                   />
                 </LineChart>

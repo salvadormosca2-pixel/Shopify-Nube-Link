@@ -78,8 +78,8 @@ function CardShell({
             {icon}
           </div>
           <div>
-            <h3 className="font-display text-base font-semibold text-white">{title}</h3>
-            {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+            <h3 className="font-display text-base font-semibold text-tinta">{title}</h3>
+            {subtitle && <p className="text-xs text-gris-2">{subtitle}</p>}
           </div>
         </div>
         {action}
@@ -202,7 +202,7 @@ function MaestroCard({
                       style={{ backgroundColor: hex }}
                     />
                   )}
-                  <span className="truncate text-sm font-medium text-white">{labelOf(m)}</span>
+                  <span className="truncate text-sm font-medium text-tinta">{labelOf(m)}</span>
                   {hex && (
                     <Badge tone="gris" mono>
                       {hex}
@@ -212,13 +212,13 @@ function MaestroCard({
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => openEdit(m)}
-                    className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                    className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => setToDelete(m)}
-                    className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -247,7 +247,7 @@ function MaestroCard({
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -342,21 +342,21 @@ function LocalCard() {
         <dl className="space-y-3 rounded-lg border border-borde p-4 text-sm">
           {local.nombre && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">Nombre</dt>
-              <dd className="text-white">{local.nombre}</dd>
+              <dt className="text-xs uppercase tracking-wide text-gris-2">Nombre</dt>
+              <dd className="text-tinta">{local.nombre}</dd>
             </div>
           )}
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Dirección</dt>
-            <dd className="text-white">{local.direccion || "—"}</dd>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">Dirección</dt>
+            <dd className="text-tinta">{local.direccion || "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Horarios</dt>
-            <dd className="whitespace-pre-line text-white">{local.horarios || "—"}</dd>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">Horarios</dt>
+            <dd className="whitespace-pre-line text-tinta">{local.horarios || "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Teléfono</dt>
-            <dd className="text-white">{local.telefono || "—"}</dd>
+            <dt className="text-xs uppercase tracking-wide text-gris-2">Teléfono</dt>
+            <dd className="text-tinta">{local.telefono || "—"}</dd>
           </div>
         </dl>
       )}
@@ -380,7 +380,7 @@ function LocalCard() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -439,8 +439,8 @@ function InfoCard({
       icon={icon}
       action={<Badge tone="azul">Configurable</Badge>}
     >
-      <div className="flex items-start gap-2 rounded-lg border border-borde p-4 text-sm text-gray-400">
-        <Info size={16} className="mt-0.5 shrink-0 text-blue-400" />
+      <div className="flex items-start gap-2 rounded-lg border border-borde p-4 text-sm text-gris">
+        <Info size={16} className="mt-0.5 shrink-0 text-pale-azul-txt" />
         <p>{description}</p>
       </div>
     </CardShell>

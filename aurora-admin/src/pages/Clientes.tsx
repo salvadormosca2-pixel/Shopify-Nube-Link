@@ -201,7 +201,7 @@ function CalificacionTab() {
       <div className="mt-6">
         <FilterBar>
           <div className="relative flex-1 sm:min-w-[220px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-2" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -231,9 +231,9 @@ function CalificacionTab() {
               return (
                 <Row key={c.id} onClick={() => openFicha(c.id)}>
                   <Cell>
-                    <p className="font-medium text-white">{c.nombre || "Sin nombre"}</p>
+                    <p className="font-medium text-tinta">{c.nombre || "Sin nombre"}</p>
                   </Cell>
-                  <Cell mono className="text-gray-400">
+                  <Cell mono className="text-gris">
                     {c.telefono || String(c.id)}
                   </Cell>
                   <Cell>
@@ -242,18 +242,18 @@ function CalificacionTab() {
                         {calif.charAt(0).toUpperCase() + calif.slice(1)}
                       </Badge>
                     ) : (
-                      <span className="text-gray-600">—</span>
+                      <span className="text-gris-2">—</span>
                     )}
                   </Cell>
                   <Cell>
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#2A2A2A]">
+                      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-borde">
                         <div
                           className="h-full rounded-full bg-acento"
                           style={{ width: `${score}%` }}
                         />
                       </div>
-                      <span className="font-mono text-xs text-gray-400">{score}</span>
+                      <span className="font-mono text-xs text-gris">{score}</span>
                     </div>
                   </Cell>
                 </Row>
@@ -283,7 +283,7 @@ function CalificacionTab() {
         {detail.loading && !form ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 animate-pulse rounded-lg bg-[#2A2A2A]/50" />
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-borde/50" />
             ))}
           </div>
         ) : detail.error ? (
@@ -291,7 +291,7 @@ function CalificacionTab() {
         ) : form ? (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -301,7 +301,7 @@ function CalificacionTab() {
                   {form.calificacion}
                 </Badge>
               )}
-              <span className="font-mono text-xs text-gray-500">
+              <span className="font-mono text-xs text-gris-2">
                 {form.telefono || String(form.id)} · score {clampScore(form.score)}
               </span>
             </div>
@@ -390,7 +390,7 @@ function DerivacionesTab() {
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <div className="mb-4 rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
           {error}
         </div>
       )}
@@ -400,10 +400,10 @@ function DerivacionesTab() {
           return (
             <Row key={d.id}>
               <Cell>
-                <p className="font-medium text-white">{d.cliente_nombre || "Sin nombre"}</p>
+                <p className="font-medium text-tinta">{d.cliente_nombre || "Sin nombre"}</p>
               </Cell>
-              <Cell className="text-gray-400">{d.motivo || "—"}</Cell>
-              <Cell mono className="text-gray-400">
+              <Cell className="text-gris">{d.motivo || "—"}</Cell>
+              <Cell mono className="text-gris">
                 {d.created_at ? formatDateTime(d.created_at) : "—"}
               </Cell>
               <Cell>
@@ -459,7 +459,7 @@ export function Clientes() {
               className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition ${
                 active
                   ? "border-acento/40 bg-acento/10 text-acento"
-                  : "border-borde text-gray-400 hover:bg-[#1E1E1E]"
+                  : "border-borde text-gris hover:bg-dark-hover"
               }`}
             >
               <Icon size={15} />

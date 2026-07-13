@@ -227,14 +227,14 @@ export function Mensajes() {
       </PageHeader>
 
       {cfg.data && !cfg.data.chatwoot_ok && (
-        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-3 rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm text-pale-ambar-txt">
           Chatwoot no está conectado: falta cargar <strong>CHATWOOT_URL</strong> y{" "}
           <strong>CHATWOOT_API_TOKEN</strong> en las variables del backend (Railway).
         </div>
       )}
 
       {cfg.data?.chatwoot_ok && !cfg.data.etiqueta && (
-        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-3 rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm text-pale-ambar-txt">
           Todavía no elegiste qué <strong>etiqueta</strong> controla el bot. Sin eso, el switch
           ON/OFF no puede hacer nada. Apretá <strong>"Configurar bot"</strong>.
         </div>
@@ -267,20 +267,20 @@ export function Mensajes() {
                 <button
                   key={c.id}
                   onClick={() => setActiveId(c.id)}
-                  className={`flex w-full flex-col gap-1 border-b border-borde px-4 py-3 text-left transition hover:bg-[#1E1E1E] ${
+                  className={`flex w-full flex-col gap-1 border-b border-borde px-4 py-3 text-left transition hover:bg-dark-hover ${
                     activeRow ? "bg-acento/10" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium text-white">
+                    <span className="truncate font-medium text-tinta">
                       {c.nombre || "Sin nombre"}
                     </span>
-                    <span className="shrink-0 text-[11px] text-gray-500">
+                    <span className="shrink-0 text-[11px] text-gris-2">
                       {c.hora ?? (c.updated_at ? formatDateTime(c.updated_at) : "")}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs text-gray-400">
+                    <span className="truncate text-xs text-gris">
                       {c.ultimo_mensaje || "—"}
                     </span>
                     {c.no_leida && (
@@ -317,8 +317,8 @@ export function Mensajes() {
               {/* Header del chat */}
               <div className="flex items-center justify-between gap-3 border-b border-borde px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-white">{active.nombre || "Sin nombre"}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="truncate font-medium text-tinta">{active.nombre || "Sin nombre"}</p>
+                  <p className="text-xs text-gris-2">
                     {active.telefono ? `${active.telefono} · ` : ""}Conversación #{active.id}
                   </p>
                   {(active.etiquetas?.length ?? 0) > 0 && (
@@ -336,7 +336,7 @@ export function Mensajes() {
                   className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     botOn
                       ? "border-acento/30 bg-acento/10 text-acento"
-                      : "border-borde bg-[#1E1E1E] text-gray-400"
+                      : "border-borde bg-dark-hover text-gris"
                   }`}
                   title="Activar o desactivar el bot de n8n para esta conversación"
                 >
@@ -366,13 +366,13 @@ export function Mensajes() {
                         <div
                           className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
                             incoming
-                              ? "bg-[#1E1E1E] text-gray-200"
-                              : "bg-acento/10 text-white"
+                              ? "bg-dark-hover text-gris"
+                              : "bg-acento/10 text-tinta"
                           }`}
                         >
                           <p className="whitespace-pre-wrap break-words">{msgText(m)}</p>
                           {m.created_at && (
-                            <p className="mt-1 text-[10px] text-gray-500">
+                            <p className="mt-1 text-[10px] text-gris-2">
                               {formatDateTime(m.created_at)}
                             </p>
                           )}
@@ -387,12 +387,12 @@ export function Mensajes() {
               {/* Footer: input + enviar */}
               <div className="border-t border-borde px-4 py-3">
                 {chatError && (
-                  <div className="mb-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                  <div className="mb-2 rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-xs text-pale-rojo-txt">
                     {chatError}
                   </div>
                 )}
                 {!botOn && (
-                  <p className="mb-2 text-[11px] text-gray-500">
+                  <p className="mb-2 text-[11px] text-gris-2">
                     <Badge tone="gris" mono>
                       bot-apagado
                     </Badge>{" "}
@@ -440,8 +440,8 @@ export function Mensajes() {
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-400">
-            El bot de n8n se guía por las <strong className="text-white">etiquetas</strong> de
+          <p className="text-sm text-gris">
+            El bot de n8n se guía por las <strong className="text-tinta">etiquetas</strong> de
             Chatwoot. Acá elegís cuál es la que lo controla: el panel la pone o la saca, sin tocar
             el workflow.
           </p>
@@ -480,7 +480,7 @@ export function Mensajes() {
             </Select>
           </Field>
 
-          <p className="rounded-md border border-borde p-2.5 text-xs text-gray-500">
+          <p className="rounded-md border border-borde p-2.5 text-xs text-gris-2">
             Elegí el mismo criterio que ya usa tu workflow. Si te equivocás, el switch va a hacer lo
             contrario de lo que esperás: probalo en una conversación antes de usar "en todas".
           </p>

@@ -170,7 +170,7 @@ export function Productos() {
 
       <FilterBar>
         <div className="relative flex-1 sm:min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-2" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -198,7 +198,7 @@ export function Productos() {
 
       {seleccion.size > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-acento/30 bg-acento/5 px-4 py-3">
-          <p className="text-sm text-white">
+          <p className="text-sm text-tinta">
             {seleccion.size} {seleccion.size === 1 ? "producto seleccionado" : "productos seleccionados"}
           </p>
           <button className="btn-primary ml-auto" onClick={() => setEnviarOpen(true)}>
@@ -262,18 +262,18 @@ export function Productos() {
                       className="h-10 w-10 rounded-md border border-borde object-cover"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-borde text-gray-600">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-borde text-gris-2">
                       <ImageOff size={16} />
                     </div>
                   )}
                 </Cell>
                 <Cell>
-                  <p className="font-medium text-white">{p.nombre}</p>
-                  {p.marca && <p className="text-xs text-gray-500">{p.marca}</p>}
+                  <p className="font-medium text-tinta">{p.nombre}</p>
+                  {p.marca && <p className="text-xs text-gris-2">{p.marca}</p>}
                 </Cell>
-                <Cell className="text-gray-400">{p.categoria || "—"}</Cell>
-                <Cell className="text-gray-400 capitalize">{p.genero || "—"}</Cell>
-                <Cell mono className="text-white">
+                <Cell className="text-gris">{p.categoria || "—"}</Cell>
+                <Cell className="text-gris capitalize">{p.genero || "—"}</Cell>
+                <Cell mono className="text-tinta">
                   {formatARS(p.precio_contado)}
                   {ahorro > 0 && (
                     <span className="mt-1 block">
@@ -283,10 +283,10 @@ export function Productos() {
                     </span>
                   )}
                 </Cell>
-                <Cell mono className="text-gray-400">
+                <Cell mono className="text-gris">
                   {formatARS(p.precio_tarjeta)}
                 </Cell>
-                <Cell className="text-gray-400">{p.talles?.join(", ") || "—"}</Cell>
+                <Cell className="text-gris">{p.talles?.join(", ") || "—"}</Cell>
                 <Cell>
                   {p.activo ? (
                     <Badge tone="acento">Activo</Badge>
@@ -298,13 +298,13 @@ export function Productos() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => setForm({ ...empty(), ...p })}
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
                     >
                       <Pencil size={15} />
                     </button>
                     <button
                       onClick={() => setToDelete(p)}
-                      className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                      className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -336,7 +336,7 @@ export function Productos() {
         {form && (
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {formError}
               </div>
             )}
@@ -462,7 +462,7 @@ export function Productos() {
                 onChange={(imgs) => setForm({ ...form, imagenes: imgs, imagen: imgs[0] ?? "" })}
               />
             </Field>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}
@@ -471,7 +471,7 @@ export function Productos() {
               />
               Producto activo
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.destacado ?? false}
@@ -480,7 +480,7 @@ export function Productos() {
               />
               Destacado / más vendido (el bot lo recomienda primero)
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.es_complemento ?? false}
@@ -525,7 +525,7 @@ function StockPorTalle({
   onChange: (v: Variante[]) => void;
 }) {
   if (talles.length === 0) {
-    return <p className="text-xs text-gray-500">Seleccioná los talles arriba para cargar el stock.</p>;
+    return <p className="text-xs text-gris-2">Seleccioná los talles arriba para cargar el stock.</p>;
   }
   const cols = colores.length > 0 ? colores : [null];
   // Filas visibles: talles × colores elegidos + variantes existentes que no entren ahí.
@@ -553,7 +553,7 @@ function StockPorTalle({
     <div className="overflow-x-auto rounded-lg border border-borde">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-borde text-left text-xs text-gray-500">
+          <tr className="border-b border-borde text-left text-xs text-gris-2">
             <th className="px-3 py-2">Talle</th>
             {colores.length > 0 && <th className="px-3 py-2">Color</th>}
             <th className="px-3 py-2">Cantidad</th>
@@ -562,8 +562,8 @@ function StockPorTalle({
         <tbody>
           {rows.map(({ talle, color }) => (
             <tr key={`${talle}|${color ?? ""}`} className="border-b border-borde/50 last:border-0">
-              <td className="px-3 py-1.5 font-medium text-white">{talle}</td>
-              {colores.length > 0 && <td className="px-3 py-1.5 text-gray-400">{color ?? "—"}</td>}
+              <td className="px-3 py-1.5 font-medium text-tinta">{talle}</td>
+              {colores.length > 0 && <td className="px-3 py-1.5 text-gris">{color ?? "—"}</td>}
               <td className="px-3 py-1.5">
                 <input
                   type="number"
@@ -631,7 +631,7 @@ function ImageUploader({ value, onChange }: { value: string[]; onChange: (imgs: 
                   <Star size={16} />
                 </button>
               )}
-              <button type="button" onClick={() => borrar(i)} title="Borrar" className="text-red-400">
+              <button type="button" onClick={() => borrar(i)} title="Borrar" className="text-pale-rojo-txt">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -647,7 +647,7 @@ function ImageUploader({ value, onChange }: { value: string[]; onChange: (imgs: 
       >
         {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Subir imagen
       </button>
-      {err && <p className="mt-1 text-xs text-red-400">{err}</p>}
+      {err && <p className="mt-1 text-xs text-pale-rojo-txt">{err}</p>}
     </div>
   );
 }

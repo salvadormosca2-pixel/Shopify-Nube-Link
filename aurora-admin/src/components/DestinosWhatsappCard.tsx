@@ -92,10 +92,10 @@ export function DestinosWhatsappCard() {
             <MessageCircle size={18} />
           </div>
           <div>
-            <h3 className="font-display text-base font-semibold text-white">
+            <h3 className="font-display text-base font-semibold text-tinta">
               Destinos de WhatsApp
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gris-2">
               Grupos/comunidades donde publicar productos desde el catálogo
             </p>
           </div>
@@ -105,7 +105,7 @@ export function DestinosWhatsappCard() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-pale-rojo-txt">{error}</p>}
 
       {list.loading ? (
         <div className="space-y-2">
@@ -114,7 +114,7 @@ export function DestinosWhatsappCard() {
           ))}
         </div>
       ) : destinos.length === 0 ? (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gris-2">
           Sin destinos. Agregá el grupo (o el grupo de anuncios de la comunidad) donde querés
           publicar.
         </p>
@@ -126,20 +126,20 @@ export function DestinosWhatsappCard() {
               className="flex items-center gap-3 rounded-md border border-borde px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">{d.nombre}</p>
-                <p className="truncate font-mono text-xs text-gray-500">{d.remote_jid}</p>
+                <p className="truncate text-sm font-medium text-tinta">{d.nombre}</p>
+                <p className="truncate font-mono text-xs text-gris-2">{d.remote_jid}</p>
               </div>
               <Badge tone="gris">{d.tipo}</Badge>
               {d.activo ? <Badge tone="acento">Activo</Badge> : <Badge tone="gris">Inactivo</Badge>}
               <button
                 onClick={() => setForm({ ...d })}
-                className="rounded-md p-1.5 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                className="rounded-md p-1.5 text-gris transition hover:bg-dark-hover hover:text-acento"
               >
                 <Pencil size={15} />
               </button>
               <button
                 onClick={() => setToDelete(d)}
-                className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                className="rounded-md p-1.5 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
               >
                 <Trash2 size={15} />
               </button>
@@ -190,7 +190,7 @@ export function DestinosWhatsappCard() {
             </Field>
 
             {form.tipo === "comunidad" && (
-              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
+              <p className="rounded-md border border-pale-ambar-txt/20 bg-pale-ambar p-2.5 text-xs text-pale-ambar-txt">
                 Ojo: en una comunidad hay que usar el ID del grupo de <strong>Anuncios</strong>, no
                 el de la comunidad en sí. Buscalo con el botón de abajo.
               </p>
@@ -205,18 +205,18 @@ export function DestinosWhatsappCard() {
               {grupos && (
                 <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-md border border-borde p-2">
                   {grupos.length === 0 ? (
-                    <p className="text-xs text-gray-500">La instancia no tiene grupos.</p>
+                    <p className="text-xs text-gris-2">La instancia no tiene grupos.</p>
                   ) : (
                     grupos.map((g) => (
                       <button
                         key={g.jid}
                         onClick={() => setForm({ ...form, remote_jid: g.jid, nombre: form.nombre || g.nombre })}
-                        className={`w-full rounded-md px-2 py-1.5 text-left transition hover:bg-[#1E1E1E] ${
+                        className={`w-full rounded-md px-2 py-1.5 text-left transition hover:bg-dark-hover ${
                           form.remote_jid === g.jid ? "bg-acento/10" : ""
                         }`}
                       >
-                        <p className="truncate text-sm text-white">{g.nombre}</p>
-                        <p className="truncate font-mono text-xs text-gray-500">{g.jid}</p>
+                        <p className="truncate text-sm text-tinta">{g.nombre}</p>
+                        <p className="truncate font-mono text-xs text-gris-2">{g.jid}</p>
                       </button>
                     ))
                   )}
@@ -224,7 +224,7 @@ export function DestinosWhatsappCard() {
               )}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}

@@ -94,21 +94,21 @@ export function Sucursales() {
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <MapPin size={18} className="text-acento" />
-                  <span className="font-display text-lg font-bold text-white">{s.nombre}</span>
+                  <span className="font-display text-lg font-bold text-tinta">{s.nombre}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {s.activo ? <Badge tone="acento">Activo</Badge> : <Badge tone="rojo">Inactivo</Badge>}
                   <button
                     onClick={() => { setError(null); setForm(s); }}
                     title="Editar"
-                    className="rounded-md p-2 text-gray-400 transition hover:bg-[#1E1E1E] hover:text-acento"
+                    className="rounded-md p-2 text-gris transition hover:bg-dark-hover hover:text-acento"
                   >
                     <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => eliminar(s)}
                     title="Eliminar"
-                    className="rounded-md p-2 text-gray-400 transition hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-md p-2 text-gris transition hover:bg-pale-rojo hover:text-pale-rojo-txt"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -145,7 +145,7 @@ export function Sucursales() {
         {form && (
           <div className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {error}
               </div>
             )}
@@ -169,7 +169,7 @@ export function Sucursales() {
             <Field label="Política de cambios">
               <TextArea rows={2} value={form.cambios} onChange={(e) => setForm({ ...form, cambios: e.target.value })} placeholder="Cambios dentro de los 30 días con etiqueta y ticket." />
             </Field>
-            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-300">
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gris">
               <input
                 type="checkbox"
                 checked={form.activo}
@@ -188,8 +188,8 @@ export function Sucursales() {
 function Dato({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2">
-      <dt className="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="text-gray-300">{value || <span className="text-gray-600">—</span>}</dd>
+      <dt className="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gris-2">{label}</dt>
+      <dd className="text-gris">{value || <span className="text-gris-2">—</span>}</dd>
     </div>
   );
 }

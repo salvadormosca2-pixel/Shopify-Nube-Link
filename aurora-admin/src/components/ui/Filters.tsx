@@ -36,7 +36,7 @@ export function FilterChips({
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               active
                 ? "border-acento/40 bg-acento/10 text-acento"
-                : "border-borde text-gray-400 hover:bg-[#1E1E1E]"
+                : "border-borde text-gris hover:bg-dark-hover"
             }`}
           >
             {o.label}

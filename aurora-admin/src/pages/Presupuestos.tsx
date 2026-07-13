@@ -144,10 +144,10 @@ export function Presupuestos() {
           {presupuestos.map((p) => (
             <Row key={p.id} onClick={() => open(p)}>
               <Cell>
-                <p className="font-medium text-white">{clienteOf(p)}</p>
+                <p className="font-medium text-tinta">{clienteOf(p)}</p>
               </Cell>
-              <Cell className="text-gray-400">{formatDate(fechaOf(p))}</Cell>
-              <Cell mono className="text-white">
+              <Cell className="text-gris">{formatDate(fechaOf(p))}</Cell>
+              <Cell mono className="text-tinta">
                 {formatARS(p.total)}
               </Cell>
               <Cell>
@@ -188,21 +188,21 @@ export function Presupuestos() {
         ) : d ? (
           <div className="space-y-5">
             {detailError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
                 {detailError}
               </div>
             )}
 
             {/* Info cliente */}
             <div className="card flex flex-col gap-1 p-4">
-              <div className="flex items-center gap-2 text-white">
+              <div className="flex items-center gap-2 text-tinta">
                 <User size={16} className="text-acento" />
                 <span className="font-medium">{clienteOf(d)}</span>
               </div>
-              {d.cliente_email && <p className="text-xs text-gray-400">{d.cliente_email}</p>}
-              {d.cliente_telefono && <p className="text-xs text-gray-400">{d.cliente_telefono}</p>}
+              {d.cliente_email && <p className="text-xs text-gris">{d.cliente_email}</p>}
+              {d.cliente_telefono && <p className="text-xs text-gris">{d.cliente_telefono}</p>}
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500">{formatDate(fechaOf(d))}</span>
+                <span className="text-xs text-gris-2">{formatDate(fechaOf(d))}</span>
                 {d.canal && <Badge tone="azul">{d.canal}</Badge>}
                 <Badge tone={estadoTone(d.estado)}>{d.estado || "—"}</Badge>
               </div>
@@ -210,8 +210,8 @@ export function Presupuestos() {
 
             {/* Items */}
             <div>
-              <p className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-300">
-                <FileText size={15} className="text-gray-500" /> Items
+              <p className="mb-2 flex items-center gap-2 text-sm font-medium text-gris">
+                <FileText size={15} className="text-gris-2" /> Items
               </p>
               {items.length === 0 ? (
                 <EmptyState message="Sin items" />
@@ -220,13 +220,13 @@ export function Presupuestos() {
                   {items.map((it, i) => (
                     <Row key={i}>
                       <Cell>
-                        <span className="text-white">{it.nombre || "—"}</span>
+                        <span className="text-tinta">{it.nombre || "—"}</span>
                       </Cell>
-                      <Cell className="text-gray-400">{it.talle || "—"}</Cell>
-                      <Cell mono className="text-gray-400">
+                      <Cell className="text-gris">{it.talle || "—"}</Cell>
+                      <Cell mono className="text-gris">
                         {it.cantidad ?? 1}
                       </Cell>
-                      <Cell mono className="text-white">
+                      <Cell mono className="text-tinta">
                         {formatARS(it.precio)}
                       </Cell>
                     </Row>
@@ -239,12 +239,12 @@ export function Presupuestos() {
             <div className="card space-y-2 p-4">
               {d.subtotal != null && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Subtotal</span>
-                  <span className="font-mono text-gray-300">{formatARS(d.subtotal)}</span>
+                  <span className="text-gris">Subtotal</span>
+                  <span className="font-mono text-gris">{formatARS(d.subtotal)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between border-t border-borde pt-2 text-base">
-                <span className="font-medium text-white">Total</span>
+                <span className="font-medium text-tinta">Total</span>
                 <span className="font-mono font-semibold text-acento">{formatARS(d.total)}</span>
               </div>
             </div>
