@@ -45,9 +45,34 @@ interface Categoria {
   nombre: string;
 }
 
+// Fila de la tabla `maestros` (talles, colores): lo que se edita en Configuración.
+interface Maestro {
+  id: string | number;
+  nombre: string;
+}
+
+// Chips a mostrar: los del maestro (o el fallback si está vacío) + los que el
+// producto ya tenía guardados, para que un color viejo no desaparezca de la
+// vista sólo porque lo borraron de Configuración.
+function opciones(
+  maestro: Maestro[] | null,
+  fallback: string[],
+  yaElegidos: string[] | undefined,
+): string[] {
+  const base = maestro?.length ? maestro.map((m) => m.nombre) : fallback;
+  const out = [...base];
+  for (const v of yaElegidos ?? []) {
+    if (!out.some((o) => o.toLowerCase() === v.toLowerCase())) out.push(v);
+  }
+  return out;
+}
+
 const GENEROS = ["mujer", "hombre", "unisex"];
-const TALLES = ["XS", "S", "M", "L", "XL", "XXL", "36", "38", "40", "42", "44", "46"];
-const COLORES = ["Negro", "Blanco", "Gris", "Azul", "Rojo", "Verde", "Beige", "Marrón"];
+// Talles y colores salen de Configuración (tabla `maestros`), no de una lista
+// fija: si no, no se podía cargar un color que no estuviera previsto acá.
+// Estos son sólo el fallback para cuando el maestro todavía está vacío.
+const TALLES_FALLBACK = ["XS", "S", "M", "L", "XL", "XXL", "36", "38", "40", "42", "44", "46"];
+const COLORES_FALLBACK = ["Negro", "Blanco", "Gris", "Azul", "Rojo", "Verde", "Beige", "Marrón"];
 
 // Estilos sugeridos según la categoría (el campo acepta cualquier texto igual).
 const ESTILOS_POR_CATEGORIA: Record<string, string[]> = {
@@ -99,6 +124,19 @@ export function Productos() {
     [search, categoria, genero],
   );
   const cats = useApi<Categoria[]>(() => api.get(`/categorias`).then((r) => r.data), []);
+  const coloresM = useApi<Maestro[]>(() => api.get(`/admin/colores`).then((r) => r.data), []);
+  const tallesM = useApi<Maestro[]>(() => api.get(`/admin/talles`).then((r) => r.data), []);
+
+  // Alta al vuelo desde el form: lo guarda en el maestro (queda disponible para
+  // los próximos productos) y refresca la lista.
+  const crearColor = async (nombre: string) => {
+    await api.post(`/admin/colores`, { nombre });
+    coloresM.refetch();
+  };
+  const crearTalle = async (nombre: string) => {
+    await api.post(`/admin/talles`, { nombre });
+    tallesM.refetch();
+  };
 
   const [form, setForm] = useState<Producto | null>(null);
   const [toDelete, setToDelete] = useState<Producto | null>(null);
@@ -436,16 +474,28 @@ export function Productos() {
             </div>
             <Field label="Talles disponibles">
               <MultiSelect
-                options={TALLES.map((t) => ({ value: t, label: t }))}
+                options={opciones(
+                  tallesM.data,
+                  TALLES_FALLBACK,
+                  form.talles,
+                ).map((t) => ({ value: t, label: t }))}
                 value={form.talles ?? []}
                 onChange={(v) => setForm({ ...form, talles: v })}
+                onCrear={crearTalle}
+                placeholderNuevo="Otro talle…"
               />
             </Field>
             <Field label="Colores">
               <MultiSelect
-                options={COLORES.map((c) => ({ value: c, label: c }))}
+                options={opciones(
+                  coloresM.data,
+                  COLORES_FALLBACK,
+                  form.colores,
+                ).map((c) => ({ value: c, label: c }))}
                 value={form.colores ?? []}
                 onChange={(v) => setForm({ ...form, colores: v })}
+                onCrear={crearColor}
+                placeholderNuevo="Otro color…"
               />
             </Field>
             <Field label="Stock por talle (crea/actualiza las variantes)">

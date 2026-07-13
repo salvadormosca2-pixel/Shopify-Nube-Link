@@ -597,10 +597,48 @@ router.get("/admin/usuarios/:id/actividad", (_req, res) => res.json([]));
 // ─── CONFIGURACIÓN: maestros (categorías/marcas/talles/colores/métodos pago) ──
 // GET de categorías/marcas/métodos-pago ya existen (derivados/estáticos); acá se
 // agrega el GET de talles/colores y el CRUD de todos contra la tabla `maestros`.
-function registrarMaestro(tipo: string, mut: string, getPath: string | null, conHex = false) {
+// La tabla `maestros` arranca vacía, así que el form de producto se quedaba sin
+// talles ni colores para elegir. La primera vez se siembra con lo que YA usan
+// los productos cargados (mismo criterio que /categorias); a partir de ahí manda
+// la tabla, editable desde Configuración.
+async function sembrarSiVacio(tipo: string, seed: () => Promise<string[]>): Promise<void> {
+  const [existe] = await db.select().from(maestrosTable).where(eq(maestrosTable.tipo, tipo)).limit(1);
+  if (existe) return;
+  // Dedup sin distinguir mayúsculas: "Gris" y "gris" son el mismo color.
+  const vistos = new Map<string, string>();
+  for (const raw of await seed()) {
+    const nombre = raw.trim();
+    if (!nombre) continue;
+    const key = nombre.toLowerCase();
+    if (!vistos.has(key)) vistos.set(key, nombre[0].toUpperCase() + nombre.slice(1));
+  }
+  if (vistos.size === 0) return;
+  await db.insert(maestrosTable).values([...vistos.values()].map((nombre) => ({ tipo, nombre, hex: "" })));
+}
+
+// Ojo: hay productos con los colores metidos en un solo campo ("negro,gris,azul"),
+// así que hay que abrirlos por coma antes de sembrar el maestro.
+async function coloresEnUso(): Promise<string[]> {
+  const rows = await db.select({ colors: productsTable.colors }).from(productsTable);
+  return rows.flatMap((r) => (r.colors ?? []).flatMap((c) => String(c).split(",")));
+}
+
+async function tallesEnUso(): Promise<string[]> {
+  const rows = await db.select({ sizes: productsTable.sizes }).from(productsTable);
+  return rows.flatMap((r) => (r.sizes ?? []).flatMap((s) => String(s).split(",")));
+}
+
+function registrarMaestro(
+  tipo: string,
+  mut: string,
+  getPath: string | null,
+  conHex = false,
+  seed?: () => Promise<string[]>,
+) {
   if (getPath) {
     router.get(getPath, async (_req, res) => {
       try {
+        if (seed) await sembrarSiVacio(tipo, seed);
         const rows = await db.select().from(maestrosTable).where(eq(maestrosTable.tipo, tipo)).orderBy(maestrosTable.nombre);
         res.json(rows.map((m) => ({ id: m.id, nombre: m.nombre, ...(conHex ? { hex: m.hex, color: m.hex } : {}) })));
       } catch { res.status(500).json({ error: "internal_error", message: "No se pudo obtener el maestro" }); }
@@ -611,6 +649,14 @@ function registrarMaestro(tipo: string, mut: string, getPath: string | null, con
       const b = req.body ?? {};
       const nombre = String(b.nombre ?? "").trim();
       if (!nombre) { res.status(400).json({ error: "invalid_name", message: "El nombre es obligatorio" }); return; }
+      // El form de producto crea colores al vuelo: si ya existe (sin importar
+      // mayúsculas), devolvemos el que hay en vez de duplicarlo en la lista.
+      const yaEsta = (await db.select().from(maestrosTable).where(eq(maestrosTable.tipo, tipo)))
+        .find((m) => m.nombre.toLowerCase() === nombre.toLowerCase());
+      if (yaEsta) {
+        res.status(200).json({ id: yaEsta.id, nombre: yaEsta.nombre, ...(conHex ? { hex: yaEsta.hex } : {}) });
+        return;
+      }
       const [created] = await db.insert(maestrosTable).values({ tipo, nombre, hex: String(b.hex ?? "") }).returning();
       res.status(201).json({ id: created.id, nombre: created.nombre, ...(conHex ? { hex: created.hex } : {}) });
     } catch { res.status(500).json({ error: "internal_error", message: "No se pudo crear" }); }
@@ -639,8 +685,8 @@ function registrarMaestro(tipo: string, mut: string, getPath: string | null, con
 }
 // Sólo talles y colores necesitan GET nuevo; categorías/marcas/métodos-pago ya
 // tienen GET público (derivado/estático), pero registramos su CRUD igual.
-registrarMaestro("talle", "/admin/talles", "/admin/talles");
-registrarMaestro("color", "/admin/colores", "/admin/colores", true);
+registrarMaestro("talle", "/admin/talles", "/admin/talles", false, tallesEnUso);
+registrarMaestro("color", "/admin/colores", "/admin/colores", true, coloresEnUso);
 registrarMaestro("categoria", "/admin/categorias", null);
 registrarMaestro("marca", "/admin/marcas", null);
 registrarMaestro("metodo_pago", "/admin/metodos-pago", null);
