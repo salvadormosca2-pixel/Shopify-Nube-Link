@@ -244,9 +244,37 @@ router.patch("/admin/envios/:id", async (req, res) => {
     const b = req.body ?? {};
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (b.estado !== undefined) set.estadoEnvio = String(b.estado);
-    if (b.transportista !== undefined) set.transportista = String(b.transportista);
+
+    if (b.transportista !== undefined) {
+      const t = String(b.transportista).trim();
+      // El transportista es el NOMBRE de la empresa. Si vienen sólo dígitos es
+      // un teléfono mal pegado: se rechaza en vez de guardar basura.
+      if (t && /^[\d\s+()-]+$/.test(t)) {
+        res.status(400).json({
+          error: "transportista_invalido",
+          message: "El transportista es el nombre de la empresa (ej: Correo Argentino), no un teléfono.",
+        });
+        return;
+      }
+      set.transportista = t || null;
+    }
+
     // El código del correo va a SU columna (antes pisaba tracking_url).
-    if (b.tracking !== undefined) set.codigoSeguimiento = String(b.tracking) || null;
+    if (b.tracking !== undefined) {
+      const t = String(b.tracking).trim();
+      // "AJ-XXXXXXX" es el código de COMPRA del pedido, no el del correo.
+      // Guardarlo acá es lo que hacía que el bot le diera al cliente un código
+      // que el transportista no reconoce.
+      if (t && /^AJ-?[A-Z0-9]{6,}$/i.test(t)) {
+        res.status(400).json({
+          error: "tracking_invalido",
+          message:
+            "Ese es el código de compra del pedido (AJ-...), no el del correo. Cargá el número de seguimiento que te dio el transportista (ej: AA123456789AR).",
+        });
+        return;
+      }
+      set.codigoSeguimiento = t || null;
+    }
     if (b.tracking_url !== undefined) set.trackingUrl = String(b.tracking_url) || null;
 
     // Sella la fecha de despacho la PRIMERA vez que sale de "preparando".

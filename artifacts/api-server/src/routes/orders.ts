@@ -139,6 +139,10 @@ router.post("/orders", async (req, res) => {
           shippingCost: String(shippingCost),
           total: String(total),
           paymentId: null,
+          // El checkout de la tienda SIEMPRE es a domicilio (pide provincia y
+          // cobra envío; no hay opción de retiro). Sin esto quedaba el default
+          // "retiro" y el bot le decía al cliente que lo retiraba por el local.
+          formaEntrega: "envio",
           // La tienda descuenta stock acá mismo (abajo), así que el pedido ya
           // queda con el stock aplicado y el admin no lo vuelve a descontar.
           stockApplied: true,
