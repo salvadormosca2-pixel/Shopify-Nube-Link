@@ -336,11 +336,39 @@ function identidadCoincide(
   return dados.some((t) => delPedido.has(t));
 }
 
-router.post("/bot/seguimiento", async (req, res) => {
+// Alias tolerantes: el workflow del bot puede mandar el campo con distintos
+// nombres (y por body o por query). Antes que hacerlo fallar en silencio, se
+// acepta cualquiera de estas variantes.
+const CAMPOS_CODIGO = [
+  "codigo",
+  "codigo_compra",
+  "codigo_pedido",
+  "codigo_de_compra",
+  "numero_pedido",
+  "pedido",
+  "tracking",
+  "code",
+];
+const CAMPOS_NOMBRE = ["nombre", "nombre_cliente", "cliente", "nombre_completo", "first_name"];
+const CAMPOS_APELLIDO = ["apellido", "apellido_cliente", "last_name"];
+
+const primero = (src: Record<string, unknown>, claves: string[]): unknown => {
+  for (const k of claves) {
+    const v = src[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return undefined;
+};
+
+async function handlerSeguimiento(req: Request, res: Response): Promise<void> {
   try {
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    const codigo = normalizarCodigoCompra(body["codigo"] ?? body["codigo_compra"]);
-    const dados = tokensNombre(body["nombre"], body["apellido"]);
+    // Toma los datos del body O de la query, con cualquiera de los alias.
+    const src = {
+      ...((req.query ?? {}) as Record<string, unknown>),
+      ...((req.body ?? {}) as Record<string, unknown>),
+    };
+    const codigo = normalizarCodigoCompra(primero(src, CAMPOS_CODIGO));
+    const dados = tokensNombre(primero(src, CAMPOS_NOMBRE), primero(src, CAMPOS_APELLIDO));
 
     if (!codigo) {
       res.status(400).json({
@@ -367,7 +395,13 @@ router.post("/bot/seguimiento", async (req, res) => {
 
     if (!identidadCoincide(dados, order)) {
       // No se filtra NADA del pedido: el bot pide que verifique nombre y código.
-      res.json({ encontrado: true, identidad_ok: false });
+      // `motivo` le dice al bot QUÉ pedirle al cliente (si no mandó nombre, se
+      // lo tiene que pedir; si lo mandó y no coincide, que lo verifique).
+      res.json({
+        encontrado: true,
+        identidad_ok: false,
+        motivo: dados.length === 0 ? "falta_nombre" : "nombre_no_coincide",
+      });
       return;
     }
 
@@ -391,10 +425,28 @@ router.post("/bot/seguimiento", async (req, res) => {
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo consultar el seguimiento" });
   }
-});
+}
+
+// Se acepta por POST y por GET, y con varios nombres de ruta, para que el
+// workflow del bot pegue igual sin tener que tocarlo.
+router.post("/bot/seguimiento", handlerSeguimiento);
+router.get("/bot/seguimiento", handlerSeguimiento);
+router.post("/bot/pedido-por-codigo", handlerSeguimiento);
+router.get("/bot/pedido-por-codigo", handlerSeguimiento);
 
 router.get("/bot/envio", async (req, res) => {
   try {
+    // Si viene un código de compra, se resuelve por código (el circuito nuevo).
+    // Buscar por teléfono queda como fallback del flujo viejo.
+    const codigoEnQuery = primero(
+      { ...(req.query as Record<string, unknown>), ...((req.body ?? {}) as Record<string, unknown>) },
+      CAMPOS_CODIGO,
+    );
+    if (codigoEnQuery) {
+      await handlerSeguimiento(req, res);
+      return;
+    }
+
     const telefono = String(req.query.telefono ?? "");
     if (!normalizePhone(telefono)) {
       res.status(400).json({ error: "invalid_request", message: "Falta el teléfono (?telefono=...)" });
