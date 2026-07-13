@@ -70,6 +70,22 @@ export function VentaRapida() {
 
   const searchRef = useRef<HTMLInputElement>(null);
   const focusSearch = () => searchRef.current?.focus();
+
+  /**
+   * Devuelve el foco al buscador SÓLO si nadie más lo tiene (o sea: el usuario
+   * clickeó en un lugar vacío, no en otro campo). Si el foco está en un select,
+   * input, textarea o botón, se lo dejamos: robárselo cerraba el desplegable de
+   * medio de pago y no se podía elegir nada.
+   */
+  const reenfocarSiNadieMasTieneElFoco = () => {
+    const activo = document.activeElement;
+    const enOtroControl =
+      activo instanceof HTMLElement &&
+      activo !== searchRef.current &&
+      (activo.matches("input, select, textarea, button, [contenteditable]") ||
+        activo.closest("select, [role='listbox'], [role='dialog']") !== null);
+    if (!enOtroControl) focusSearch();
+  };
   useEffect(() => {
     focusSearch();
   }, [ticket]);
@@ -198,7 +214,11 @@ export function VentaRapida() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onSearchKey}
-              onBlur={() => setTimeout(focusSearch, 60)}
+              // El buscador se re-enfoca solo, para poder escanear una prenda
+              // atrás de otra sin clickear. PERO si el foco se fue a OTRO control
+              // (el select de medio de pago, "paga con", el teléfono), no hay que
+              // robárselo: cerraba el desplegable antes de que se pudiera elegir.
+              onBlur={() => setTimeout(reenfocarSiNadieMasTieneElFoco, 60)}
               placeholder="Escaneá un código o escribí nombre / SKU…"
               className="input-field pl-10 text-lg"
             />
