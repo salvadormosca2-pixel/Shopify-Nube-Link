@@ -166,6 +166,13 @@ const STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS publicaciones_destino_fecha_idx
      ON publicaciones (destino_id, created_at)`,
+  // Config del panel (clave/valor). Hoy guarda qué etiqueta de Chatwoot controla
+  // el bot y si su presencia lo apaga o lo prende.
+  `CREATE TABLE IF NOT EXISTS config_panel (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
   // El grupo YA vinculado a la instancia queda precargado como primer destino.
   // ON CONFLICT: si ya está (o el dueño lo renombró), no lo pisa.
   `INSERT INTO destinos_whatsapp (nombre, tipo, remote_jid, activo)

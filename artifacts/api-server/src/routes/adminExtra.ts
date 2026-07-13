@@ -1,9 +1,21 @@
 // Endpoints que faltaban para las secciones del panel aurora (daban 404):
 // Clientes/CRM, Presupuestos, Envíos, Devoluciones (workflow), Promociones,
 // Combos, Empleados/usuarios, Configuración (maestros) y Mensajes (stub Chatwoot).
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { scryptSync, randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
+import {
+  chatwootConfigurado,
+  listarConversaciones,
+  listarMensajes,
+  enviarMensaje,
+  etiquetasDeConversacion,
+  listarEtiquetasCuenta,
+  setBotConversacion,
+  setBotGlobal,
+  getConfigBot,
+  setConfigBot,
+} from "../lib/chatwoot";
 import {
   clientesTable,
   calificacionesTable,
@@ -519,11 +531,149 @@ registrarMaestro("categoria", "/admin/categorias", null);
 registrarMaestro("marca", "/admin/marcas", null);
 registrarMaestro("metodo_pago", "/admin/metodos-pago", null);
 
-// ─── MENSAJES / CHAT (stub — se ilumina cuando Chatwoot esté conectado) ───────
-router.get("/admin/chat/conversaciones", (_req, res) => res.json([]));
-router.get("/admin/chat/conversaciones/:id/mensajes", (_req, res) => res.json([]));
-router.post("/admin/chat/conversaciones/:id/mensajes", (_req, res) =>
-  res.status(503).json({ error: "chat_unavailable", message: "El chat en vivo requiere Chatwoot conectado" }));
-router.post("/admin/chat/conversaciones/:id/bot", (_req, res) => res.json({ ok: true }));
+// ─── MENSAJES / CHAT (Chatwoot real) ─────────────────────────────────────────
+// El bot de n8n se guía por ETIQUETAS de Chatwoot; acá sólo las leemos y las
+// ponemos/sacamos. No se toca el workflow.
+
+function sinChatwoot(res: Response): void {
+  res.status(503).json({
+    error: "chatwoot_no_configurado",
+    message: "Falta CHATWOOT_URL / CHATWOOT_API_TOKEN en el backend",
+  });
+}
+
+function chatError(res: Response, err: unknown): void {
+  res.status(502).json({
+    error: "chatwoot_error",
+    message: err instanceof Error ? err.message : "Chatwoot no respondió",
+  });
+}
+
+// Devuelve el id de la conversación, o null si ya contestó con un error.
+function convId(req: { params: { id: string } }, res: Response): number | null {
+  if (!chatwootConfigurado()) {
+    sinChatwoot(res);
+    return null;
+  }
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "invalid_id", message: "ID inválido" });
+    return null;
+  }
+  return id;
+}
+
+router.get("/admin/chat/conversaciones", async (req, res) => {
+  if (!chatwootConfigurado()) {
+    sinChatwoot(res);
+    return;
+  }
+  try {
+    res.json(await listarConversaciones());
+  } catch (err) {
+    req.log.error({ err }, "no se pudieron listar las conversaciones");
+    chatError(res, err);
+  }
+});
+
+router.get("/admin/chat/conversaciones/:id/mensajes", async (req, res) => {
+  const id = convId(req, res);
+  if (id === null) return;
+  try {
+    res.json(await listarMensajes(id));
+  } catch (err) {
+    req.log.error({ err }, "no se pudieron leer los mensajes");
+    chatError(res, err);
+  }
+});
+
+router.post("/admin/chat/conversaciones/:id/mensajes", async (req, res) => {
+  const id = convId(req, res);
+  if (id === null) return;
+  const texto = String((req.body ?? {}).texto ?? "").trim();
+  if (!texto) {
+    res.status(400).json({ error: "sin_texto", message: "El mensaje está vacío" });
+    return;
+  }
+  try {
+    await enviarMensaje(id, texto);
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "no se pudo enviar el mensaje");
+    chatError(res, err);
+  }
+});
+
+// Etiquetas que el bot le fue poniendo a la conversación.
+router.get("/admin/chat/conversaciones/:id/etiquetas", async (req, res) => {
+  const id = convId(req, res);
+  if (id === null) return;
+  try {
+    res.json({ etiquetas: await etiquetasDeConversacion(id) });
+  } catch (err) {
+    chatError(res, err);
+  }
+});
+
+// Prender/apagar el bot en UNA conversación (pone o saca la etiqueta).
+router.post("/admin/chat/conversaciones/:id/bot", async (req, res) => {
+  const id = convId(req, res);
+  if (id === null) return;
+  const activo = Boolean((req.body ?? {}).activo);
+  try {
+    res.json(await setBotConversacion(id, activo));
+  } catch (err) {
+    req.log.error({ err }, "no se pudo cambiar el bot de la conversación");
+    chatError(res, err);
+  }
+});
+
+// Prender/apagar el bot en TODAS las conversaciones (aplica la etiqueta a cada una).
+router.post("/admin/chat/bot-global", async (req, res) => {
+  if (!chatwootConfigurado()) {
+    sinChatwoot(res);
+    return;
+  }
+  const activo = Boolean((req.body ?? {}).activo);
+  try {
+    res.json(await setBotGlobal(activo));
+  } catch (err) {
+    req.log.error({ err }, "no se pudo cambiar el bot global");
+    chatError(res, err);
+  }
+});
+
+// Config: qué etiqueta controla el bot y si su presencia lo apaga o lo prende.
+// `disponibles` son las etiquetas reales de la cuenta, para elegir sin adivinar.
+router.get("/admin/chat/config", async (req, res) => {
+  try {
+    const cfg = await getConfigBot();
+    let disponibles: string[] = [];
+    if (chatwootConfigurado()) {
+      try {
+        disponibles = await listarEtiquetasCuenta();
+      } catch (err) {
+        req.log.error({ err }, "no se pudieron listar las etiquetas de Chatwoot");
+      }
+    }
+    res.json({ ...cfg, disponibles, chatwoot_ok: chatwootConfigurado() });
+  } catch (err) {
+    res.status(500).json({ error: "internal_error", message: "No se pudo leer la config" });
+  }
+});
+
+router.put("/admin/chat/config", async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as { etiqueta?: string; modo?: string };
+    const cfg = await setConfigBot({
+      etiqueta: String(body.etiqueta ?? ""),
+      modo: body.modo === "prende" ? "prende" : "apaga",
+    });
+    res.json(cfg);
+  } catch (err) {
+    req.log.error({ err }, "no se pudo guardar la config del bot");
+    res.status(500).json({ error: "internal_error", message: "No se pudo guardar la config" });
+  }
+});
 
 export default router;

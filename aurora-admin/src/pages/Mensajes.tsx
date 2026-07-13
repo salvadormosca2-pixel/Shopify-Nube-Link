@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Bot, MessageSquare } from "lucide-react";
+import { Send, Bot, BotOff, MessageSquare, Settings, Loader2 } from "lucide-react";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
+import { Modal } from "../components/ui/Modal";
+import { Field, TextInput, Select } from "../components/ui/Field";
 import { Badge } from "../components/ui/Badge";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/DataState";
@@ -11,11 +13,21 @@ import { formatDateTime } from "../lib/format";
 interface Conversacion {
   id: string | number;
   nombre?: string;
+  telefono?: string;
   ultimo_mensaje?: string;
   hora?: string;
   updated_at?: string;
   no_leida?: boolean;
   bot_activo?: boolean;
+  // Etiquetas que le va poniendo el bot en Chatwoot.
+  etiquetas?: string[];
+}
+
+interface ConfigBot {
+  etiqueta: string;
+  modo: "apaga" | "prende";
+  disponibles: string[];
+  chatwoot_ok: boolean;
 }
 
 interface Mensaje {
@@ -52,6 +64,57 @@ export function Mensajes() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  // Config: qué etiqueta de Chatwoot controla el bot (el workflow de n8n ya la mira).
+  const cfg = useApi<ConfigBot>(() => api.get(`/admin/chat/config`).then((r) => r.data), []);
+  const [cfgOpen, setCfgOpen] = useState(false);
+  const [cfgForm, setCfgForm] = useState<{ etiqueta: string; modo: "apaga" | "prende" }>({
+    etiqueta: "",
+    modo: "apaga",
+  });
+  const [cfgSaving, setCfgSaving] = useState(false);
+  const [globalBusy, setGlobalBusy] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cfg.data) setCfgForm({ etiqueta: cfg.data.etiqueta, modo: cfg.data.modo });
+  }, [cfg.data]);
+
+  const guardarConfig = async () => {
+    setCfgSaving(true);
+    try {
+      await api.put(`/admin/chat/config`, cfgForm);
+      setCfgOpen(false);
+      cfg.refetch();
+      convs.refetch();
+    } catch (err) {
+      setChatError(apiError(err));
+    } finally {
+      setCfgSaving(false);
+    }
+  };
+
+  // Prende/apaga el bot en TODAS las conversaciones (etiqueta por etiqueta).
+  const botGlobal = async (activo: boolean) => {
+    setGlobalBusy(true);
+    setAviso(null);
+    setChatError(null);
+    try {
+      const { data } = await api.post<{ afectadas: number; fallidas: number }>(
+        `/admin/chat/bot-global`,
+        { activo },
+      );
+      setAviso(
+        `Bot ${activo ? "activado" : "desactivado"} en ${data.afectadas} conversación(es)` +
+          (data.fallidas ? ` — ${data.fallidas} fallaron` : ""),
+      );
+      convs.refetch();
+    } catch (err) {
+      setChatError(apiError(err));
+    } finally {
+      setGlobalBusy(false);
+    }
+  };
 
   const active = conversaciones.find((c) => String(c.id) === String(activeId)) ?? null;
 
@@ -90,6 +153,7 @@ export function Mensajes() {
     setChatError(null);
     try {
       await api.post(`/admin/chat/conversaciones/${activeId}/bot`, { activo: next });
+      convs.refetch(); // las etiquetas cambiaron: refrescamos la lista
     } catch (err) {
       setBotOn(!next); // revertir si falla
       setChatError(apiError(err));
@@ -123,7 +187,50 @@ export function Mensajes() {
 
   return (
     <div>
-      <PageHeader title="Mensajes" subtitle="WhatsApp y chat web vía Chatwoot" />
+      <PageHeader title="Mensajes" subtitle="WhatsApp y chat web vía Chatwoot">
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn-secondary" onClick={() => setCfgOpen(true)}>
+            <Settings size={15} /> Configurar bot
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => botGlobal(true)}
+            disabled={globalBusy || !cfg.data?.etiqueta}
+            title="Activar el bot en todas las conversaciones"
+          >
+            {globalBusy ? <Loader2 size={15} className="animate-spin" /> : <Bot size={15} />}
+            Activar bot en todas
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => botGlobal(false)}
+            disabled={globalBusy || !cfg.data?.etiqueta}
+            title="Desactivar el bot en todas las conversaciones"
+          >
+            <BotOff size={15} /> Desactivar en todas
+          </button>
+        </div>
+      </PageHeader>
+
+      {cfg.data && !cfg.data.chatwoot_ok && (
+        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          Chatwoot no está conectado: falta cargar <strong>CHATWOOT_URL</strong> y{" "}
+          <strong>CHATWOOT_API_TOKEN</strong> en las variables del backend (Railway).
+        </div>
+      )}
+
+      {cfg.data?.chatwoot_ok && !cfg.data.etiqueta && (
+        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          Todavía no elegiste qué <strong>etiqueta</strong> controla el bot. Sin eso, el switch
+          ON/OFF no puede hacer nada. Apretá <strong>"Configurar bot"</strong>.
+        </div>
+      )}
+
+      {aviso && (
+        <div className="mb-3 rounded-lg border border-acento/30 bg-acento/10 px-4 py-3 text-sm text-acento">
+          {aviso}
+        </div>
+      )}
 
       <div className="card flex h-[calc(100vh-180px)] overflow-hidden p-0">
         {/* LEFT: lista de conversaciones */}
@@ -166,6 +273,16 @@ export function Mensajes() {
                       <span className="h-2 w-2 shrink-0 rounded-full bg-acento" />
                     )}
                   </div>
+                  {/* Etiquetas que le puso el bot */}
+                  {(c.etiquetas?.length ?? 0) > 0 && (
+                    <div className="mt-0.5 flex flex-wrap gap-1">
+                      {c.etiquetas!.map((e) => (
+                        <Badge key={e} tone={e === cfg.data?.etiqueta ? "ambar" : "azul"}>
+                          {e}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </button>
               );
             })
@@ -187,7 +304,18 @@ export function Mensajes() {
               <div className="flex items-center justify-between gap-3 border-b border-borde px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-white">{active.nombre || "Sin nombre"}</p>
-                  <p className="text-xs text-gray-500">Conversación #{active.id}</p>
+                  <p className="text-xs text-gray-500">
+                    {active.telefono ? `${active.telefono} · ` : ""}Conversación #{active.id}
+                  </p>
+                  {(active.etiquetas?.length ?? 0) > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {active.etiquetas!.map((e) => (
+                        <Badge key={e} tone={e === cfg.data?.etiqueta ? "ambar" : "azul"}>
+                          {e}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => toggleBot(!botOn)}
@@ -285,6 +413,65 @@ export function Mensajes() {
           )}
         </div>
       </div>
+
+      {/* Config: qué etiqueta de Chatwoot controla el bot */}
+      <Modal
+        open={cfgOpen}
+        onClose={() => setCfgOpen(false)}
+        title="Configurar bot"
+        footer={
+          <button className="btn-primary" onClick={guardarConfig} disabled={cfgSaving}>
+            {cfgSaving && <Loader2 size={16} className="animate-spin" />} Guardar
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-400">
+            El bot de n8n se guía por las <strong className="text-white">etiquetas</strong> de
+            Chatwoot. Acá elegís cuál es la que lo controla: el panel la pone o la saca, sin tocar
+            el workflow.
+          </p>
+
+          <Field label="Etiqueta que controla el bot">
+            {(cfg.data?.disponibles.length ?? 0) > 0 ? (
+              <Select
+                value={cfgForm.etiqueta}
+                onChange={(e) => setCfgForm({ ...cfgForm, etiqueta: e.target.value })}
+              >
+                <option value="">— Elegí una etiqueta —</option>
+                {cfg.data!.disponibles.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <TextInput
+                value={cfgForm.etiqueta}
+                onChange={(e) => setCfgForm({ ...cfgForm, etiqueta: e.target.value })}
+                placeholder="bot-off"
+              />
+            )}
+          </Field>
+
+          <Field label="¿Qué significa que la conversación tenga esa etiqueta?">
+            <Select
+              value={cfgForm.modo}
+              onChange={(e) =>
+                setCfgForm({ ...cfgForm, modo: e.target.value as "apaga" | "prende" })
+              }
+            >
+              <option value="apaga">Si la tiene, el bot NO responde (etiqueta = apagar)</option>
+              <option value="prende">Si la tiene, el bot SÍ responde (etiqueta = prender)</option>
+            </Select>
+          </Field>
+
+          <p className="rounded-md border border-borde p-2.5 text-xs text-gray-500">
+            Elegí el mismo criterio que ya usa tu workflow. Si te equivocás, el switch va a hacer lo
+            contrario de lo que esperás: probalo en una conversación antes de usar "en todas".
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
