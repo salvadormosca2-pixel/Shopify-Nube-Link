@@ -395,8 +395,8 @@ function Despachos() {
           )}
 
           <p className="text-sm text-gris">
-            Cargá el número que te da el correo. Es el que el bot le pasa al cliente para que
-            rastree su pedido.
+            Cargá el número que te da el correo. Al confirmar, se le manda automáticamente por
+            WhatsApp al cliente con el código para que rastree su pedido.
           </p>
 
           <Field label="Transportista">

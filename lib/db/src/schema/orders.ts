@@ -35,6 +35,9 @@ export const ordersTable = pgTable("orders", {
   // Cuándo se despachó de verdad. Se sella la primera vez que el pedido pasa a
   // "despachado" en la sección Envíos (updatedAt no sirve: cambia con cualquier edición).
   fechaDespacho: timestamp("fecha_despacho"),
+  // Ya se le avisó al cliente por WhatsApp que su pedido salió (con el código
+  // del correo). Evita mandarle el mismo aviso otra vez si se edita la fila.
+  avisoDespachoEnviado: boolean("aviso_despacho_enviado").notNull().default(false),
   // Estado logístico del envío (sección Envíos del panel), independiente del
   // status del pedido: preparando|despachado|en_camino|entregado.
   estadoEnvio: text("estado_envio").notNull().default("preparando"),

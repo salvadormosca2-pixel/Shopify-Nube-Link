@@ -4,6 +4,7 @@
 import { Router, type IRouter, type Response } from "express";
 import { scryptSync, randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
+import { avisarDespacho } from "../lib/whatsapp";
 import {
   chatwootConfigurado,
   listarConversaciones,
@@ -304,7 +305,35 @@ router.patch("/admin/envios/:id", async (req, res) => {
 
     const [updated] = await db.update(ordersTable).set(set).where(eq(ordersTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "not_found", message: "Envío no encontrado" }); return; }
-    res.json({ ok: true, id: updated.id, estado: updated.estadoEnvio });
+
+    // Aviso al cliente por WhatsApp: su pedido salió, con el código del correo.
+    // Sólo cuando YA está despachado y HAY código, y una sola vez por pedido.
+    const listoParaAvisar =
+      updated.estadoEnvio !== "preparando" &&
+      !!updated.codigoSeguimiento &&
+      !updated.avisoDespachoEnviado;
+
+    if (listoParaAvisar) {
+      // Fire-and-forget: si WhatsApp falla, el despacho ya quedó guardado igual.
+      void avisarDespacho(updated)
+        .then(async (enviado) => {
+          if (!enviado) return;
+          await db
+            .update(ordersTable)
+            .set({ avisoDespachoEnviado: true })
+            .where(eq(ordersTable.id, updated.id));
+        })
+        .catch((err) => {
+          req.log.error({ err, orderId: updated.id }, "no se pudo avisar el despacho al cliente");
+        });
+    }
+
+    res.json({
+      ok: true,
+      id: updated.id,
+      estado: updated.estadoEnvio,
+      aviso_whatsapp: listoParaAvisar,
+    });
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo actualizar el envío" });
   }

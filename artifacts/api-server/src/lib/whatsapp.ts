@@ -85,12 +85,86 @@ async function enviarMedia(jid: string, imagen: string, caption: string): Promis
   });
 }
 
-/** Mensaje de texto suelto (el cierre de la tanda). */
+/** Mensaje de texto suelto (el cierre de la tanda, o un aviso a un cliente). */
 async function enviarTexto(jid: string, text: string): Promise<void> {
   await evolutionFetch(evolutionUrl("/message/sendText"), {
     method: "POST",
     body: JSON.stringify({ number: jid, text }),
   });
+}
+
+/**
+ * Teléfono argentino → el número que espera Evolution para un chat individual.
+ * "3834959044" (como se guarda en los pedidos) → "5493834959044".
+ * Devuelve "" si no parece un número válido: mejor no mandar nada que mandarle
+ * el aviso a un desconocido.
+ */
+export function telefonoAJid(raw: unknown): string {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  d = d.replace(/^0+/, ""); // 0 de larga distancia
+  if (d.startsWith("54")) {
+    const resto = d.slice(2).replace(/^9/, "").replace(/^0/, "");
+    d = `549${resto}`;
+  } else {
+    d = `549${d.replace(/^15/, "")}`;
+  }
+  // 549 + area (2-4) + abonado => entre 12 y 13 dígitos.
+  return d.length >= 12 && d.length <= 13 ? d : "";
+}
+
+/** El mensaje que recibe el cliente cuando su pedido sale del local. */
+export function buildAvisoDespacho(o: {
+  customerFirstName: string;
+  trackingNumber: string;
+  transportista: string | null;
+  codigoSeguimiento: string | null;
+  trackingUrl: string | null;
+}): string {
+  const nombre = (o.customerFirstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const lineas = [
+    `📦 ${nombre ? `¡Hola ${nombre}! ` : ""}Tu pedido *${o.trackingNumber}* ya salió del local.`,
+    "",
+  ];
+  if (o.transportista) lineas.push(`🚚 Lo lleva: ${o.transportista}`);
+  lineas.push(`🔎 Código de seguimiento: *${o.codigoSeguimiento}*`);
+  if (o.trackingUrl) lineas.push(`Seguilo acá 👉 ${o.trackingUrl}`);
+  lineas.push("", "Cualquier duda, escribinos por acá.");
+  return lineas.join("\n");
+}
+
+/**
+ * Avisa al cliente que su pedido salió, con el código del correo.
+ * Se llama al marcar "despachado" en la sección Envíos. Fire-and-forget: si
+ * WhatsApp falla, el despacho igual queda guardado (sólo se loguea el error).
+ */
+export async function avisarDespacho(order: {
+  id: number;
+  customerFirstName: string;
+  customerPhone: string;
+  trackingNumber: string;
+  transportista: string | null;
+  codigoSeguimiento: string | null;
+  trackingUrl: string | null;
+}): Promise<boolean> {
+  if (!evolutionConfigurada()) {
+    logger.warn({ orderId: order.id }, "no se avisó el despacho: Evolution no está configurada");
+    return false;
+  }
+  if (!order.codigoSeguimiento) return false; // sin código no hay nada que avisar
+
+  const jid = telefonoAJid(order.customerPhone);
+  if (!jid) {
+    logger.warn(
+      { orderId: order.id, telefono: order.customerPhone },
+      "no se avisó el despacho: el teléfono del pedido no es válido",
+    );
+    return false;
+  }
+
+  await enviarTexto(jid, buildAvisoDespacho(order));
+  logger.info({ orderId: order.id }, "aviso de despacho enviado al cliente");
+  return true;
 }
 
 /** 14000 -> "14.000" (separador de miles, sin decimales). */
