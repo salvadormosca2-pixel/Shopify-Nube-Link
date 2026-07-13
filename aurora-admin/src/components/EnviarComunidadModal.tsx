@@ -25,7 +25,7 @@ interface Destino {
 }
 
 interface EnvioProgreso {
-  envio_id: number;
+  publicacion_id: number;
   destino: string;
   total: number;
   enviados: number;
@@ -65,7 +65,7 @@ export function EnviarComunidadModal({
     setEnviando(false);
     setCargandoDestinos(true);
     api
-      .get<Destino[]>("/admin/whatsapp/destinos?activos=1")
+      .get<Destino[]>("/admin/destinos?activos=1")
       .then((r) => setDestinos(r.data))
       .catch((err) => setError(apiError(err)))
       .finally(() => setCargandoDestinos(false));
@@ -86,7 +86,7 @@ export function EnviarComunidadModal({
     });
   };
 
-  const seguirProgreso = (envios: { envio_id: number; destino: string; total: number }[]) => {
+  const seguirProgreso = (envios: { publicacion_id: number; destino: string; total: number }[]) => {
     setProgreso(
       envios.map((e) => ({ ...e, enviados: 0, fallidos: 0, estado: "en_curso" })),
     );
@@ -96,8 +96,8 @@ export function EnviarComunidadModal({
         const estados = await Promise.all(
           envios.map((e) =>
             api
-              .get<EnvioProgreso>(`/admin/whatsapp/envios/${e.envio_id}`)
-              .then((r) => ({ ...r.data, envio_id: e.envio_id, destino: e.destino })),
+              .get<EnvioProgreso>(`/admin/publicaciones/${e.publicacion_id}`)
+              .then((r) => ({ ...r.data, publicacion_id: e.publicacion_id, destino: e.destino })),
           ),
         );
         setProgreso(estados);
@@ -117,13 +117,13 @@ export function EnviarComunidadModal({
     setEnviando(true);
     try {
       const { data } = await api.post<{
-        envios: { envio_id: number; destino_id: number; destino: string; total: number }[];
-      }>("/admin/whatsapp/publicar", {
+        publicaciones: { publicacion_id: number; destino_id: number; destino: string; total: number }[];
+      }>("/admin/publicar-comunidad", {
         destino_ids: [...elegidos],
         producto_ids: productos.map((p) => Number(p.id)),
         incluir_precio: incluirPrecio,
       });
-      seguirProgreso(data.envios);
+      seguirProgreso(data.publicaciones);
     } catch (err) {
       setError(apiError(err));
       setEnviando(false);
@@ -168,7 +168,7 @@ export function EnviarComunidadModal({
         {progreso ? (
           <div className="space-y-3">
             {progreso.map((p) => (
-              <div key={p.envio_id} className="rounded-md border border-borde p-3">
+              <div key={p.publicacion_id} className="rounded-md border border-borde p-3">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-white">{p.destino}</p>
                   {p.estado === "en_curso" ? (
@@ -271,12 +271,10 @@ export function EnviarComunidadModal({
                       </div>
                     )}
                     <p className="flex-1 text-sm text-white">{p.nombre}</p>
+                    {/* El caption publica precio_tarjeta (mismo criterio que el bot). */}
                     {incluirPrecio && (
                       <p className="font-mono text-xs text-gray-400">
-                        {formatARS(p.precio_contado)} contado
-                        {p.precio_tarjeta > p.precio_contado && (
-                          <> / {formatARS(p.precio_tarjeta)} tarjeta</>
-                        )}
+                        {formatARS(p.precio_tarjeta)}
                       </p>
                     )}
                     {!p.imagen && <Badge tone="gris">sin foto</Badge>}
@@ -294,6 +292,11 @@ export function EnviarComunidadModal({
               />
               Incluir precio en el mensaje
             </label>
+
+            <p className="text-xs text-gray-500">
+              Al final de la tanda se manda <strong>un solo</strong> mensaje de cierre invitando a
+              contactarlos o a comprar desde la web. No se repite en cada producto.
+            </p>
           </>
         )}
       </div>

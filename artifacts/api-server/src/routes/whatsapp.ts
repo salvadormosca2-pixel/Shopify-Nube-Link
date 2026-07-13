@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
-  whatsappDestinosTable,
-  whatsappEnviosTable,
-  whatsappEnvioItemsTable,
+  destinosWhatsappTable,
+  publicacionesTable,
+  logPublicacionesTable,
 } from "@workspace/db/schema";
 import { eq, inArray, desc, and } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
@@ -18,11 +18,13 @@ import {
 
 const router: IRouter = Router();
 
-// Todo lo de acá es sólo para el admin logueado del panel (x-admin-key).
-// NUNCA con la key del bot, y la EVOLUTION_KEY jamás sale al frontend.
-router.use("/admin/whatsapp", adminAuth);
+// Sólo el admin logueado del panel (x-admin-key). NUNCA con la key del bot.
+// La EVOLUTION_KEY vive en el backend y jamás sale al frontend.
+router.use("/admin/destinos", adminAuth);
+router.use("/admin/publicar-comunidad", adminAuth);
+router.use("/admin/publicaciones", adminAuth);
 
-const toDestino = (d: typeof whatsappDestinosTable.$inferSelect) => ({
+const toDestino = (d: typeof destinosWhatsappTable.$inferSelect) => ({
   id: d.id,
   nombre: d.nombre,
   tipo: d.tipo,
@@ -30,26 +32,23 @@ const toDestino = (d: typeof whatsappDestinosTable.$inferSelect) => ({
   activo: d.activo,
 });
 
-// ─── DESTINOS (alta desde Configuración) ─────────────────────────────────────
+// ─── 1. DESTINOS ─────────────────────────────────────────────────────────────
 
-router.get("/admin/whatsapp/destinos", async (req, res) => {
+// ?activos=1 -> sólo los activos (es lo que usa el selector al publicar).
+router.get("/admin/destinos", async (req, res) => {
   try {
     const soloActivos = String(req.query["activos"] ?? "") === "1";
-    const rows = await db
-      .select()
-      .from(whatsappDestinosTable)
-      .orderBy(whatsappDestinosTable.nombre);
-    const list = soloActivos ? rows.filter((d) => d.activo) : rows;
-    res.json(list.map(toDestino));
+    const rows = await db.select().from(destinosWhatsappTable).orderBy(destinosWhatsappTable.nombre);
+    res.json((soloActivos ? rows.filter((d) => d.activo) : rows).map(toDestino));
   } catch (err) {
     req.log.error({ err }, "no se pudieron listar los destinos");
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los destinos" });
   }
 });
 
-// Los grupos de la instancia, para copiar el remote_jid correcto.
+// Grupos reales de la instancia, para copiar el remote_jid correcto.
 // Para una COMUNIDAD hay que elegir su grupo de ANUNCIOS.
-router.get("/admin/whatsapp/grupos", async (req, res) => {
+router.get("/admin/destinos/grupos", async (req, res) => {
   if (!evolutionConfigurada()) {
     res.status(503).json({
       error: "evolution_no_configurada",
@@ -69,37 +68,33 @@ router.get("/admin/whatsapp/grupos", async (req, res) => {
 });
 
 function parseDestinoBody(body: Record<string, unknown>) {
-  const nombre = String(body["nombre"] ?? "").trim();
-  const remoteJid = String(body["remote_jid"] ?? "").trim();
   const tipoRaw = String(body["tipo"] ?? "grupo").toLowerCase().trim();
   return {
-    nombre,
-    remoteJid,
+    nombre: String(body["nombre"] ?? "").trim(),
+    remoteJid: String(body["remote_jid"] ?? "").trim(),
     tipo: tipoRaw === "comunidad" ? "comunidad" : "grupo",
     activo: body["activo"] === undefined ? true : Boolean(body["activo"]),
   };
 }
 
-router.post("/admin/whatsapp/destinos", async (req, res) => {
+router.post("/admin/destinos", async (req, res) => {
   try {
     const d = parseDestinoBody(req.body ?? {});
     if (!d.nombre) {
       res.status(400).json({ error: "invalid_nombre", message: "El nombre es obligatorio" });
       return;
     }
-    // Evolution espera el JID de grupo: termina en @g.us.
     if (!/@g\.us$/.test(d.remoteJid)) {
       res.status(400).json({
         error: "invalid_jid",
-        message: 'El ID debe ser el remote_jid del grupo y terminar en "@g.us" (ej: 1203...@g.us)',
+        message: 'El ID debe ser el remote_jid del grupo y terminar en "@g.us"',
       });
       return;
     }
-    const [row] = await db.insert(whatsappDestinosTable).values(d).returning();
+    const [row] = await db.insert(destinosWhatsappTable).values(d).returning();
     res.status(201).json(toDestino(row!));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("duplicate key")) {
+    if (err instanceof Error && err.message.includes("duplicate key")) {
       res.status(409).json({ error: "duplicado", message: "Ese grupo ya está cargado" });
       return;
     }
@@ -108,7 +103,7 @@ router.post("/admin/whatsapp/destinos", async (req, res) => {
   }
 });
 
-router.put("/admin/whatsapp/destinos/:id", async (req, res) => {
+router.put("/admin/destinos/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -121,9 +116,9 @@ router.put("/admin/whatsapp/destinos/:id", async (req, res) => {
       return;
     }
     const [row] = await db
-      .update(whatsappDestinosTable)
+      .update(destinosWhatsappTable)
       .set(d)
-      .where(eq(whatsappDestinosTable.id, id))
+      .where(eq(destinosWhatsappTable.id, id))
       .returning();
     if (!row) {
       res.status(404).json({ error: "not_found", message: "Destino no encontrado" });
@@ -136,14 +131,14 @@ router.put("/admin/whatsapp/destinos/:id", async (req, res) => {
   }
 });
 
-router.delete("/admin/whatsapp/destinos/:id", async (req, res) => {
+router.delete("/admin/destinos/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "invalid_id", message: "ID inválido" });
       return;
     }
-    await db.delete(whatsappDestinosTable).where(eq(whatsappDestinosTable.id, id));
+    await db.delete(destinosWhatsappTable).where(eq(destinosWhatsappTable.id, id));
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "no se pudo borrar el destino");
@@ -151,9 +146,9 @@ router.delete("/admin/whatsapp/destinos/:id", async (req, res) => {
   }
 });
 
-// ─── PUBLICAR ────────────────────────────────────────────────────────────────
+// ─── 3. PUBLICAR ─────────────────────────────────────────────────────────────
 
-router.post("/admin/whatsapp/publicar", async (req, res) => {
+router.post("/admin/publicar-comunidad", async (req, res) => {
   try {
     if (!evolutionConfigurada()) {
       res.status(503).json({
@@ -164,12 +159,11 @@ router.post("/admin/whatsapp/publicar", async (req, res) => {
     }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const destinoIds = Array.isArray(body["destino_ids"])
-      ? (body["destino_ids"] as unknown[]).map((x) => parseInt(String(x), 10)).filter((n) => !isNaN(n))
-      : [];
-    const productoIds = Array.isArray(body["producto_ids"])
-      ? (body["producto_ids"] as unknown[]).map((x) => parseInt(String(x), 10)).filter((n) => !isNaN(n))
-      : [];
+    const nums = (v: unknown): number[] =>
+      Array.isArray(v) ? v.map((x) => parseInt(String(x), 10)).filter((n) => !isNaN(n)) : [];
+
+    const destinoIds = nums(body["destino_ids"]);
+    const productoIds = nums(body["producto_ids"]);
     const incluirPrecio = body["incluir_precio"] === undefined ? true : Boolean(body["incluir_precio"]);
 
     if (destinoIds.length === 0) {
@@ -180,7 +174,7 @@ router.post("/admin/whatsapp/publicar", async (req, res) => {
       res.status(400).json({ error: "sin_productos", message: "Elegí al menos un producto" });
       return;
     }
-    // ANTI-BANEO: tope duro por tanda. No se parte solo: se pide seleccionar menos.
+    // ANTI-BANEO (4.2): tope duro por tanda. No parte solo: pide seleccionar menos.
     if (productoIds.length > MAX_PRODUCTOS_POR_TANDA) {
       res.status(400).json({
         error: "demasiados_productos",
@@ -190,29 +184,26 @@ router.post("/admin/whatsapp/publicar", async (req, res) => {
       return;
     }
 
-    // Los destinos tienen que existir Y estar activos.
+    // 5.3: los destinos tienen que existir Y estar activos.
     const destinos = await db
       .select()
-      .from(whatsappDestinosTable)
+      .from(destinosWhatsappTable)
       .where(
-        and(
-          inArray(whatsappDestinosTable.id, destinoIds),
-          eq(whatsappDestinosTable.activo, true),
-        ),
+        and(inArray(destinosWhatsappTable.id, destinoIds), eq(destinosWhatsappTable.activo, true)),
       );
     if (destinos.length !== destinoIds.length) {
-      res.status(400).json({
-        error: "destino_invalido",
-        message: "Algún destino no existe o está inactivo",
-      });
+      res
+        .status(400)
+        .json({ error: "destino_invalido", message: "Algún destino no existe o está inactivo" });
       return;
     }
 
-    // ANTI-BANEO: tope diario por destino.
+    // ANTI-BANEO (4.3): tope diario por destino.
     const bloqueados: string[] = [];
     for (const d of destinos) {
-      const hoy = await publicacionesHoy(d.id);
-      if (hoy >= MAX_PUBLICACIONES_DIARIAS_POR_DESTINO) bloqueados.push(d.nombre);
+      if ((await publicacionesHoy(d.id)) >= MAX_PUBLICACIONES_DIARIAS_POR_DESTINO) {
+        bloqueados.push(d.nombre);
+      }
     }
     if (bloqueados.length > 0) {
       res.status(429).json({
@@ -223,72 +214,70 @@ router.post("/admin/whatsapp/publicar", async (req, res) => {
       return;
     }
 
-    const { envios } = await publicarProductos({ destinos, productoIds, incluirPrecio });
-    res.status(202).json({ envios });
+    const { publicaciones } = await publicarProductos({ destinos, productoIds, incluirPrecio });
+    res.status(202).json({ publicaciones });
   } catch (err) {
     req.log.error({ err }, "no se pudo publicar en WhatsApp");
     res.status(500).json({ error: "internal_error", message: "No se pudo iniciar la publicación" });
   }
 });
 
-// Progreso de una tanda (el panel lo consulta para mostrar "enviando 3/8...").
-router.get("/admin/whatsapp/envios/:id", async (req, res) => {
+// Progreso de una tanda (el panel lo consulta para "enviando 3/8...").
+router.get("/admin/publicaciones/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "invalid_id", message: "ID inválido" });
       return;
     }
-    const [envio] = await db
+    const [pub] = await db
       .select()
-      .from(whatsappEnviosTable)
-      .where(eq(whatsappEnviosTable.id, id))
+      .from(publicacionesTable)
+      .where(eq(publicacionesTable.id, id))
       .limit(1);
-    if (!envio) {
-      res.status(404).json({ error: "not_found", message: "Envío no encontrado" });
+    if (!pub) {
+      res.status(404).json({ error: "not_found", message: "Publicación no encontrada" });
       return;
     }
     const items = await db
       .select()
-      .from(whatsappEnvioItemsTable)
-      .where(eq(whatsappEnvioItemsTable.envioId, id));
+      .from(logPublicacionesTable)
+      .where(eq(logPublicacionesTable.publicacionId, id));
     res.json({
-      id: envio.id,
-      destino_id: envio.destinoId,
-      total: envio.total,
-      enviados: envio.enviados,
-      fallidos: envio.fallidos,
-      estado: envio.estado,
-      created_at: envio.createdAt,
-      errores: items
-        .filter((i) => !i.ok)
-        .map((i) => ({ producto_id: i.productoId, error: i.error })),
+      id: pub.id,
+      destino_id: pub.destinoId,
+      total: pub.total,
+      enviados: pub.enviados,
+      fallidos: pub.fallidos,
+      estado: pub.estado,
+      created_at: pub.createdAt,
+      errores: items.filter((i) => !i.ok).map((i) => ({ producto_id: i.productoId, error: i.error })),
     });
   } catch (err) {
-    req.log.error({ err }, "no se pudo leer el envío");
-    res.status(500).json({ error: "internal_error", message: "No se pudo leer el envío" });
+    req.log.error({ err }, "no se pudo leer la publicación");
+    res.status(500).json({ error: "internal_error", message: "No se pudo leer la publicación" });
   }
 });
 
-// Historial, para control.
-router.get("/admin/whatsapp/envios", async (req, res) => {
+// Historial, para control (4.4).
+router.get("/admin/publicaciones", async (req, res) => {
   try {
     const rows = await db
       .select()
-      .from(whatsappEnviosTable)
-      .orderBy(desc(whatsappEnviosTable.createdAt))
+      .from(publicacionesTable)
+      .orderBy(desc(publicacionesTable.createdAt))
       .limit(50);
-    const destinos = await db.select().from(whatsappDestinosTable);
+    const destinos = await db.select().from(destinosWhatsappTable);
     const nombre = new Map(destinos.map((d) => [d.id, d.nombre]));
     res.json(
-      rows.map((e) => ({
-        id: e.id,
-        destino: nombre.get(e.destinoId) ?? "(borrado)",
-        total: e.total,
-        enviados: e.enviados,
-        fallidos: e.fallidos,
-        estado: e.estado,
-        created_at: e.createdAt,
+      rows.map((p) => ({
+        id: p.id,
+        destino: nombre.get(p.destinoId) ?? "(borrado)",
+        total: p.total,
+        enviados: p.enviados,
+        fallidos: p.fallidos,
+        estado: p.estado,
+        created_at: p.createdAt,
       })),
     );
   } catch (err) {

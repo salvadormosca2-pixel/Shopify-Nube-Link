@@ -28,7 +28,7 @@ const vacio = (): Omit<Destino, "id"> & { id?: number } => ({
 });
 
 export function DestinosWhatsappCard() {
-  const list = useApi<Destino[]>(() => api.get("/admin/whatsapp/destinos").then((r) => r.data), []);
+  const list = useApi<Destino[]>(() => api.get("/admin/destinos").then((r) => r.data), []);
   const [form, setForm] = useState<(Omit<Destino, "id"> & { id?: number }) | null>(null);
   const [toDelete, setToDelete] = useState<Destino | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,7 +44,7 @@ export function DestinosWhatsappCard() {
     setBuscando(true);
     setError(null);
     try {
-      const { data } = await api.get<Grupo[]>("/admin/whatsapp/grupos");
+      const { data } = await api.get<Grupo[]>("/admin/destinos/grupos");
       setGrupos(data);
     } catch (err) {
       setError(apiError(err));
@@ -58,8 +58,8 @@ export function DestinosWhatsappCard() {
     setSaving(true);
     setError(null);
     try {
-      if (form.id) await api.put(`/admin/whatsapp/destinos/${form.id}`, form);
-      else await api.post("/admin/whatsapp/destinos", form);
+      if (form.id) await api.put(`/admin/destinos/${form.id}`, form);
+      else await api.post("/admin/destinos", form);
       setForm(null);
       setGrupos(null);
       list.refetch();
@@ -74,7 +74,7 @@ export function DestinosWhatsappCard() {
     if (!toDelete) return;
     setSaving(true);
     try {
-      await api.delete(`/admin/whatsapp/destinos/${toDelete.id}`);
+      await api.delete(`/admin/destinos/${toDelete.id}`);
       setToDelete(null);
       list.refetch();
     } catch (err) {

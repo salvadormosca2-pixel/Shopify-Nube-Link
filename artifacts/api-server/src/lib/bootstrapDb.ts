@@ -137,7 +137,7 @@ const STATEMENTS = [
     hex TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
-  `CREATE TABLE IF NOT EXISTS whatsapp_destinos (
+  `CREATE TABLE IF NOT EXISTS destinos_whatsapp (
     id SERIAL PRIMARY KEY,
     nombre TEXT NOT NULL,
     tipo TEXT NOT NULL DEFAULT 'grupo',
@@ -145,7 +145,7 @@ const STATEMENTS = [
     activo BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
-  `CREATE TABLE IF NOT EXISTS whatsapp_envios (
+  `CREATE TABLE IF NOT EXISTS publicaciones (
     id SERIAL PRIMARY KEY,
     destino_id INTEGER NOT NULL,
     remote_jid TEXT NOT NULL,
@@ -155,16 +155,22 @@ const STATEMENTS = [
     estado TEXT NOT NULL DEFAULT 'en_curso',
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
-  `CREATE TABLE IF NOT EXISTS whatsapp_envio_items (
+  `CREATE TABLE IF NOT EXISTS log_publicaciones (
     id SERIAL PRIMARY KEY,
-    envio_id INTEGER NOT NULL,
+    publicacion_id INTEGER NOT NULL,
     producto_id INTEGER NOT NULL,
+    destino_id INTEGER NOT NULL,
     ok BOOLEAN NOT NULL DEFAULT false,
     error TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
-  `CREATE INDEX IF NOT EXISTS whatsapp_envios_destino_fecha_idx
-     ON whatsapp_envios (destino_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS publicaciones_destino_fecha_idx
+     ON publicaciones (destino_id, created_at)`,
+  // El grupo YA vinculado a la instancia queda precargado como primer destino.
+  // ON CONFLICT: si ya está (o el dueño lo renombró), no lo pisa.
+  `INSERT INTO destinos_whatsapp (nombre, tipo, remote_jid, activo)
+     VALUES ('Alfis Jeans Catamarca!', 'grupo', '120363429582184215@g.us', true)
+     ON CONFLICT (remote_jid) DO NOTHING`,
 ];
 
 // Seed de la sucursal de Catamarca si la tabla está vacía (era el motivo por el

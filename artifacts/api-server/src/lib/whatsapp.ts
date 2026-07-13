@@ -7,17 +7,21 @@
 import { db, pool } from "@workspace/db";
 import {
   productsTable,
-  whatsappDestinosTable,
-  whatsappEnviosTable,
-  whatsappEnvioItemsTable,
+  destinosWhatsappTable,
+  publicacionesTable,
+  logPublicacionesTable,
 } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { logger } from "./logger";
 import { optimizeCloudinary } from "./catalog";
 
-// ─── Anti-baneo (ver punto 4 del pedido) ─────────────────────────────────────
+// ─── Anti-baneo (punto 4 del pedido) ─────────────────────────────────────────
 export const MAX_PRODUCTOS_POR_TANDA = 10;
-export const MAX_PUBLICACIONES_DIARIAS_POR_DESTINO = 2;
+// Configurable por env (4.3): publicaciones por día al mismo destino.
+export const MAX_PUBLICACIONES_DIARIAS_POR_DESTINO = Math.max(
+  1,
+  parseInt(process.env.WHATSAPP_LIMITE_DIARIO ?? "2", 10) || 2,
+);
 const DELAY_MIN_MS = 4000;
 const DELAY_MAX_MS = 8000;
 
@@ -25,7 +29,7 @@ const EVOLUTION_URL = (process.env.EVOLUTION_URL ?? "").replace(/\/+$/, "");
 const EVOLUTION_KEY = process.env.EVOLUTION_KEY ?? "";
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE ?? "Alfis Jean";
 
-// La tienda, para cerrar el mensaje con el link directo al producto.
+// La tienda: va en el mensaje de cierre de cada tanda (uno solo, no por producto).
 const WEB_URL = (process.env.WEB_URL ?? "https://alfis.netlify.app").replace(/\/+$/, "");
 
 export function evolutionConfigurada(): boolean {
@@ -53,9 +57,7 @@ async function evolutionFetch(url: string, init: RequestInit = {}): Promise<unkn
     signal: AbortSignal.timeout(30_000),
   });
   const body = await res.text();
-  if (!res.ok) {
-    throw new Error(`Evolution ${res.status}: ${body.slice(0, 300)}`);
-  }
+  if (!res.ok) throw new Error(`Evolution ${res.status}: ${body.slice(0, 300)}`);
   try {
     return JSON.parse(body);
   } catch {
@@ -75,55 +77,61 @@ export async function listarGrupos(): Promise<{ jid: string; nombre: string }[]>
     .map((g) => ({ jid: String(g.id), nombre: String(g.subject ?? "(sin nombre)") }));
 }
 
-/** Un mensaje: imagen + caption. */
+/** Un producto: imagen + caption. */
 async function enviarMedia(jid: string, imagen: string, caption: string): Promise<void> {
   await evolutionFetch(evolutionUrl("/message/sendMedia"), {
     method: "POST",
-    body: JSON.stringify({
-      number: jid,
-      mediatype: "image",
-      media: imagen,
-      caption,
-    }),
+    body: JSON.stringify({ number: jid, mediatype: "image", media: imagen, caption }),
   });
 }
 
-const ars = (n: number) =>
-  n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+/** Mensaje de texto suelto (el cierre de la tanda). */
+async function enviarTexto(jid: string, text: string): Promise<void> {
+  await evolutionFetch(evolutionUrl("/message/sendText"), {
+    method: "POST",
+    body: JSON.stringify({ number: jid, text }),
+  });
+}
+
+/** 14000 -> "14.000" (separador de miles, sin decimales). */
+const miles = (n: number) => Math.round(n).toLocaleString("es-AR");
 
 /**
- * Caption del post: nombre + (opcional) contado y tarjeta + talles, y SIEMPRE
- * cierra con el llamado a la acción: link directo al producto en la tienda
- * (no a la home) + invitación a escribir al privado.
+ * Caption de UN producto (formato "vendedor"). Sin link: el llamado a la acción
+ * va una sola vez, en el mensaje de cierre de la tanda.
+ * Las líneas vacías (descripción, colores) simplemente no se ponen.
  */
 export function buildCaption(p: DbProduct, incluirPrecio: boolean): string {
-  const lineas: string[] = [`*${p.name}*`];
+  const estilo = (p.estilo ?? "").trim();
+  const lineas: string[] = [`*${p.name}*${estilo ? ` — ${estilo}` : ""}`];
 
-  if (incluirPrecio) {
-    const tarjeta = parseFloat(p.price);
-    const sale = p.salePrice != null ? parseFloat(p.salePrice) : null;
-    const contado = sale != null ? sale : tarjeta;
-    lineas.push(
-      contado < tarjeta
-        ? `💵 ${ars(contado)} contado  |  💳 ${ars(tarjeta)}`
-        : `💵 ${ars(contado)}`,
-    );
-  }
+  const desc = (p.description ?? "").trim();
+  if (desc) lineas.push(desc);
 
   const talles = (p.sizes ?? []).filter(Boolean);
-  if (talles.length) lineas.push(`Talles: ${talles.join(" · ")}`);
+  if (talles.length) lineas.push(`📏 Talles: ${talles.join(", ")}`);
 
-  lineas.push("");
-  lineas.push(`🛒 Compralo acá: ${WEB_URL}/productos/${p.id}`);
-  lineas.push("📩 O escribinos al privado y te asesoramos.");
+  const colores = (p.colors ?? []).filter(Boolean);
+  if (colores.length) lineas.push(`🎨 Colores: ${colores.join(", ")}`);
+
+  // El precio es precio_tarjeta (mismo criterio que el bot), nunca hardcodeado.
+  if (incluirPrecio) lineas.push(`💵 $${miles(parseFloat(p.price))}`);
 
   return lineas.join("\n");
+}
+
+/** Cierre de la tanda: UN solo mensaje al final, con el link de la web. */
+export function buildCierre(): string {
+  return [
+    "📲 Contactanos por privado para comprar o consultar talles.",
+    `🛒 O mirá todo en nuestra web 👉 ${WEB_URL}`,
+  ].join("\n");
 }
 
 /** Publicaciones ya hechas hoy (hora AR) a ese destino. */
 export async function publicacionesHoy(destinoId: number): Promise<number> {
   const { rows } = await pool.query<{ n: string }>(
-    `SELECT COUNT(*)::text AS n FROM whatsapp_envios
+    `SELECT COUNT(*)::text AS n FROM publicaciones
       WHERE destino_id = $1
         AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Catamarca')::date
             = (now() AT TIME ZONE 'America/Argentina/Catamarca')::date`,
@@ -132,19 +140,20 @@ export async function publicacionesHoy(destinoId: number): Promise<number> {
   return parseInt(rows[0]?.n ?? "0", 10);
 }
 
-export type DestinoRow = typeof whatsappDestinosTable.$inferSelect;
+export type DestinoRow = typeof destinosWhatsappTable.$inferSelect;
 
 /**
- * Corre en segundo plano (no bloquea la request): manda los productos de a uno
- * al destino, con pausa aleatoria entre cada uno, y va actualizando el contador
- * del envío para que el panel muestre "enviando 3/8...".
+ * Corre en segundo plano (no bloquea la request): manda los productos de a uno,
+ * con pausa aleatoria entre cada uno, y cierra con UN mensaje con el link.
+ * Va actualizando el contador para que el panel muestre "enviando 3/8...".
  */
-async function correrEnvio(
-  envioId: number,
-  jid: string,
+async function correrPublicacion(
+  publicacionId: number,
+  destino: DestinoRow,
   productos: DbProduct[],
   incluirPrecio: boolean,
 ): Promise<void> {
+  const jid = destino.remoteJid;
   let enviados = 0;
   let fallidos = 0;
 
@@ -157,39 +166,58 @@ async function correrEnvio(
       if (!imagen) throw new Error("El producto no tiene imagen");
       await enviarMedia(jid, imagen, buildCaption(producto, incluirPrecio));
       enviados++;
-      await db.insert(whatsappEnvioItemsTable).values({ envioId, productoId: producto.id, ok: true });
+      await db.insert(logPublicacionesTable).values({
+        publicacionId,
+        productoId: producto.id,
+        destinoId: destino.id,
+        ok: true,
+      });
     } catch (err) {
       fallidos++;
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error({ err, envioId, productoId: producto.id }, "falló el envío a WhatsApp");
-      await db
-        .insert(whatsappEnvioItemsTable)
-        .values({ envioId, productoId: producto.id, ok: false, error: msg.slice(0, 500) });
+      logger.error({ err, publicacionId, productoId: producto.id }, "falló el envío a WhatsApp");
+      await db.insert(logPublicacionesTable).values({
+        publicacionId,
+        productoId: producto.id,
+        destinoId: destino.id,
+        ok: false,
+        error: msg.slice(0, 500),
+      });
     }
 
     await db
-      .update(whatsappEnviosTable)
+      .update(publicacionesTable)
       .set({ enviados, fallidos })
-      .where(eq(whatsappEnviosTable.id, envioId));
+      .where(eq(publicacionesTable.id, publicacionId));
+  }
+
+  // Cierre: un único mensaje con el link, sólo si algo llegó.
+  if (enviados > 0) {
+    try {
+      await delayAleatorio();
+      await enviarTexto(jid, buildCierre());
+    } catch (err) {
+      logger.error({ err, publicacionId }, "no se pudo enviar el mensaje de cierre");
+    }
   }
 
   await db
-    .update(whatsappEnviosTable)
+    .update(publicacionesTable)
     .set({ enviados, fallidos, estado: fallidos > 0 && enviados === 0 ? "error" : "completado" })
-    .where(eq(whatsappEnviosTable.id, envioId));
+    .where(eq(publicacionesTable.id, publicacionId));
 
-  logger.info({ envioId, enviados, fallidos }, "envío a WhatsApp terminado");
+  logger.info({ publicacionId, enviados, fallidos }, "publicación a WhatsApp terminada");
 }
 
 /**
- * Valida, crea el registro del envío y lanza el worker en segundo plano.
- * Devuelve el id del envío por destino para que el panel siga el progreso.
+ * Valida, registra la tanda y lanza el worker en segundo plano.
+ * Devuelve un id por destino para que el panel siga el progreso.
  */
 export async function publicarProductos(opts: {
   destinos: DestinoRow[];
   productoIds: number[];
   incluirPrecio: boolean;
-}): Promise<{ envios: { envio_id: number; destino_id: number; destino: string; total: number }[] }> {
+}): Promise<{ publicaciones: { publicacion_id: number; destino_id: number; destino: string; total: number }[] }> {
   const { destinos, productoIds, incluirPrecio } = opts;
 
   const productos = await db
@@ -201,11 +229,11 @@ export async function publicarProductos(opts: {
   const porId = new Map(productos.map((p) => [p.id, p]));
   const ordenados = productoIds.map((id) => porId.get(id)).filter((p): p is DbProduct => !!p);
 
-  const envios: { envio_id: number; destino_id: number; destino: string; total: number }[] = [];
+  const salida: { publicacion_id: number; destino_id: number; destino: string; total: number }[] = [];
 
   for (const destino of destinos) {
-    const [envio] = await db
-      .insert(whatsappEnviosTable)
+    const [pub] = await db
+      .insert(publicacionesTable)
       .values({
         destinoId: destino.id,
         remoteJid: destino.remoteJid,
@@ -213,24 +241,24 @@ export async function publicarProductos(opts: {
         estado: "en_curso",
       })
       .returning();
-    if (!envio) continue;
+    if (!pub) continue;
 
-    envios.push({
-      envio_id: envio.id,
+    salida.push({
+      publicacion_id: pub.id,
       destino_id: destino.id,
       destino: destino.nombre,
       total: ordenados.length,
     });
 
     // Fire-and-forget, igual que queueProductEmbeddings: la request contesta ya.
-    void correrEnvio(envio.id, destino.remoteJid, ordenados, incluirPrecio).catch((err) => {
-      logger.error({ err, envioId: envio.id }, "el envío a WhatsApp murió");
+    void correrPublicacion(pub.id, destino, ordenados, incluirPrecio).catch((err) => {
+      logger.error({ err, publicacionId: pub.id }, "la publicación murió");
       void db
-        .update(whatsappEnviosTable)
+        .update(publicacionesTable)
         .set({ estado: "error" })
-        .where(eq(whatsappEnviosTable.id, envio.id));
+        .where(eq(publicacionesTable.id, pub.id));
     });
   }
 
-  return { envios };
+  return { publicaciones: salida };
 }
