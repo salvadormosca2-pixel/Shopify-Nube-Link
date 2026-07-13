@@ -208,7 +208,7 @@ export function Pedidos() {
             </div>
 
             {/* Datos del cliente */}
-            <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
+            <div className="rounded-lg border border-borde bg-papel p-4 text-sm">
               <div className="flex justify-between"><span className="text-gris-2">Cliente</span><span className="text-tinta">{selected.cliente_nombre || "—"}</span></div>
               {selected.telefono && <div className="flex justify-between"><span className="text-gris-2">Teléfono</span><span className="text-tinta">{selected.telefono}</span></div>}
               {esEnvio && selected.direccion_envio && (
@@ -220,7 +220,7 @@ export function Pedidos() {
             </div>
 
             {/* Ítems */}
-            <div className="rounded-lg border border-borde bg-[#0E0E0E] p-4 text-sm">
+            <div className="rounded-lg border border-borde bg-papel p-4 text-sm">
               {items.length === 0 ? (
                 <p className="text-center text-xs text-gris-2">Sin ítems</p>
               ) : items.map((it, i) => (
@@ -249,7 +249,7 @@ export function Pedidos() {
                   <label className="text-xs text-gris">
                     Forma de pago
                     <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)}
-                      className="mt-1 block rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm capitalize text-tinta">
+                      className="input-field mt-1 capitalize">
                       {FORMAS_PAGO.map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </label>
@@ -266,9 +266,9 @@ export function Pedidos() {
                   <p className="text-xs font-medium text-gris">Despachar envío</p>
                   <div className="flex flex-wrap gap-2">
                     <input value={transportista} onChange={(e) => setTransportista(e.target.value)} placeholder="Transportista (Correo, Andreani...)"
-                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-tinta" />
+                      className="flex-1 input-field" />
                     <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="N° de tracking / link"
-                      className="flex-1 rounded-md border border-borde bg-[#0E0E0E] px-2 py-1.5 text-sm text-tinta" />
+                      className="flex-1 input-field" />
                   </div>
                   <button className="btn-primary" disabled={saving} onClick={despachar}>
                     <Truck size={15} /> {saving ? "Guardando..." : "Marcar como enviado"}
