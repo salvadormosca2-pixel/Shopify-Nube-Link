@@ -67,11 +67,22 @@ router.post("/orders", async (req, res) => {
     }
     const productIds = [...qtyByProduct.keys()];
 
-    // Fetch product data for price + pre-validation stock check
+    // Fetch product data for price + pre-validation stock check.
+    // El NOMBRE se toma de la base, no de lo que manda el navegador: si el front
+    // no lo mandaba, el pedido quedaba con los ítems sin nombre ("Producto #5") y
+    // en Envíos/Caja no se sabía qué prenda había que empaquetar.
     const dbProducts = await db
-      .select({ id: productsTable.id, price: productsTable.price, salePrice: productsTable.salePrice, stock: productsTable.stock })
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        price: productsTable.price,
+        salePrice: productsTable.salePrice,
+        stock: productsTable.stock,
+      })
       .from(productsTable)
       .where(inArray(productsTable.id, productIds));
+
+    const nameMap = new Map(dbProducts.map((p) => [p.id, p.name]));
 
     const priceMap = new Map(dbProducts.map(p => [
       p.id,
@@ -135,7 +146,20 @@ router.post("/orders", async (req, res) => {
           customerCity: customer.city,
           customerProvince: customer.province,
           customerPostalCode: customer.postalCode,
-          items,
+          // Se guardan los ítems con el NOMBRE y el PRECIO de la base, no los que
+          // manda el navegador: el nombre lo necesita el que arma el paquete, y el
+          // precio nunca hay que creérselo al cliente.
+          items: (items as Array<Record<string, unknown>>).map((it) => {
+            const pid = Number(it["productId"]);
+            return {
+              productId: pid,
+              productName: nameMap.get(pid) ?? String(it["productName"] ?? `Producto #${pid}`),
+              size: String(it["size"] ?? ""),
+              color: String(it["color"] ?? ""),
+              quantity: Number(it["quantity"]) || 0,
+              price: priceMap.get(pid) ?? 0,
+            };
+          }),
           shippingCost: String(shippingCost),
           total: String(total),
           paymentId: null,
