@@ -212,12 +212,19 @@ router.patch("/admin/presupuestos/:id/estado", async (req, res) => {
 });
 
 // ─── ENVÍOS (pedidos con datos logísticos) ───────────────────────────────────
+// Un pedido "está pagado" desde que se confirma el pago. Mismo criterio que
+// Finanzas, para que las secciones no se contradigan.
+const PAGADO = new Set(["confirmed", "preparing", "shipped", "delivered"]);
+
 router.get("/admin/envios", async (req, res) => {
   try {
     const { estado } = req.query as Record<string, string>;
     let rows = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
     // Sólo pedidos que se despachan (no los cancelados ni los de mostrador).
-    rows = rows.filter((o) => o.status !== "cancelled" && o.canal !== "local");
+    // Sólo se despacha lo que YA se cobró. Un pedido con el pago sin verificar
+    // no aparece acá: queda en Pedidos hasta que se confirme. Así es imposible
+    // mandar mercadería sin haberla cobrado.
+    rows = rows.filter((o) => PAGADO.has(o.status) && o.canal !== "local");
     if (estado) rows = rows.filter((o) => (o.estadoEnvio || "preparando") === estado);
     res.json(rows.map((o) => ({
       id: o.id,
@@ -256,6 +263,24 @@ router.patch("/admin/envios/:id", async (req, res) => {
     const id = num(req.params.id);
     if (id == null) { res.status(400).json({ error: "invalid_id", message: "ID inválido" }); return; }
     const b = req.body ?? {};
+
+    // Candado: no se despacha un pedido que no se cobró (aunque se llame la API
+    // directamente, sin pasar por la pantalla).
+    if (b.estado !== undefined && String(b.estado) !== "preparando") {
+      const [pedido] = await db
+        .select({ status: ordersTable.status, tracking: ordersTable.trackingNumber })
+        .from(ordersTable)
+        .where(eq(ordersTable.id, id))
+        .limit(1);
+      if (pedido && !PAGADO.has(pedido.status)) {
+        res.status(409).json({
+          error: "pago_no_confirmado",
+          message: `El pedido ${pedido.tracking} todavía no tiene el pago confirmado. Confirmalo en Pedidos antes de despacharlo.`,
+        });
+        return;
+      }
+    }
+
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (b.estado !== undefined) set.estadoEnvio = String(b.estado);
 

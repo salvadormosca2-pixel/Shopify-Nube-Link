@@ -236,7 +236,7 @@ function Despachos() {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={list.refetch} />
       ) : envios.length === 0 ? (
-        <EmptyState message="Sin despachos" />
+        <EmptyState message="Sin despachos. Acá sólo aparecen los pedidos con el pago YA confirmado: si falta alguno, confirmalo primero en Pedidos." />
       ) : (
         <Table
           headers={[
