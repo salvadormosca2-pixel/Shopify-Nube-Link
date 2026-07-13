@@ -137,6 +137,34 @@ const STATEMENTS = [
     hex TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS whatsapp_destinos (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'grupo',
+    remote_jid TEXT NOT NULL UNIQUE,
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS whatsapp_envios (
+    id SERIAL PRIMARY KEY,
+    destino_id INTEGER NOT NULL,
+    remote_jid TEXT NOT NULL,
+    total INTEGER NOT NULL DEFAULT 0,
+    enviados INTEGER NOT NULL DEFAULT 0,
+    fallidos INTEGER NOT NULL DEFAULT 0,
+    estado TEXT NOT NULL DEFAULT 'en_curso',
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS whatsapp_envio_items (
+    id SERIAL PRIMARY KEY,
+    envio_id INTEGER NOT NULL,
+    producto_id INTEGER NOT NULL,
+    ok BOOLEAN NOT NULL DEFAULT false,
+    error TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS whatsapp_envios_destino_fecha_idx
+     ON whatsapp_envios (destino_id, created_at)`,
 ];
 
 // Seed de la sucursal de Catamarca si la tabla está vacía (era el motivo por el

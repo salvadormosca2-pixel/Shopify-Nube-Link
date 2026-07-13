@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Plus, Pencil, Trash2, Search, ImageOff, Upload, Loader2, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ImageOff, Upload, Loader2, Star, Send, X } from "lucide-react";
+import { EnviarComunidadModal } from "../components/EnviarComunidadModal";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -104,8 +105,30 @@ export function Productos() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Selección múltiple para publicar a un grupo/comunidad de WhatsApp.
+  const [seleccion, setSeleccion] = useState<Set<string | number>>(new Set());
+  const [enviarOpen, setEnviarOpen] = useState(false);
+
   const productos = list.data ?? [];
   const categorias = cats.data ?? [];
+
+  const toggleUno = (id: string | number) => {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // "Seleccionar todos" opera sobre lo que se ve en pantalla (filtros aplicados).
+  const todosVisiblesElegidos =
+    productos.length > 0 && productos.every((p) => seleccion.has(p.id));
+  const toggleTodos = () => {
+    setSeleccion(todosVisiblesElegidos ? new Set() : new Set(productos.map((p) => p.id)));
+  };
+
+  const seleccionados = productos.filter((p) => seleccion.has(p.id));
 
   const save = async () => {
     if (!form) return;
@@ -173,6 +196,24 @@ export function Productos() {
         </Select>
       </FilterBar>
 
+      {seleccion.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-acento/30 bg-acento/5 px-4 py-3">
+          <p className="text-sm text-white">
+            {seleccion.size} {seleccion.size === 1 ? "producto seleccionado" : "productos seleccionados"}
+          </p>
+          <button className="btn-primary ml-auto" onClick={() => setEnviarOpen(true)}>
+            <Send size={16} /> Enviar a comunidad
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => setSeleccion(new Set())}
+            title="Limpiar selección"
+          >
+            <X size={16} /> Limpiar
+          </button>
+        </div>
+      )}
+
       {list.loading ? (
         <SkeletonTable cols={7} />
       ) : list.error ? (
@@ -182,6 +223,14 @@ export function Productos() {
       ) : (
         <Table
           headers={[
+            <input
+              key="check-all"
+              type="checkbox"
+              checked={todosVisiblesElegidos}
+              onChange={toggleTodos}
+              className="h-4 w-4 accent-acento"
+              title="Seleccionar todos"
+            />,
             "",
             "Producto",
             "Categoría",
@@ -197,6 +246,14 @@ export function Productos() {
             const ahorro = p.precio_tarjeta - p.precio_contado;
             return (
               <Row key={p.id}>
+                <Cell>
+                  <input
+                    type="checkbox"
+                    checked={seleccion.has(p.id)}
+                    onChange={() => toggleUno(p.id)}
+                    className="h-4 w-4 accent-acento"
+                  />
+                </Cell>
                 <Cell>
                   {p.imagen ? (
                     <img
@@ -442,6 +499,13 @@ export function Productos() {
         onConfirm={remove}
         loading={saving}
         message={`¿Eliminar "${toDelete?.nombre}"? Esta acción no se puede deshacer.`}
+      />
+
+      <EnviarComunidadModal
+        open={enviarOpen}
+        productos={seleccionados}
+        onClose={() => setEnviarOpen(false)}
+        onEnviado={() => setSeleccion(new Set())}
       />
     </div>
   );

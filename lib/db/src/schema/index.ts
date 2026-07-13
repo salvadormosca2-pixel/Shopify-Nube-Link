@@ -13,3 +13,4 @@ export * from "./stock-reservas";
 export * from "./gastos";
 export * from "./devoluciones";
 export * from "./panel-extra";
+export * from "./whatsapp";

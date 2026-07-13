@@ -23,6 +23,7 @@ import { Field, TextInput, TextArea } from "../components/ui/Field";
 import { Badge } from "../components/ui/Badge";
 import { Skeleton } from "../components/ui/Skeleton";
 import { ErrorState, EmptyState } from "../components/ui/DataState";
+import { DestinosWhatsappCard } from "../components/DestinosWhatsappCard";
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                               */
@@ -505,6 +506,8 @@ export function Configuracion() {
             { key: "nombre", label: "Nombre", placeholder: "transferencia" },
           ]}
         />
+
+        <DestinosWhatsappCard />
 
         <InfoCard
           title="Envíos (zonas y costos)"
