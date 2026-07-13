@@ -39,6 +39,18 @@ interface Mensaje {
   created_at?: string;
 }
 
+// Color de cada etiqueta que pone el bot, por temperatura del lead.
+// El resto (etiquetas nuevas que agregue el workflow) cae en azul.
+const TONO_ETIQUETA: Record<string, "acento" | "ambar" | "rojo" | "azul" | "gris"> = {
+  comprador: "acento", // ya compró
+  caliente: "rojo", // a punto de comprar
+  interesado: "ambar",
+  curioso: "azul",
+  "bot-apagado": "gris", // control: el bot no responde acá
+};
+
+const tonoDe = (etiqueta: string) => TONO_ETIQUETA[etiqueta.toLowerCase()] ?? "azul";
+
 // Normaliza el texto del mensaje (texto vs contenido).
 function msgText(m: Mensaje): string {
   return m.texto ?? m.contenido ?? "";
@@ -277,7 +289,7 @@ export function Mensajes() {
                   {(c.etiquetas?.length ?? 0) > 0 && (
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {c.etiquetas!.map((e) => (
-                        <Badge key={e} tone={e === cfg.data?.etiqueta ? "ambar" : "azul"}>
+                        <Badge key={e} tone={tonoDe(e)}>
                           {e}
                         </Badge>
                       ))}
@@ -310,7 +322,7 @@ export function Mensajes() {
                   {(active.etiquetas?.length ?? 0) > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {active.etiquetas!.map((e) => (
-                        <Badge key={e} tone={e === cfg.data?.etiqueta ? "ambar" : "azul"}>
+                        <Badge key={e} tone={tonoDe(e)}>
                           {e}
                         </Badge>
                       ))}

@@ -173,6 +173,13 @@ const STATEMENTS = [
     valor TEXT NOT NULL DEFAULT '',
     updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
+  // La etiqueta con la que el workflow de n8n decide si contesta: si la
+  // conversación tiene "bot-apagado", el bot NO responde. Queda preconfigurada;
+  // el dueño la puede cambiar desde Mensajes → "Configurar bot".
+  `INSERT INTO config_panel (clave, valor) VALUES ('bot_etiqueta', 'bot-apagado')
+     ON CONFLICT (clave) DO NOTHING`,
+  `INSERT INTO config_panel (clave, valor) VALUES ('bot_modo', 'apaga')
+     ON CONFLICT (clave) DO NOTHING`,
   // El grupo YA vinculado a la instancia queda precargado como primer destino.
   // ON CONFLICT: si ya está (o el dueño lo renombró), no lo pisa.
   `INSERT INTO destinos_whatsapp (nombre, tipo, remote_jid, activo)
