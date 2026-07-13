@@ -228,7 +228,20 @@ router.get("/admin/envios", async (req, res) => {
       // devolvía trackingNumber, el número interno: parecía que no se guardaba).
       tracking: o.codigoSeguimiento ?? "",
       tracking_url: o.trackingUrl ?? "",
+      // El código de compra que tiene el cliente: es por el que pregunta.
       numero_pedido: o.trackingNumber,
+      telefono: o.customerPhone ?? "",
+      forma_entrega: o.formaEntrega,
+      // Qué compró: sin esto hay que ir a Pedidos para saber qué se empaqueta.
+      items: (o.items ?? []).map((i) => ({
+        producto: i.productName,
+        talle: i.size,
+        color: i.color,
+        cantidad: i.quantity,
+      })),
+      total: parseFloat(o.total),
+      fecha: o.createdAt,
+      fecha_despacho: o.fechaDespacho ?? null,
       estado_envio: o.estadoEnvio || "preparando",
       estado: o.estadoEnvio || "preparando",
     })));

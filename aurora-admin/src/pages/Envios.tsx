@@ -10,8 +10,16 @@ import { Field, TextInput, TextArea, Select } from "../components/ui/Field";
 import { Badge } from "../components/ui/Badge";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { ErrorState, EmptyState } from "../components/ui/DataState";
+import { formatARS } from "../lib/format";
 
 type Tone = "acento" | "ambar" | "rojo" | "azul" | "gris";
+
+interface ItemEnvio {
+  producto?: string;
+  talle?: string;
+  color?: string;
+  cantidad?: number;
+}
 
 interface Envio {
   id: string | number;
@@ -22,6 +30,12 @@ interface Envio {
   tracking?: string;
   estado_envio?: string;
   estado?: string;
+  // El código que tiene el cliente (AJ-XXXX): es por el que pregunta.
+  numero_pedido?: string;
+  telefono?: string;
+  forma_entrega?: string;
+  items?: ItemEnvio[];
+  total?: number;
 }
 
 interface Devolucion {
@@ -225,19 +239,72 @@ function Despachos() {
         <EmptyState message="Sin despachos" />
       ) : (
         <Table
-          headers={["Cliente", "Dirección", "Transportista", "Tracking", "Estado", "Acciones"]}
+          headers={[
+            "Pedido",
+            "Cliente",
+            "Qué compró",
+            "Entrega",
+            "Transportista",
+            "Cód. seguimiento",
+            "Estado",
+            "Acciones",
+          ]}
         >
           {envios.map((e) => {
             const est = envioEstado(e);
             const next = NEXT_ENVIO[est];
             const ed = editFor(e);
             const rowBusy = busy === String(e.id);
+            const items = e.items ?? [];
             return (
               <Row key={e.id}>
+                {/* El código de compra: es el que el cliente dice por WhatsApp. */}
+                <Cell>
+                  <p className="font-mono text-xs font-medium text-tinta">
+                    {e.numero_pedido || "—"}
+                  </p>
+                  {e.total != null && (
+                    <p className="mt-0.5 font-mono text-[11px] text-gris-2">
+                      {formatARS(e.total)}
+                    </p>
+                  )}
+                </Cell>
+
                 <Cell>
                   <p className="font-medium text-tinta">{envioCliente(e)}</p>
+                  {e.telefono && (
+                    <p className="font-mono text-[11px] text-gris-2">{e.telefono}</p>
+                  )}
                 </Cell>
-                <Cell className="max-w-[220px] text-gris">{e.direccion || "—"}</Cell>
+
+                {/* Qué se empaqueta: sin esto habia que ir a Pedidos. */}
+                <Cell className="max-w-[240px]">
+                  {items.length === 0 ? (
+                    <span className="text-gris-2">—</span>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {items.map((it, i) => (
+                        <li key={i} className="text-xs text-gris">
+                          <span className="font-medium text-tinta">{it.cantidad}×</span>{" "}
+                          {it.producto}
+                          {it.talle && <span className="text-gris-2"> · {it.talle}</span>}
+                          {it.color && <span className="text-gris-2"> · {it.color}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Cell>
+
+                <Cell className="max-w-[200px]">
+                  {e.forma_entrega === "retiro" ? (
+                    <Badge tone="azul">Retira en el local</Badge>
+                  ) : (
+                    <>
+                      <Badge tone="gris">Envío</Badge>
+                      <p className="mt-1 text-xs text-gris">{e.direccion || "—"}</p>
+                    </>
+                  )}
+                </Cell>
                 <Cell>
                   <TextInput
                     value={ed.transportista}
@@ -308,6 +375,25 @@ function Despachos() {
         }
       >
         <div className="space-y-4">
+          {despachar && (
+            <div className="rounded-md border border-borde bg-papel p-3 text-sm">
+              <p className="font-mono text-xs text-gris-2">{despachar.numero_pedido}</p>
+              <p className="font-medium text-tinta">{envioCliente(despachar)}</p>
+              <ul className="mt-1 space-y-0.5">
+                {(despachar.items ?? []).map((it, i) => (
+                  <li key={i} className="text-xs text-gris">
+                    {it.cantidad}× {it.producto}
+                    {it.talle && ` · ${it.talle}`}
+                    {it.color && ` · ${it.color}`}
+                  </li>
+                ))}
+              </ul>
+              {despachar.forma_entrega !== "retiro" && despachar.direccion && (
+                <p className="mt-1 text-xs text-gris">{despachar.direccion}</p>
+              )}
+            </div>
+          )}
+
           <p className="text-sm text-gris">
             Cargá el número que te da el correo. Es el que el bot le pasa al cliente para que
             rastree su pedido.
