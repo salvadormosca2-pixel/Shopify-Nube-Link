@@ -439,7 +439,7 @@ router.get("/bot/seguimiento", handlerSeguimiento);
 router.post("/bot/pedido-por-codigo", handlerSeguimiento);
 router.get("/bot/pedido-por-codigo", handlerSeguimiento);
 
-router.get("/bot/envio", async (req, res) => {
+const handlerEnvio = async (req: Request, res: Response): Promise<void> => {
   try {
     // Si viene un código de compra, se resuelve por código (el circuito nuevo).
     // Buscar por teléfono queda como fallback del flujo viejo.
@@ -452,9 +452,18 @@ router.get("/bot/envio", async (req, res) => {
       return;
     }
 
-    const telefono = String(req.query.telefono ?? "");
+    // El teléfono también puede venir por body (si el bot llama por POST).
+    const telefono = String(
+      primero(
+        { ...(req.query as Record<string, unknown>), ...((req.body ?? {}) as Record<string, unknown>) },
+        ["telefono", "phone", "telefono_cliente"],
+      ) ?? "",
+    );
     if (!normalizePhone(telefono)) {
-      res.status(400).json({ error: "invalid_request", message: "Falta el teléfono (?telefono=...)" });
+      res.status(400).json({
+        error: "invalid_request",
+        message: "Falta el código de compra (?codigo=AJ-...) o el teléfono (?telefono=...)",
+      });
       return;
     }
     // ordersByPhone ya normaliza a dígitos de los DOS lados y matchea por los
@@ -493,7 +502,12 @@ router.get("/bot/envio", async (req, res) => {
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo consultar el envío" });
   }
-});
+};
+
+// GET y POST: el workflow del bot puede llamarlo de cualquiera de las dos formas
+// (antes POST /bot/envio devolvía 404, que es lo que hacía fallar la consulta).
+router.get("/bot/envio", handlerEnvio);
+router.post("/bot/envio", handlerEnvio);
 
 // ─── CRM: derivación, cliente, visto, presupuesto, calificación, aviso ───────
 // Derivar la conversación a un humano.
