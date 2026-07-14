@@ -2,7 +2,17 @@
 builder = "nixpacks"
 buildCommand = "corepack enable && pnpm install && pnpm --filter @workspace/api-server run build"
 # Rebuild on any change in the API source / shared packages / build config.
-watchPatterns = ["artifacts/**", "lib/**", "package.json", "pnpm-lock.yaml", "railway.toml"]
+# Ojo: "artifacts/**" solo no alcanzó — Railway saltó el build ("no changes
+# detected in watch paths") con cambios reales adentro. Por eso el "/**/*".
+watchPatterns = [
+  "artifacts/**",
+  "artifacts/**/*",
+  "lib/**",
+  "lib/**/*",
+  "package.json",
+  "pnpm-lock.yaml",
+  "railway.toml",
+]
 
 [build.environment]
 NIXPACKS_NODE_VERSION = "20"
