@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@afipsdk/afip.js": "^1.2.3",
     "@google-cloud/storage": "^7.19.0",
     "@huggingface/transformers": "^3.7.6",
     "@workspace/api-zod": "workspace:*",

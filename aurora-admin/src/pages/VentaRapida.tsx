@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScanBarcode, Trash2, Plus, Minus, ImageOff, Loader2, CheckCircle2, Printer } from "lucide-react";
+import { ScanBarcode, Trash2, Plus, Minus, ImageOff, Loader2, CheckCircle2, Printer, Receipt } from "lucide-react";
+import QRCode from "qrcode";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -53,6 +54,34 @@ const MEDIOS = [
   { value: "mercado_pago", label: "Mercado Pago" },
 ];
 
+// Comprobante que se le emite al cliente. La B (consumidor final) es el caso
+// normal del mostrador y va por defecto: la venta rápida no se frena por esto.
+// La A sólo cuando el cliente es responsable inscripto y da su CUIT.
+const FACTURA_B = 6;
+const FACTURA_A = 1;
+
+interface Factura {
+  id: number;
+  cbte_tipo: number;
+  tipo_nombre: string;
+  nro_comprobante: string;
+  cae: string;
+  cae_vto: string;
+  fecha: string;
+  total: number;
+  neto: number;
+  iva: number;
+  doc_tipo: number;
+  doc_nro: string;
+  qr: string;
+  homologacion: boolean;
+}
+
+interface EstadoFacturacion {
+  configurada: boolean;
+  homologacion: boolean;
+}
+
 export function VentaRapida() {
   // Catálogo de variantes (todo lo que tiene stock cargado). Se filtra en el cliente.
   const catalogo = useApi<Variante[]>(() => api.get(`/admin/stock`).then((r) => r.data), []);
@@ -67,6 +96,40 @@ export function VentaRapida() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ticket, setTicket] = useState<VentaResp | null>(null);
+
+  // Facturación: tipo de comprobante y CUIT (sólo si es Factura A).
+  const [tipoFactura, setTipoFactura] = useState<number>(FACTURA_B);
+  const [cuit, setCuit] = useState("");
+  const [factura, setFactura] = useState<Factura | null>(null);
+  const [facturando, setFacturando] = useState(false);
+  const [errorFactura, setErrorFactura] = useState<string | null>(null);
+  const facturacion = useApi<EstadoFacturacion>(
+    () => api.get(`/admin/facturacion/estado`).then((r) => r.data),
+    [],
+  );
+  const puedeFacturar = facturacion.data?.configurada ?? false;
+
+  /**
+   * Pide el comprobante a ARCA. Se llama DESPUÉS de que la venta ya está
+   * guardada: si ARCA falla, la venta igual quedó hecha y el ticket se puede
+   * emitir de nuevo desde el modal. El mostrador nunca se frena.
+   */
+  const emitirFactura = async (orderId: number, tipo: number, cuitCliente: string) => {
+    setFacturando(true);
+    setErrorFactura(null);
+    try {
+      const { data } = await api.post(`/admin/facturas`, {
+        order_id: orderId,
+        cbte_tipo: tipo,
+        cuit: cuitCliente.replace(/\D/g, "") || undefined,
+      });
+      setFactura(data as Factura);
+    } catch (err) {
+      setErrorFactura(apiError(err));
+    } finally {
+      setFacturando(false);
+    }
+  };
 
   const searchRef = useRef<HTMLInputElement>(null);
   const focusSearch = () => searchRef.current?.focus();
@@ -176,6 +239,8 @@ export function VentaRapida() {
     if (items.length === 0) return;
     setSaving(true);
     setError(null);
+    setFactura(null);
+    setErrorFactura(null);
     try {
       const { data } = await api.post(`/admin/ventas`, {
         items: items.map((it) => ({ variante_id: it.variante_id, cantidad: it.cantidad, precio: it.precio })),
@@ -184,13 +249,24 @@ export function VentaRapida() {
         pago_con: medioPago === "efectivo" && pagoCon !== "" ? pagoConNum : undefined,
         cliente_telefono: clienteTel.trim() || undefined,
       });
-      setTicket(data as VentaResp);
+      const venta = data as VentaResp;
+      setTicket(venta);
+
+      // La venta YA está cobrada y el stock descontado. La factura va aparte, a
+      // propósito: si ARCA rechaza o está caída, el modal muestra el error con
+      // un botón para reintentar, pero la venta no se pierde.
+      const tipo = tipoFactura;
+      const cuitCliente = cuit;
+      if (puedeFacturar) void emitirFactura(venta.id, tipo, cuitCliente);
+
       // Reset de la venta.
       setItems([]);
       setDescuento(0);
       setPagoCon("");
       setClienteTel("");
       setMedioPago("efectivo");
+      setTipoFactura(FACTURA_B);
+      setCuit("");
       catalogo.refetch();
     } catch (err) {
       setError(apiError(err));
@@ -360,6 +436,45 @@ export function VentaRapida() {
                 placeholder="Sin teléfono = venta anónima"
               />
             </Field>
+
+            {/* Comprobante. La B va por defecto para no frenar el mostrador; la A
+                aparece sólo si la piden, y recién ahí se pide el CUIT. */}
+            {puedeFacturar && (
+              <div className="rounded-lg border border-borde bg-fondo p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-tinta">
+                    <Receipt size={15} className="text-gris" />
+                    <span className="font-medium">
+                      {tipoFactura === FACTURA_B ? "Factura B" : "Factura A"}
+                    </span>
+                    {facturacion.data?.homologacion && (
+                      <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yellow-500">
+                        Prueba
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoFactura(tipoFactura === FACTURA_B ? FACTURA_A : FACTURA_B);
+                      setCuit("");
+                    }}
+                    className="text-xs font-medium text-acento hover:underline"
+                  >
+                    {tipoFactura === FACTURA_B ? "Cambiar a A" : "Volver a B"}
+                  </button>
+                </div>
+                {tipoFactura === FACTURA_A && (
+                  <input
+                    value={cuit}
+                    onChange={(e) => setCuit(e.target.value)}
+                    className="input-field mt-2 text-sm"
+                    placeholder="CUIT del cliente (11 dígitos)"
+                    inputMode="numeric"
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           {error && <p className="mt-3 text-sm text-pale-rojo-txt">{error}</p>}
@@ -375,39 +490,53 @@ export function VentaRapida() {
         </div>
       </div>
 
-      {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} />}
+      {ticket && (
+        <TicketModal
+          ticket={ticket}
+          factura={factura}
+          facturando={facturando}
+          errorFactura={errorFactura}
+          puedeFacturar={puedeFacturar}
+          onReintentar={(tipo, cuitCliente) => emitirFactura(ticket.id, tipo, cuitCliente)}
+          onClose={() => setTicket(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ─── Ticket imprimible (80mm) ───────────────────────────────────────────────
-function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => void }) {
-  const imprimir = () => {
-    const w = window.open("", "_blank", "width=320,height=600");
+// Si la venta tiene factura, el ticket sale con el formato fiscal (encabezado
+// del emisor, tipo de comprobante, CAE, QR de ARCA y el IVA contenido que exige
+// el Régimen de Transparencia Fiscal, Ley 27.743). Si no, sale el ticket simple
+// de siempre: una venta sin factura igual se tiene que poder imprimir.
+function TicketModal({
+  ticket,
+  factura,
+  facturando,
+  errorFactura,
+  puedeFacturar,
+  onReintentar,
+  onClose,
+}: {
+  ticket: VentaResp;
+  factura: Factura | null;
+  facturando: boolean;
+  errorFactura: string | null;
+  puedeFacturar: boolean;
+  onReintentar: (tipo: number, cuit: string) => void;
+  onClose: () => void;
+}) {
+  const [reintentoTipo, setReintentoTipo] = useState(FACTURA_B);
+  const [reintentoCuit, setReintentoCuit] = useState("");
+
+  const imprimir = async () => {
+    // El QR se arma acá y se incrusta como imagen: la ventana de impresión no
+    // puede depender de una llamada externa justo cuando se manda a imprimir.
+    const qrImg = factura?.qr ? await QRCode.toDataURL(factura.qr, { margin: 1, width: 180 }) : "";
+    const w = window.open("", "_blank", "width=340,height=650");
     if (!w) return;
-    const filas = ticket.items
-      .map(
-        (i) =>
-          `<tr><td>${i.cantidad}x ${i.nombre} ${i.talle}${i.color ? "/" + i.color : ""}</td><td style="text-align:right">$${(i.precio * i.cantidad).toLocaleString("es-AR")}</td></tr>`,
-      )
-      .join("");
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Ticket ${ticket.tracking}</title>
-      <style>*{font-family:monospace;font-size:12px}body{width:80mm;margin:0;padding:8px}
-      h2{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}
-      td{padding:2px 0}hr{border:none;border-top:1px dashed #000}
-      .tot{font-weight:bold;font-size:14px}</style></head><body>
-      <h2>ALFIS JEANS</h2>
-      <div style="text-align:center">Ticket ${ticket.tracking}</div><hr>
-      <table>${filas}</table><hr>
-      <table>
-      <tr><td>Subtotal</td><td style="text-align:right">$${ticket.subtotal.toLocaleString("es-AR")}</td></tr>
-      ${ticket.descuento ? `<tr><td>Descuento</td><td style="text-align:right">-$${ticket.descuento.toLocaleString("es-AR")}</td></tr>` : ""}
-      <tr class="tot"><td>TOTAL</td><td style="text-align:right">$${ticket.total.toLocaleString("es-AR")}</td></tr>
-      <tr><td>Pago</td><td style="text-align:right">${ticket.medio_pago}</td></tr>
-      ${ticket.vuelto != null ? `<tr><td>Vuelto</td><td style="text-align:right">$${ticket.vuelto.toLocaleString("es-AR")}</td></tr>` : ""}
-      </table><hr>
-      <div style="text-align:center">¡Gracias por tu compra!</div>
-      </body></html>`);
+    w.document.write(htmlTicket(ticket, factura, qrImg));
     w.document.close();
     w.focus();
     w.print();
@@ -444,6 +573,70 @@ function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => vo
           )}
         </div>
 
+        {/* Estado del comprobante. La venta ya está hecha pase lo que pase acá. */}
+        {puedeFacturar && (
+          <div className="mb-3 rounded-lg border border-borde bg-fondo p-3 text-sm">
+            {facturando && (
+              <div className="flex items-center gap-2 text-gris">
+                <Loader2 size={14} className="animate-spin" /> Emitiendo comprobante en ARCA…
+              </div>
+            )}
+
+            {factura && (
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 font-medium text-tinta">
+                  <Receipt size={14} className="text-acento" />
+                  {factura.tipo_nombre} {factura.nro_comprobante}
+                  {factura.homologacion && (
+                    <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yellow-500">
+                      Prueba
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gris">
+                  CAE {factura.cae} · vence {factura.cae_vto}
+                </p>
+                <p className="text-xs text-gris">IVA contenido: {formatARS(factura.iva)}</p>
+              </div>
+            )}
+
+            {errorFactura && (
+              <div className="space-y-2">
+                <p className="text-xs text-pale-rojo-txt">No se pudo emitir la factura: {errorFactura}</p>
+                <p className="text-xs text-gris">
+                  La venta ya quedó registrada y el stock descontado. Podés reintentar.
+                </p>
+                <div className="flex gap-2">
+                  <select
+                    value={reintentoTipo}
+                    onChange={(e) => setReintentoTipo(Number(e.target.value))}
+                    className="input-field py-1 text-xs"
+                  >
+                    <option value={FACTURA_B}>Factura B</option>
+                    <option value={FACTURA_A}>Factura A</option>
+                  </select>
+                  {reintentoTipo === FACTURA_A && (
+                    <input
+                      value={reintentoCuit}
+                      onChange={(e) => setReintentoCuit(e.target.value)}
+                      placeholder="CUIT"
+                      className="input-field py-1 text-xs"
+                      inputMode="numeric"
+                    />
+                  )}
+                  <button
+                    onClick={() => onReintentar(reintentoTipo, reintentoCuit)}
+                    disabled={facturando}
+                    className="btn-secondary whitespace-nowrap px-2 py-1 text-xs"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {ticket.advertencias?.length > 0 && (
           <div className="mb-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-2 text-xs text-yellow-400">
             {ticket.advertencias.map((a, i) => (
@@ -453,7 +646,7 @@ function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => vo
         )}
 
         <div className="flex gap-2">
-          <button onClick={imprimir} className="btn-primary flex-1 justify-center">
+          <button onClick={imprimir} disabled={facturando} className="btn-primary flex-1 justify-center">
             <Printer size={16} /> Imprimir
           </button>
           <button onClick={onClose} className="btn-secondary flex-1 justify-center">
@@ -463,4 +656,88 @@ function TicketModal({ ticket, onClose }: { ticket: VentaResp; onClose: () => vo
       </div>
     </div>
   );
+}
+
+const pesos = (n: number) =>
+  `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Ticket de 80 mm. Con factura, replica el formato fiscal exigido por ARCA. */
+function htmlTicket(ticket: VentaResp, f: Factura | null, qrImg: string): string {
+  const filas = ticket.items
+    .map(
+      (i) =>
+        `<tr><td>${i.cantidad}x ${i.nombre} ${i.talle}${i.color ? "/" + i.color : ""}</td>` +
+        `<td class="r">${f ? "21%" : ""}</td>` +
+        `<td class="r">${pesos(i.precio)}</td>` +
+        `<td class="r">${pesos(i.precio * i.cantidad)}</td></tr>`,
+    )
+    .join("");
+
+  const receptor = f && f.doc_tipo !== 99 ? "RESPONSABLE INSCRIPTO" : "CONSUMIDOR FINAL";
+
+  const encabezado = f
+    ? `<div class="c b">MAJA S.R.L.</div>
+       <div class="c">CUIT: 30-71078558-5</div>
+       <div class="c">RIVADAVIA 817 (4700) - SAN FERNANDO DEL VALLE DE CATAMARCA</div>
+       <div class="c">IIBB: 30-71078558-5</div>
+       <div class="c">Inicio de Actividades: 01/11/2013</div>
+       <div class="c">IVA Responsable Inscripto</div>
+       <hr>
+       <div class="c b">${f.tipo_nombre} &nbsp;&nbsp; Cod. ${f.cbte_tipo}</div>
+       <div>Fecha de Emision: ${f.fecha}</div>
+       <div>Nro. Comp. Electronico: ${f.nro_comprobante}</div>
+       <div>Se&ntilde;or(es): ${receptor}</div>
+       <div>Doc: ${f.doc_tipo === 99 ? "" : f.doc_nro} / IVA: ${receptor}</div>
+       <div>Forma de Pago: ${ticket.medio_pago}</div>
+       <hr>`
+    : `<div class="c">Ticket ${ticket.tracking}</div><hr>`;
+
+  const pie = f
+    ? `<hr>
+       <div class="c">Comprobante Autorizado</div>
+       <div class="c">CAE Nro: ${f.cae}</div>
+       <div class="c">Vto de CAE: ${f.cae_vto}</div>
+       ${qrImg ? `<div class="c"><img src="${qrImg}" width="150" height="150"></div>` : ""}
+       <hr>
+       <div class="s">Regimen de Transparencia Fiscal al Consumidor (Ley 27.743)</div>
+       <div class="s">IVA Contenido: ${pesos(f.iva)}</div>
+       <div class="s">Otros Impuestos Nacionales Indirectos: $ 0.00</div>
+       ${
+         f.homologacion
+           ? `<hr><div class="c b">*** COMPROBANTE DE PRUEBA ***</div><div class="c">SIN VALIDEZ FISCAL</div>`
+           : ""
+       }`
+    : `<hr><div class="c">&iexcl;Gracias por tu compra!</div>`;
+
+  const titulo = f ? `${f.tipo_nombre} ${f.nro_comprobante}` : `Ticket ${ticket.tracking}`;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title>
+    <style>
+      *{font-family:monospace;font-size:11px}
+      body{width:80mm;margin:0;padding:8px}
+      h2{text-align:center;margin:4px 0;font-size:18px}
+      table{width:100%;border-collapse:collapse}
+      td{padding:1px 0;vertical-align:top}
+      .r{text-align:right}
+      .c{text-align:center}
+      .b{font-weight:bold}
+      .s{font-size:10px}
+      hr{border:none;border-top:1px dashed #000;margin:5px 0}
+      .tot{font-weight:bold;font-size:14px}
+    </style></head><body>
+    <h2>ALFIS JEANS</h2>
+    ${encabezado}
+    <table>
+      <tr class="b"><td>Descripcion</td><td class="r">Iva</td><td class="r">P.Unit</td><td class="r">P.Total</td></tr>
+      ${filas}
+    </table>
+    <hr>
+    <table>
+      <tr><td>Subtotal</td><td class="r">${pesos(ticket.subtotal)}</td></tr>
+      ${ticket.descuento ? `<tr><td>Descuento UNICO</td><td class="r">-${pesos(ticket.descuento)}</td></tr>` : ""}
+      <tr class="tot"><td>Total</td><td class="r">${pesos(ticket.total)}</td></tr>
+      ${ticket.vuelto != null ? `<tr><td>Vuelto</td><td class="r">${pesos(ticket.vuelto)}</td></tr>` : ""}
+    </table>
+    ${pie}
+    </body></html>`;
 }

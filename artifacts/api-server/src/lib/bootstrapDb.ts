@@ -201,6 +201,32 @@ const STATEMENTS = [
   `INSERT INTO destinos_whatsapp (nombre, tipo, remote_jid, activo)
      VALUES ('Alfis Jeans Catamarca!', 'grupo', '120363429582184215@g.us', true)
      ON CONFLICT (remote_jid) DO NOTHING`,
+  // Comprobantes electrónicos de ARCA emitidos para una venta. Guarda el CAE y
+  // los importes tal como se declararon, para poder reimprimir el ticket sin
+  // volver a llamar a ARCA. `homologacion` marca las de PRUEBA (sin validez fiscal).
+  `CREATE TABLE IF NOT EXISTS facturas (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+    cbte_tipo INTEGER NOT NULL,
+    pto_vta INTEGER NOT NULL,
+    numero INTEGER NOT NULL,
+    cae TEXT NOT NULL,
+    cae_vto TEXT NOT NULL,
+    cbte_fch INTEGER NOT NULL,
+    total DECIMAL(12,2) NOT NULL,
+    neto DECIMAL(12,2) NOT NULL,
+    iva DECIMAL(12,2) NOT NULL,
+    doc_tipo INTEGER NOT NULL,
+    doc_nro TEXT NOT NULL DEFAULT '0',
+    condicion_iva_receptor INTEGER NOT NULL,
+    qr TEXT NOT NULL DEFAULT '',
+    homologacion BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+  )`,
+  // Una venta no puede tener dos facturas del mismo tipo: si se reintenta la
+  // emisión, tiene que fallar en vez de duplicar el comprobante.
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_facturas_order_tipo
+     ON facturas (order_id, cbte_tipo)`,
 ];
 
 // Seed de la sucursal de Catamarca si la tabla está vacía (era el motivo por el
