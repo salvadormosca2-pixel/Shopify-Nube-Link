@@ -134,7 +134,11 @@ function EditorialSection({
               key={cta.category}
               onClick={() => {
                 onCategoryClick(cta.category);
-                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+                // Diferir el scroll: si corre en el mismo tick que el navigate, el
+                // re-render del catálogo interrumpe el smooth scroll y queda a medias.
+                requestAnimationFrame(() =>
+                  document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" }),
+                );
               }}
               className="btn-fill inline-flex items-center gap-3 bg-transparent border border-foreground/30 text-foreground px-7 py-3 text-sm font-medium tracking-[0.1em] uppercase"
             >

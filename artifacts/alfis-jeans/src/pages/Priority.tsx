@@ -29,7 +29,7 @@ const EDITORIAL_SECTIONS: EditorialSectionData[] = [
     label: "Denim Mujer",
     title: "El jean\nque te\ndefine.",
     cta: "Ver Jeans",
-    category: "pantalones",
+    category: "pantalon",
     image: "/editorial-jeans.jpg",
     objectPos: "center top",
     studio: true,
@@ -154,7 +154,11 @@ function EditorialSection({
           <button
             onClick={() => {
               onCategoryClick(section.category);
-              document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" });
+              // Diferir el scroll: si corre en el mismo tick que el navigate, el
+              // re-render del catálogo interrumpe el smooth scroll y queda a medias.
+              requestAnimationFrame(() =>
+                document.getElementById("coleccion")?.scrollIntoView({ behavior: "smooth" }),
+              );
             }}
             className="inline-flex items-center gap-3 text-sm font-light tracking-wide text-foreground border-b border-[hsl(var(--border))] pb-1 hover:border-foreground hover:text-foreground/70 transition-colors duration-400 group"
           >
