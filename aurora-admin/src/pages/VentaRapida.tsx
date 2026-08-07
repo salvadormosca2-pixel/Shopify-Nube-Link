@@ -11,6 +11,7 @@ interface Variante {
   id: number;
   producto_id: number;
   producto_nombre: string;
+  producto_sku?: string | null;
   talle: string;
   color: string;
   stock: number;
@@ -161,6 +162,8 @@ export function VentaRapida() {
         (v) =>
           v.producto_nombre.toLowerCase().includes(q) ||
           (v.sku ?? "").toLowerCase().includes(q) ||
+          // Código del producto: si el dueño lo escribe, aparecen todos sus talles.
+          (v.producto_sku ?? "").toLowerCase().includes(q) ||
           (v.codigo_barras ?? "").includes(q) ||
           v.talle.toLowerCase().includes(q) ||
           v.color.toLowerCase().includes(q),
