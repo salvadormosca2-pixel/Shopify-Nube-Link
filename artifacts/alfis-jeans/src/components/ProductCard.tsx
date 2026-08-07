@@ -12,6 +12,13 @@ export const ProductCard = memo(function ProductCard({ product }: { product: Pro
       ? Math.round((1 - product.salePrice / product.price) * 100)
       : null;
 
+  // Promo cargada en el panel (ej. "2x1"). Si trae precio promocional, ese es el
+  // que se cobra y manda sobre el precio de lista.
+  const promo = product.promo ?? null;
+  const precioPromo = promo?.precio_promo ?? null;
+  const precioFinal = precioPromo ?? product.salePrice ?? product.price;
+  const precioTachado = precioFinal < product.price ? product.price : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -53,9 +60,20 @@ export const ProductCard = memo(function ProductCard({ product }: { product: Pro
               -{discountPct}%
             </div>
           )}
-          {product.stock > 0 && discountPct == null && product.featured && (
+          {product.stock > 0 && discountPct == null && !promo && product.featured && (
             <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-medium px-3 py-1 tracking-wider uppercase">
               Nuevo
+            </div>
+          )}
+
+          {/* Promo del panel (2x1, 3x2, ...). Va arriba a la DERECHA para no
+              pisar el "-20%" / "Agotado", que viven a la izquierda. */}
+          {product.stock > 0 && promo && (
+            <div
+              className="absolute top-3 right-3 bg-black text-white text-[11px] font-semibold px-3 py-1 tracking-wider uppercase shadow-lg"
+              data-testid={`badge-promo-${product.id}`}
+            >
+              {promo.titulo}
             </div>
           )}
         </div>
@@ -68,17 +86,19 @@ export const ProductCard = memo(function ProductCard({ product }: { product: Pro
             {product.name}
           </h3>
           <div className="mt-2.5 flex items-center gap-2">
-            {product.salePrice != null ? (
-              <>
-                <span className="text-sm font-medium text-foreground">
-                  {formatArs(product.salePrice)}
-                </span>
-                <span className="text-xs text-[hsl(var(--muted-foreground))] line-through font-light">
-                  {formatArs(product.price)}
-                </span>
-              </>
-            ) : (
-              <span className="text-sm font-light text-foreground">{formatArs(product.price)}</span>
+            <span
+              className={
+                precioTachado
+                  ? "text-sm font-medium text-foreground"
+                  : "text-sm font-light text-foreground"
+              }
+            >
+              {formatArs(precioFinal)}
+            </span>
+            {precioTachado != null && (
+              <span className="text-xs text-[hsl(var(--muted-foreground))] line-through font-light">
+                {formatArs(precioTachado)}
+              </span>
             )}
           </div>
         </div>

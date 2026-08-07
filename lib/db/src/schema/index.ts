@@ -15,3 +15,4 @@ export * from "./devoluciones";
 export * from "./panel-extra";
 export * from "./whatsapp";
 export * from "./facturas";
+export * from "./financiacion";

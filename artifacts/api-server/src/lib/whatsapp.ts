@@ -85,6 +85,19 @@ async function enviarMedia(jid: string, imagen: string, caption: string): Promis
   });
 }
 
+/**
+ * Responder directo a un cliente por WhatsApp (lo usa la respuesta rápida de
+ * Derivaciones). Devuelve false si Evolution no está configurada o el teléfono
+ * no sirve, para que el panel ofrezca abrir WhatsApp a mano en vez de fallar.
+ */
+export async function responderACliente(telefono: unknown, texto: string): Promise<boolean> {
+  if (!evolutionConfigurada()) return false;
+  const jid = telefonoAJid(telefono);
+  if (!jid || !texto.trim()) return false;
+  await enviarTexto(jid, texto);
+  return true;
+}
+
 /** Mensaje de texto suelto (el cierre de la tanda, o un aviso a un cliente). */
 async function enviarTexto(jid: string, text: string): Promise<void> {
   await evolutionFetch(evolutionUrl("/message/sendText"), {

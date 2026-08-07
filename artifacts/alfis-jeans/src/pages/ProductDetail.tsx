@@ -12,6 +12,84 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { ProductCard } from "@/components/ProductCard";
 
+// ─── Cuotas ───────────────────────────────────────────────────────────────────
+// Planes que el dueño carga en Admin → Cuotas y tarjetas, calculados sobre el
+// precio de ESTA prenda. Si todavía no cargó ninguno, no se muestra nada.
+interface PlanCuota {
+  id: number;
+  tarjeta: string;
+  cuotas: number;
+  recargo_pct: number;
+  nota: string;
+  sin_interes: boolean;
+  total: number;
+  valor_cuota: number;
+}
+
+function Cuotas({ precio }: { precio: number }) {
+  const [planes, setPlanes] = useState<PlanCuota[]>([]);
+
+  useEffect(() => {
+    if (!precio || precio <= 0) return;
+    let vivo = true;
+    fetch(`/api/financiacion/precio?monto=${precio}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (vivo && Array.isArray(d?.planes)) setPlanes(d.planes);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [precio]);
+
+  if (planes.length === 0) return null;
+
+  // El destacado: el plan sin interés de más cuotas.
+  const sinInteres = planes.filter((p) => p.sin_interes && p.cuotas > 1);
+  const destacado = (sinInteres.length > 0 ? sinInteres : planes).sort(
+    (a, b) => b.cuotas - a.cuotas,
+  )[0];
+
+  return (
+    <div className="mb-10 -mt-6 border border-[hsl(var(--border))] p-4" data-testid="cuotas-producto">
+      {destacado && destacado.cuotas > 1 && (
+        <p className="text-sm text-foreground">
+          <span className="font-medium">
+            {destacado.cuotas} cuotas{destacado.sin_interes ? " sin interés" : ""} de{" "}
+            {formatArs(destacado.valor_cuota)}
+          </span>
+        </p>
+      )}
+      <details className="mt-2 group">
+        <summary className="cursor-pointer text-xs font-light tracking-wide text-[hsl(var(--muted-foreground))] hover:text-foreground transition-colors">
+          Ver todos los medios de pago y cuotas
+        </summary>
+        <ul className="mt-3 space-y-1.5">
+          {planes.map((p) => (
+            <li key={p.id} className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="text-[hsl(var(--muted-foreground))] font-light">
+                {p.tarjeta}
+                {p.nota && <span className="opacity-70"> · {p.nota}</span>}
+              </span>
+              <span className="shrink-0 text-foreground">
+                {p.cuotas === 1
+                  ? formatArs(p.total)
+                  : `${p.cuotas} × ${formatArs(p.valor_cuota)}`}
+                {p.cuotas > 1 && p.sin_interes && (
+                  <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70">
+                    sin interés
+                  </span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
 function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
   const [hovered, setHovered] = useState(0);
   return (
@@ -252,6 +330,13 @@ export default function ProductDetail() {
     setCurrentImageIndex(0);
   }, [product?.id]);
 
+  // Precio a cobrar: manda el precio promocional del panel (si la promo trae uno),
+  // después el precio de oferta del producto, y si no el de lista.
+  const precioFinal =
+    product?.promo?.precio_promo ?? product?.salePrice ?? product?.price ?? 0;
+  const precioTachado =
+    product && precioFinal < product.price ? product.price : null;
+
   const handleAddToCart = () => {
     if (!product) return;
     if (!selectedColor || !selectedSize) {
@@ -266,7 +351,7 @@ export default function ProductDetail() {
     addItem({
       productId: product.id,
       productName: product.name,
-      price: product.salePrice != null ? product.salePrice : product.price,
+      price: precioFinal,
       image: product.images[0] || "",
       color: selectedColor,
       size: selectedSize,
@@ -366,19 +451,36 @@ export default function ProductDetail() {
             {product.name}
           </h1>
 
-          {product.salePrice != null ? (
+          {/* Promo del panel (2x1, 3x2, ...): etiqueta grande arriba del precio. */}
+          {product.promo && (
+            <div className="mb-4 inline-flex items-center gap-2 self-start bg-foreground text-background px-4 py-2">
+              <span className="text-sm font-semibold tracking-wider uppercase" data-testid="promo-titulo">
+                {product.promo.titulo}
+              </span>
+              {product.promo.vigente_hasta && (
+                <span className="text-[11px] font-light opacity-80">
+                  hasta el {String(product.promo.vigente_hasta).slice(8, 10)}/
+                  {String(product.promo.vigente_hasta).slice(5, 7)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {precioTachado != null ? (
             <div className="flex items-baseline gap-3 mb-10">
-              <p className="font-display text-2xl md:text-3xl text-foreground" style={{ fontWeight: 600 }}>{formatArs(product.salePrice)}</p>
-              <p className="text-base text-[hsl(var(--muted-foreground))] line-through font-light">{formatArs(product.price)}</p>
+              <p className="font-display text-2xl md:text-3xl text-foreground" style={{ fontWeight: 600 }}>{formatArs(precioFinal)}</p>
+              <p className="text-base text-[hsl(var(--muted-foreground))] line-through font-light">{formatArs(precioTachado)}</p>
               <span className="text-[10px] font-medium tracking-wider bg-foreground text-background px-2 py-0.5">
-                -{Math.round((1 - product.salePrice / product.price) * 100)}%
+                -{Math.round((1 - precioFinal / precioTachado) * 100)}%
               </span>
             </div>
           ) : (
             <p className="font-display text-2xl md:text-3xl mb-10" style={{ fontWeight: 500 }}>
-              {formatArs(product.price)}
+              {formatArs(precioFinal)}
             </p>
           )}
+
+          <Cuotas precio={precioFinal} />
 
           <div className="space-y-8 mb-12">
             {product.colors && product.colors.length > 0 && (

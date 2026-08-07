@@ -18,12 +18,13 @@ import {
   promosTable,
   maestrosTable,
 } from "@workspace/db/schema";
-import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
+import { eq, sql, and, or, inArray, desc, isNull, lte, gte } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
 import { generateSku, generateEan13FromId, generateProductCode, normalizeCode } from "../lib/codes";
 import { todayInAr, resumenCaja } from "../lib/caja";
 import { resumenFinanzas, serieDiaria, periodoAnterior, arDate } from "../lib/finanzas";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
+import { loadPromosProducto } from "../lib/promociones";
 import { queueProductEmbeddings } from "../lib/imageSearch";
 import { loadVariantsMap, loadVariantsMapRaw, type VariantRow } from "../lib/variants";
 import { applyOrderStock, checkOrderStock } from "../lib/stock-movements";
@@ -32,6 +33,7 @@ import { listEstilosEnStock } from "../lib/crm";
 import { normalizeSection, generoOf, matchesSection } from "../lib/sections";
 import { matchesEstilo } from "../lib/estilos";
 import { liberarReservasPedido } from "../lib/reservas";
+import { responderACliente } from "../lib/whatsapp";
 
 const router: IRouter = Router();
 
@@ -90,7 +92,8 @@ router.get("/productos", async (req, res) => {
     if (!Number.isNaN(lim) && lim > 0) rows = rows.slice(0, lim);
 
     const variants = await loadVariantsMap(rows.map((p) => p.id));
-    res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id))));
+    const promos = await loadPromosProducto(rows.map((p) => p.id));
+    res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id), promos.get(p.id))));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener los productos" });
   }
@@ -115,7 +118,8 @@ router.get("/productos/:id", async (req, res) => {
       return;
     }
     const variants = await loadVariantsMap([id]);
-    res.json(toProductoPublic(product, variants.get(id)));
+    const promos = await loadPromosProducto([id]);
+    res.json(toProductoPublic(product, variants.get(id), promos.get(id)));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudo obtener el producto" });
   }
@@ -139,6 +143,39 @@ router.get("/promociones", async (_req, res) => {
     res.json(promos.map((p) => toPromo(p, variants.get(p.id))));
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las promociones" });
+  }
+});
+
+// Promo comercial vigente ("3x2 en remeras") para el banner de la tienda. Es la
+// misma que consume el bot en /bot/promo-activa, pero pública: hasta ahora el
+// dueño la cargaba y sólo la veía WhatsApp, nunca la web.
+router.get("/promo-activa", async (_req, res) => {
+  try {
+    const now = new Date();
+    const [promo] = await db
+      .select()
+      .from(promosTable)
+      .where(
+        and(
+          eq(promosTable.activo, true),
+          or(isNull(promosTable.vigenteDesde), lte(promosTable.vigenteDesde, now)),
+          or(isNull(promosTable.vigenteHasta), gte(promosTable.vigenteHasta, now)),
+        ),
+      )
+      .orderBy(desc(promosTable.updatedAt))
+      .limit(1);
+    if (!promo) {
+      res.json({ activa: false });
+      return;
+    }
+    res.json({
+      activa: true,
+      titulo: promo.titulo,
+      descripcion: promo.descripcion,
+      vigente_hasta: promo.vigenteHasta,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo obtener la promo" });
   }
 });
 
@@ -1860,6 +1897,89 @@ router.get("/admin/derivaciones", async (req, res) => {
     );
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las derivaciones" });
+  }
+});
+
+// Contador liviano para el aviso rojo del panel: cuánta gente está esperando que
+// la atienda una persona. El panel lo consulta cada pocos segundos, así que
+// devuelve sólo números.
+router.get("/admin/derivaciones/pendientes", async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        estado: derivacionesTable.estado,
+        atendida: derivacionesTable.atendida,
+        prioridad: derivacionesTable.prioridad,
+        createdAt: derivacionesTable.createdAt,
+      })
+      .from(derivacionesTable);
+
+    const abiertas = rows.filter((d) => {
+      const estado = d.estado || (d.atendida ? "resuelta" : "pendiente");
+      return estado !== "resuelta";
+    });
+    const sinTocar = abiertas.filter(
+      (d) => (d.estado || (d.atendida ? "resuelta" : "pendiente")) === "pendiente",
+    );
+    const masVieja = abiertas.reduce<Date | null>(
+      (min, d) => (min == null || d.createdAt < min ? d.createdAt : min),
+      null,
+    );
+
+    res.json({
+      pendientes: sinTocar.length,
+      abiertas: abiertas.length,
+      urgentes: abiertas.filter((d) => d.prioridad === "alta").length,
+      espera_desde: masVieja,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudieron contar las derivaciones" });
+  }
+});
+
+// Respuesta rápida: le contesta al cliente por WhatsApp y marca la derivación.
+// Si Evolution no está levantada, devuelve enviado:false + el link de wa.me para
+// que el empleado la mande a mano sin perder el mensaje que ya escribió.
+router.post("/admin/derivaciones/:id/responder", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const mensaje = String(req.body?.mensaje ?? "").trim();
+    if (Number.isNaN(id) || !mensaje) {
+      res.status(400).json({ error: "invalid_input", message: "Falta el mensaje" });
+      return;
+    }
+    const [deriv] = await db.select().from(derivacionesTable).where(eq(derivacionesTable.id, id));
+    if (!deriv) {
+      res.status(404).json({ error: "not_found", message: "Derivación no encontrada" });
+      return;
+    }
+
+    let enviado = false;
+    let detalle = "";
+    try {
+      enviado = await responderACliente(deriv.telefono, mensaje);
+      if (!enviado) detalle = "WhatsApp no está conectado — abrilo a mano con el botón.";
+    } catch (err) {
+      detalle = err instanceof Error ? err.message : "No se pudo enviar por WhatsApp";
+    }
+
+    // Se marca "en proceso" igual: alguien ya la agarró, no puede seguir en rojo.
+    const nuevoEstado = String(req.body?.estado ?? (enviado ? "resuelta" : "en_proceso"));
+    await db
+      .update(derivacionesTable)
+      .set({ estado: nuevoEstado, atendida: nuevoEstado === "resuelta" })
+      .where(eq(derivacionesTable.id, id));
+
+    const tel = String(deriv.telefono ?? "").replace(/\D/g, "");
+    res.json({
+      ok: true,
+      enviado,
+      detalle,
+      estado: nuevoEstado,
+      wa_link: tel ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : "",
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo responder la derivación" });
   }
 });
 

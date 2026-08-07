@@ -10,6 +10,13 @@ import { ordersTable, productsTable } from "@workspace/db/schema";
 import { adminAuth } from "../middleware/admin";
 import { arDate } from "../lib/finanzas";
 import { chatwootConfigurado, listarConversaciones } from "../lib/chatwoot";
+import {
+  libroIvaVentas,
+  detalleVentas,
+  detalleGastos,
+  resumenContable,
+  type Rango,
+} from "../lib/contador";
 
 const router: IRouter = Router();
 
@@ -135,6 +142,42 @@ router.get("/admin/metricas", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "no se pudieron calcular las métricas");
     res.status(500).json({ error: "internal_error", message: "No se pudieron calcular las métricas" });
+  }
+});
+
+// ─── EXPORT PARA EL CONTADOR ─────────────────────────────────────────────────
+// Cuatro planillas separadas porque es como las carga un estudio: el libro IVA
+// va a la DDJJ, el detalle de ventas sirve para cruzar lo facturado con lo
+// vendido, gastos son las compras del período y el resumen es la carátula.
+const HOJAS: Record<string, { nombre: string; generar: (r: Rango) => Promise<string> }> = {
+  "libro-iva": { nombre: "libro-iva-ventas", generar: libroIvaVentas },
+  ventas: { nombre: "ventas-detalle", generar: detalleVentas },
+  gastos: { nombre: "gastos-compras", generar: detalleGastos },
+  resumen: { nombre: "resumen-contable", generar: resumenContable },
+};
+
+router.get("/admin/reportes/contador", async (req, res) => {
+  try {
+    const { desde, hasta } = rangoDeQuery(req.query as Record<string, unknown>);
+    const clave = String((req.query as Record<string, string>).hoja ?? "resumen");
+    const hoja = HOJAS[clave];
+    if (!hoja) {
+      res.status(400).json({
+        error: "invalid_input",
+        message: `Hoja inválida. Opciones: ${Object.keys(HOJAS).join(", ")}`,
+      });
+      return;
+    }
+    const contenido = await hoja.generar({ desde, hasta });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${hoja.nombre}_${desde}_${hasta}.csv"`,
+    );
+    res.send(contenido);
+  } catch (err) {
+    req.log.error({ err }, "no se pudo exportar para el contador");
+    res.status(500).json({ error: "internal_error", message: "No se pudo generar el export" });
   }
 });
 

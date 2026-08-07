@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -20,6 +21,8 @@ import {
   TrendingUp,
   Settings,
   Store,
+  CreditCard,
+  LifeBuoy,
   LogOut,
   Menu,
   X,
@@ -32,6 +35,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  // Muestra el globito rojo con la cantidad de gente esperando.
+  alerta?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -47,12 +52,14 @@ const NAV: NavItem[] = [
   { to: "/presupuestos", label: "Presupuestos", icon: FileText },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingCart },
   { to: "/mensajes", label: "Mensajes", icon: MessageSquare },
+  { to: "/derivaciones", label: "Derivaciones", icon: LifeBuoy, alerta: true },
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/envios", label: "Envíos", icon: Truck },
   { to: "/empleados", label: "Empleados", icon: UserCog, adminOnly: true },
   { to: "/reportes", label: "Reportes", icon: BarChart3, adminOnly: true },
   { to: "/resultados", label: "Resultados", icon: TrendingUp },
   { to: "/sucursales", label: "Mi Local", icon: Store, adminOnly: true },
+  { to: "/cuotas", label: "Cuotas y tarjetas", icon: CreditCard, adminOnly: true },
   { to: "/configuracion", label: "Configuración", icon: Settings, adminOnly: true },
 ];
 
@@ -62,10 +69,42 @@ const CANALES = [
   { value: "local", label: "Local" },
 ];
 
+// Cuánta gente está esperando que la atienda una persona. Se consulta cada 20 s
+// para que el globito rojo aparezca solo, sin que nadie tenga que recargar.
+function useDerivacionesPendientes(): number {
+  const [pendientes, setPendientes] = useState(0);
+
+  useEffect(() => {
+    let vivo = true;
+    const consultar = () => {
+      api
+        .get(`/admin/derivaciones/pendientes`)
+        .then((r) => {
+          if (vivo) setPendientes(Number(r.data?.pendientes) || 0);
+        })
+        .catch(() => {});
+    };
+    consultar();
+    const t = setInterval(consultar, 20_000);
+    return () => {
+      vivo = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  return pendientes;
+}
+
 export function Layout() {
   const { user, logout, isAdmin, canalActivo, setCanalActivo } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const pendientes = useDerivacionesPendientes();
+
+  // El título de la pestaña también avisa: el panel suele quedar en segundo plano.
+  useEffect(() => {
+    document.title = pendientes > 0 ? `(${pendientes}) Alfis — Admin` : "Alfis — Admin";
+  }, [pendientes]);
 
   const items = NAV.filter((n) => !n.adminOnly || isAdmin());
   const initial = (user?.nombre ?? "?").charAt(0).toUpperCase();
@@ -111,28 +150,38 @@ export function Layout() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
-                isActive
-                  ? "bg-tinta font-medium text-white"
-                  : "text-gris hover:bg-dark-hover hover:text-tinta"
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span>{label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
+        {items.map(({ to, label, icon: Icon, alerta }) => {
+          const enRojo = alerta && pendientes > 0;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
+                  isActive
+                    ? "bg-tinta font-medium text-white"
+                    : enRojo
+                      ? "bg-pale-rojo font-medium text-pale-rojo-txt"
+                      : "text-gris hover:bg-dark-hover hover:text-tinta"
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon size={17} strokeWidth={isActive || enRojo ? 2.2 : 1.8} />
+                  <span>{label}</span>
+                  {enRojo && (
+                    <span className="ml-auto flex h-5 min-w-5 animate-pulse items-center justify-center rounded-full bg-pale-rojo-txt px-1.5 text-[0.65rem] font-bold text-white">
+                      {pendientes}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Usuario */}

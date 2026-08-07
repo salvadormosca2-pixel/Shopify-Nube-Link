@@ -4,6 +4,7 @@
 import { productsTable } from "@workspace/db/schema";
 import { buildAvailability, type VariantRow } from "./variants";
 import { generoOf } from "./sections";
+import { toPromoPublica, type PromoProducto } from "./promociones";
 
 type DbProduct = typeof productsTable.$inferSelect;
 
@@ -23,7 +24,7 @@ function optimizeList(urls: string[]): string[] {
 // `variants` (opcional) son las filas de producto_variantes de este producto;
 // si se pasan, `talles`/`disponible`/`variantes` reflejan el stock real por
 // variante. Si se omiten, cae al comportamiento legado (products.stock).
-export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
+export function toProductoPublic(p: DbProduct, variants?: VariantRow[], promo?: PromoProducto) {
   const price = parseFloat(p.price); // precio de lista / tarjeta
   const sale = p.salePrice != null ? parseFloat(p.salePrice) : null; // precio contado
   const { variantes, talles, disponible } = buildAvailability(variants, {
@@ -32,7 +33,11 @@ export function toProductoPublic(p: DbProduct, variants?: VariantRow[]) {
   });
   return {
     id: p.id,
+    codigo: p.sku ?? "",
     nombre: p.name,
+    marca: p.marca ?? "",
+    // Promo vigente de la sección Promociones del panel (ej. "2x1"). null si no tiene.
+    promo: toPromoPublica(promo),
     descripcion: p.description,
     categoria: p.category,
     genero: generoOf(p.section),

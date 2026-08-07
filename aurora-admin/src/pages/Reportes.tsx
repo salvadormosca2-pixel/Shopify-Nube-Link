@@ -10,8 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { TrendingUp, ShoppingCart, BarChart3, CalendarRange } from "lucide-react";
-import { api } from "../api/client";
+import { TrendingUp, ShoppingCart, BarChart3, CalendarRange, Download, FileSpreadsheet, Loader2 } from "lucide-react";
+import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader, RefreshButton } from "../components/ui/PageHeader";
 import { KpiCard } from "../components/ui/KpiCard";
@@ -52,6 +52,116 @@ function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return toISODate(d);
+}
+
+// ─── Export para el contador ──────────────────────────────────────────────────
+// Cuatro planillas, que es como las carga un estudio contable: el libro IVA va
+// derecho a la DDJJ, el detalle de ventas sirve para cruzar vendido vs facturado,
+// gastos son las compras del período y el resumen es la carátula.
+const HOJAS = [
+  {
+    clave: "libro-iva",
+    titulo: "Libro IVA Ventas",
+    detalle:
+      "Una fila por comprobante: tipo, punto de venta, número, documento del cliente, neto, IVA 21% y CAE. Es la planilla que carga en la DDJJ.",
+    archivo: "libro-iva-ventas",
+  },
+  {
+    clave: "ventas",
+    titulo: "Detalle de ventas",
+    detalle:
+      "Todas las ventas del período con el comprobante que les corresponde. Marca cuáles quedaron SIN facturar.",
+    archivo: "ventas-detalle",
+  },
+  {
+    clave: "gastos",
+    titulo: "Gastos y compras",
+    detalle: "Gastos cargados, gastos de caja en efectivo y retiros, con su categoría.",
+    archivo: "gastos-compras",
+  },
+  {
+    clave: "resumen",
+    titulo: "Resumen del período",
+    detalle:
+      "La carátula: total vendido, total facturado, IVA, gastos, resultado y ventas por medio de pago.",
+    archivo: "resumen-contable",
+  },
+];
+
+function ExportContador({ desde, hasta }: { desde: string; hasta: string }) {
+  const [bajando, setBajando] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const bajar = async (clave: string, archivo: string) => {
+    setBajando(clave);
+    setError(null);
+    try {
+      const res = await api.get(
+        `/admin/reportes/contador?hoja=${clave}&desde=${desde}&hasta=${hasta}`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${archivo}_${desde}_${hasta}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setBajando(null);
+    }
+  };
+
+  const bajarTodo = async () => {
+    for (const h of HOJAS) await bajar(h.clave, h.archivo);
+  };
+
+  return (
+    <div className="card mb-6">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-tinta">
+          <FileSpreadsheet size={16} className="text-acento" /> Para el contador
+        </h3>
+        <button className="btn-primary" onClick={bajarTodo} disabled={!!bajando}>
+          {bajando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+          Descargar las 4 planillas
+        </button>
+      </div>
+      <p className="mb-4 text-xs text-gris-2">
+        Período {desde} al {hasta}. Se descargan en CSV, listas para abrir en Excel.
+      </p>
+
+      {error && (
+        <div className="mb-3 rounded-lg border border-pale-rojo-txt/20 bg-pale-rojo px-3 py-2 text-sm text-pale-rojo-txt">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {HOJAS.map((h) => (
+          <div key={h.clave} className="flex flex-col gap-2 rounded-lg border border-borde p-3">
+            <div>
+              <p className="text-sm font-medium text-tinta">{h.titulo}</p>
+              <p className="mt-0.5 text-xs text-gris-2">{h.detalle}</p>
+            </div>
+            <button
+              className="btn-secondary mt-auto w-fit text-xs"
+              onClick={() => bajar(h.clave, h.archivo)}
+              disabled={!!bajando}
+            >
+              {bajando === h.clave ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              Descargar
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function Reportes() {
@@ -109,6 +219,8 @@ export function Reportes() {
           <CalendarRange size={16} /> {rep.loading ? "Cargando..." : "Aplicar"}
         </button>
       </div>
+
+      <ExportContador desde={desde} hasta={hasta} />
 
       {rep.loading ? (
         <>

@@ -423,6 +423,9 @@ components:
         salePrice:
           type: number
           nullable: true
+        promo:
+          $ref: '#/components/schemas/ProductPromo'
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -436,6 +439,22 @@ components:
         - sizes
         - stock
         - featured
+
+    ProductPromo:
+      type: object
+      description: Promoción vigente cargada en Admin → Promociones (ej. "2x1").
+      properties:
+        titulo:
+          type: string
+        precio_promo:
+          type: number
+          nullable: true
+          description: Precio promocional; null cuando la promo es sólo una etiqueta.
+        vigente_hasta:
+          type: string
+          nullable: true
+      required:
+        - titulo
 
     ProductListResponse:
       type: object

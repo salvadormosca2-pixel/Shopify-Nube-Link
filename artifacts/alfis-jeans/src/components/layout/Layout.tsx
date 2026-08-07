@@ -7,18 +7,50 @@ import { MessageCircle } from "lucide-react";
 const WHATSAPP_MSG = encodeURIComponent("Hola! Quisiera consultar sobre los productos de Alfis Jeans.");
 const WHATSAPP_URL = `https://wa.me/5493834330385?text=${WHATSAPP_MSG}`;
 
-const PROMOS = [
+// Mensajes fijos de la barra superior. A estos se les suma, adelante, la promo
+// comercial que el dueño carga en Admin → Promociones ("3x2 en remeras"), que
+// hasta ahora sólo veía el bot de WhatsApp y nunca aparecía en la web.
+const PROMOS_FIJAS = [
   "Envíos a todo el país · Retiro sin cargo en nuestro local de Catamarca",
-  "Hasta 3 cuotas sin interés",
 ];
 
 function AnnouncementBar() {
   const [idx, setIdx] = useState(0);
+  const [promoPanel, setPromoPanel] = useState<string | null>(null);
+  const [cuotas, setCuotas] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setInterval(() => setIdx((i) => (i + 1) % PROMOS.length), 4000);
-    return () => clearInterval(t);
+    let vivo = true;
+    fetch("/api/promo-activa")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!vivo || !d?.activa || !d.titulo) return;
+        setPromoPanel(d.descripcion ? `${d.titulo} · ${d.descripcion}` : d.titulo);
+      })
+      .catch(() => {});
+    // Financiación: la carga el dueño en Admin → Cuotas y tarjetas.
+    fetch("/api/financiacion/resumen")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (vivo && d?.texto) setCuotas(d.texto);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
   }, []);
+
+  const mensajes = [
+    ...(promoPanel ? [promoPanel] : []),
+    ...(cuotas ? [cuotas] : []),
+    ...PROMOS_FIJAS,
+  ];
+
+  useEffect(() => {
+    if (mensajes.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % mensajes.length), 4000);
+    return () => clearInterval(t);
+  }, [mensajes.length]);
 
   return (
     <div className="bg-[hsl(0,0%,96%)] py-2.5 px-4 text-center overflow-hidden border-b border-[hsl(var(--border))]">
@@ -26,7 +58,7 @@ function AnnouncementBar() {
         className="text-[11px] font-medium tracking-[0.15em] uppercase text-foreground/70"
         key={idx}
       >
-        {PROMOS[idx]}
+        {mensajes[idx % mensajes.length]}
       </p>
     </div>
   );

@@ -18,6 +18,8 @@ import { inArray, eq, and, desc, lte, gte, or, isNull, sql } from "drizzle-orm";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { botAuth } from "../middleware/botAuth";
 import { toProductoPublic, toPromo, isPromo, optimizeCloudinary } from "../lib/catalog";
+import { loadPromosProducto } from "../lib/promociones";
+import { listarPlanesActivos, cuotasDe, resumenFinanciacion } from "../lib/financiacion";
 import { loadVariantsMap, buildAvailability } from "../lib/variants";
 import { listSucursalesPublic } from "../lib/sucursales";
 import { searchProductsByImage, ImageSearchError } from "../lib/imageSearch";
@@ -73,7 +75,8 @@ router.get("/bot/productos", async (req, res) => {
     if (!Number.isNaN(lim) && lim > 0) rows = rows.slice(0, lim);
 
     const variants = await loadVariantsMap(rows.map((p) => p.id));
-    res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id))));
+    const promos = await loadPromosProducto(rows.map((p) => p.id));
+    res.json(rows.map((p) => toProductoPublic(p, variants.get(p.id), promos.get(p.id))));
   } catch {
     res
       .status(500)
@@ -256,6 +259,22 @@ router.get("/bot/sucursales", async (_req, res) => {
     res.json(await listSucursalesPublic());
   } catch {
     res.status(500).json({ error: "internal_error", message: "No se pudieron obtener las sucursales" });
+  }
+});
+
+// Financiación: qué tarjetas y en cuántas cuotas, para cuando el cliente
+// pregunta "¿lo puedo pagar en cuotas?". Con ?monto= devuelve además cuánto sale
+// cada cuota de ese precio, así el bot contesta con el número exacto.
+router.get("/bot/cuotas", async (req, res) => {
+  try {
+    const planes = await listarPlanesActivos();
+    const monto = parseFloat(String((req.query as Record<string, string>).monto ?? ""));
+    res.json({
+      resumen: resumenFinanciacion(planes),
+      planes: Number.isFinite(monto) && monto > 0 ? cuotasDe(monto, planes) : planes,
+    });
+  } catch {
+    res.status(500).json({ error: "internal_error", message: "No se pudo obtener la financiación" });
   }
 });
 

@@ -20,6 +20,8 @@ import { Empleados } from "./pages/Empleados";
 import { Reportes } from "./pages/Reportes";
 import { Resultados } from "./pages/Resultados";
 import { Sucursales } from "./pages/Sucursales";
+import { Cuotas } from "./pages/Cuotas";
+import { Derivaciones } from "./pages/Derivaciones";
 import { Configuracion } from "./pages/Configuracion";
 
 // Requiere sesión; opcionalmente rol admin.
@@ -80,6 +82,7 @@ export function App() {
             </Protected>
           }
         />
+        <Route path="/derivaciones" element={<Derivaciones />} />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/resultados" element={<Resultados />} />
         <Route
@@ -87,6 +90,14 @@ export function App() {
           element={
             <Protected adminOnly>
               <Sucursales />
+            </Protected>
+          }
+        />
+        <Route
+          path="/cuotas"
+          element={
+            <Protected adminOnly>
+              <Cuotas />
             </Protected>
           }
         />

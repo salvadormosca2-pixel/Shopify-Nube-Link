@@ -3,8 +3,23 @@ import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
 import { eq, ilike, and, ne, or, inArray, sql, type SQL } from "drizzle-orm";
 import { sectionsFor } from "../lib/sections";
+import { loadPromosProducto, toPromoPublica } from "../lib/promociones";
 
 const router: IRouter = Router();
+
+type DbProduct = typeof productsTable.$inferSelect;
+
+// Agrega a cada producto su promo vigente (`promo`), para que la tienda pueda
+// pintar la etiqueta ("2x1") sobre la prenda. Sin esto, lo que el dueño carga en
+// Admin → Promociones no se ve en ningún lado de la web.
+async function conPromos(products: DbProduct[]) {
+  const promos = await loadPromosProducto(products.map((p) => p.id));
+  return products.map((p) => ({
+    ...p,
+    price: parseFloat(p.price),
+    promo: toPromoPublica(promos.get(p.id)),
+  }));
+}
 
 router.get("/products", async (req, res) => {
   try {
@@ -60,14 +75,7 @@ router.get("/products", async (req, res) => {
       .limit(parseInt(limit, 10))
       .offset(parseInt(offset, 10));
 
-    const total = products.length;
-
-    const formattedProducts = products.map(p => ({
-      ...p,
-      price: parseFloat(p.price),
-    }));
-
-    res.json({ products: formattedProducts, total });
+    res.json({ products: await conPromos(products), total: products.length });
   } catch (err) {
     req.log.error({ err }, "Error fetching products");
     res.status(500).json({ error: "internal_error", message: "Error fetching products" });
@@ -104,12 +112,7 @@ router.get("/products/featured", async (req, res) => {
       .where(and(eq(productsTable.featured, true), eq(productsTable.activo, true)))
       .limit(8);
 
-    const formattedProducts = products.map(p => ({
-      ...p,
-      price: parseFloat(p.price),
-    }));
-
-    res.json({ products: formattedProducts, total: formattedProducts.length });
+    res.json({ products: await conPromos(products), total: products.length });
   } catch (err) {
     req.log.error({ err }, "Error fetching featured products");
     res.status(500).json({ error: "internal_error", message: "Error fetching featured products" });
@@ -143,7 +146,7 @@ router.get("/products/:id/related", async (req, res) => {
       )
       .limit(4);
 
-    res.json({ products: related.map(p => ({ ...p, price: parseFloat(p.price) })), total: related.length });
+    res.json({ products: await conPromos(related), total: related.length });
   } catch (err) {
     req.log.error({ err }, "Error fetching related products");
     res.status(500).json({ error: "internal_error", message: "Error fetching related products" });
@@ -169,7 +172,7 @@ router.get("/products/:id", async (req, res) => {
       return;
     }
 
-    res.json({ ...product, price: parseFloat(product.price) });
+    res.json((await conPromos([product]))[0]);
   } catch (err) {
     req.log.error({ err }, "Error fetching product");
     res.status(500).json({ error: "internal_error", message: "Error fetching product" });

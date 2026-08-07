@@ -14,6 +14,14 @@ export interface ErrorResponse {
   message?: string;
 }
 
+/** Promoción vigente cargada en Admin → Promociones (ej. "2x1"). */
+export interface ProductPromo {
+  titulo: string;
+  /** Precio promocional; null cuando la promo es sólo una etiqueta. */
+  precio_promo?: number | null;
+  vigente_hasta?: string | null;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -27,6 +35,7 @@ export interface Product {
   stock: number;
   featured: boolean;
   salePrice?: number | null;
+  promo?: ProductPromo | null;
   createdAt?: string;
 }
 
