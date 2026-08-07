@@ -2,7 +2,7 @@
 // They map the panel's Spanish data shape onto the REAL products/orders tables,
 // so the stock shown/edited in the panel is the SAME products.stock the
 // storefront reads. Auth reuses the existing x-admin-key middleware.
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { db } from "@workspace/db";
 import {
   productsTable,
@@ -20,7 +20,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray, desc } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
-import { generateSku, generateEan13FromId } from "../lib/codes";
+import { generateSku, generateEan13FromId, generateProductCode, normalizeCode } from "../lib/codes";
 import { todayInAr, resumenCaja } from "../lib/caja";
 import { resumenFinanzas, serieDiaria, periodoAnterior, arDate } from "../lib/finanzas";
 import { toProductoPublic, toPromo, isPromo, getCombos } from "../lib/catalog";
@@ -69,6 +69,7 @@ router.get("/productos", async (req, res) => {
     let rows = await db
       .select()
       .from(productsTable)
+      .where(eq(productsTable.activo, true)) // los pausados no salen a la tienda
       .orderBy(productsTable.category, productsTable.name);
 
     if (search) {
@@ -77,7 +78,8 @@ router.get("/productos", async (req, res) => {
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
-          (p.description ?? "").toLowerCase().includes(q),
+          (p.description ?? "").toLowerCase().includes(q) ||
+          (p.sku ?? "").toLowerCase().includes(q),
       );
     }
     if (categoria) rows = rows.filter((p) => p.category.toLowerCase() === categoria.toLowerCase());
@@ -103,7 +105,11 @@ router.get("/productos/:id", async (req, res) => {
       res.status(400).json({ error: "invalid_id", message: "ID inválido" });
       return;
     }
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id)).limit(1);
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(and(eq(productsTable.id, id), eq(productsTable.activo, true)))
+      .limit(1);
     if (!product) {
       res.status(404).json({ error: "not_found", message: "Producto no encontrado" });
       return;
@@ -127,7 +133,7 @@ router.get("/sucursales", async (_req, res) => {
 // Promociones públicas (sin token): productos con precio de oferta (salePrice < price).
 router.get("/promociones", async (_req, res) => {
   try {
-    const rows = await db.select().from(productsTable);
+    const rows = await db.select().from(productsTable).where(eq(productsTable.activo, true));
     const promos = rows.filter(isPromo);
     const variants = await loadVariantsMap(promos.map((p) => p.id));
     res.json(promos.map((p) => toPromo(p, variants.get(p.id))));
@@ -210,19 +216,35 @@ function toProducto(p: DbProduct, variants?: VariantRow[]) {
     colores: p.colors ?? [],
     imagen: p.images?.[0] ?? "",
     imagenes: p.images ?? [],
-    sku: String(p.id),
-    activo: p.stock > 0 || (variants ?? []).some((v) => v.stock > 0),
+    // Código real del producto. Los que todavía no lo tienen cargado muestran el
+    // autogenerado (ALF-0243), que es el que se les va a grabar al guardarlos.
+    sku: p.sku ?? generateProductCode(p.id),
+    codigo: p.sku ?? generateProductCode(p.id),
+    activo: p.activo,
+    hay_stock: p.stock > 0 || (variants ?? []).some((v) => v.stock > 0),
     stock: p.stock,
     featured: p.featured,
     destacado: p.featured,
     es_complemento: p.esComplemento,
-    // Stock FÍSICO por variante (para la mini-tabla del form).
+    // Stock FÍSICO por variante + sus códigos (para la mini-tabla del form y las
+    // etiquetas): sin esto los códigos se generaban pero no se veían en ningún lado.
     variantes: (variants ?? []).map((v) => ({
+      id: v.id,
       talle: v.talle,
       color: v.color === "" ? null : v.color,
       stock: v.stock,
+      sku: v.sku,
+      codigo_barras: v.codigoBarras,
     })),
   };
+}
+
+// Lee un precio del body. Devuelve null cuando no vino o es 0/basura, porque en
+// el panel un 0 significa "no lo cargué", no "vale cero".
+function precioDe(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = parseFloat(String(v));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 // Build a DB insert/update payload from the panel's Spanish body.
@@ -245,17 +267,28 @@ function fromProducto(body: Record<string, unknown>): Partial<typeof productsTab
     out.section = normalizeSection(body.genero);
   }
   if (body.estilo !== undefined) out.estilo = String(body.estilo).toLowerCase().trim();
+  if (body.marca !== undefined) out.marca = String(body.marca ?? "").trim();
+  // Código / SKU escrito por el dueño. Vacío = que lo autogenere el alta/edición.
+  if (body.sku !== undefined || body.codigo !== undefined) {
+    out.sku = normalizeCode(body.sku ?? body.codigo) || null;
+  }
+  if (body.activo !== undefined) out.activo = Boolean(body.activo);
   if (body.destacado !== undefined) out.featured = Boolean(body.destacado);
   else if (body.featured !== undefined) out.featured = Boolean(body.featured);
   if (body.es_complemento !== undefined) out.esComplemento = Boolean(body.es_complemento);
 
-  const tarjeta = body.precio_tarjeta != null ? parseFloat(String(body.precio_tarjeta)) : NaN;
-  const contado = body.precio_contado != null ? parseFloat(String(body.precio_contado)) : NaN;
-  if (!Number.isNaN(tarjeta)) out.price = String(tarjeta);
-  // precio_contado < precio_tarjeta => oferta (salePrice); si son iguales, sin oferta.
-  if (!Number.isNaN(contado)) {
-    out.salePrice =
-      !Number.isNaN(tarjeta) && contado < tarjeta ? String(contado) : null;
+  // Precios. El panel tiene dos campos: "contado" (efectivo/transferencia) y
+  // "tarjeta" (el de lista). En la base `price` es el de lista y `salePrice` el
+  // de oferta. Antes se pisaba `price` con precio_tarjeta AUNQUE VINIERA EN 0:
+  // si el dueño cargaba sólo el contado, el precio se perdía y el producto
+  // quedaba en $0 en la tienda. Ahora, si falta uno, se usa el otro.
+  const tarjeta = precioDe(body.precio_tarjeta);
+  const contado = precioDe(body.precio_contado);
+  const lista = tarjeta ?? contado;
+  if (lista != null) {
+    out.price = String(lista);
+    // contado < lista => oferta; si son iguales (o falta el contado), sin oferta.
+    out.salePrice = contado != null && contado < lista ? String(contado) : null;
   }
   if (body.stock !== undefined) {
     const s = parseInt(String(body.stock), 10);
@@ -324,14 +357,54 @@ async function upsertVariantesForm(productoId: number, raw: unknown): Promise<vo
         set: { stock, updatedAt: new Date() },
       })
       .returning();
-    // El EAN-13 depende del id asignado → se completa después del insert.
-    if (row && !row.codigoBarras) {
+    // El EAN-13 depende del id asignado → se completa después del insert. El SKU
+    // se rellena también acá porque en el camino del UPDATE (variante que ya
+    // existía) el `set` no lo toca: las variantes cargadas antes de que existieran
+    // los códigos se quedaban sin ninguno para siempre.
+    if (row && (!row.codigoBarras || !row.sku)) {
       await db
         .update(productVariantsTable)
-        .set({ codigoBarras: generateEan13FromId(row.id) })
+        .set({
+          sku: row.sku ?? generateSku(productoId, talle, color),
+          codigoBarras: row.codigoBarras ?? generateEan13FromId(row.id),
+        })
         .where(eq(productVariantsTable.id, row.id));
     }
   }
+}
+
+// Le asegura un código al producto: si el dueño no cargó ninguno, graba el
+// autogenerado (ALF-0243) para que la etiqueta y el buscador tengan qué leer.
+async function asegurarCodigoProducto(p: DbProduct): Promise<DbProduct> {
+  if (p.sku) return p;
+  const [conCodigo] = await db
+    .update(productsTable)
+    .set({ sku: generateProductCode(p.id) })
+    .where(eq(productsTable.id, p.id))
+    .returning();
+  return conCodigo ?? p;
+}
+
+// El código es único entre productos: si se repite, Postgres tira 23505 y hay
+// que decirle al dueño cuál es el producto que ya lo usa (si no, "error interno").
+function esCodigoDuplicado(err: unknown): boolean {
+  const e = err as { code?: string; constraint?: string; cause?: { code?: string } };
+  return e?.code === "23505" || e?.cause?.code === "23505";
+}
+async function responderCodigoDuplicado(res: Response, codigo: string | null) {
+  const [duenio] = codigo
+    ? await db
+        .select({ id: productsTable.id, name: productsTable.name })
+        .from(productsTable)
+        .where(eq(productsTable.sku, codigo))
+        .limit(1)
+    : [];
+  res.status(409).json({
+    error: "codigo_duplicado",
+    message: duenio
+      ? `El código ${codigo} ya lo usa "${duenio.name}" (#${duenio.id}). Poné otro o dejalo vacío para que se genere solo.`
+      : `El código ${codigo} ya está en uso. Poné otro o dejalo vacío para que se genere solo.`,
+  });
 }
 
 router.post("/admin/productos", async (req, res) => {
@@ -341,14 +414,26 @@ router.post("/admin/productos", async (req, res) => {
       res.status(400).json({ error: "invalid_name", message: "El nombre es obligatorio" });
       return;
     }
+    // Sin precio el producto sale a la tienda en $0 (así quedaron 10 productos
+    // cargados antes de este arreglo). Alcanza con uno de los dos.
+    if (payload.price == null) {
+      res.status(400).json({
+        error: "invalid_precio",
+        message: "Cargá el precio: alcanza con el de contado o el de tarjeta",
+      });
+      return;
+    }
     const values: typeof productsTable.$inferInsert = {
       name: payload.name,
       category: payload.category ?? "general",
       description: payload.description ?? "",
-      price: payload.price ?? "0",
+      price: payload.price,
       stock: payload.stock ?? 0,
       section: payload.section ?? "hombre",
       estilo: payload.estilo ?? "",
+      marca: payload.marca ?? "",
+      sku: payload.sku ?? null,
+      activo: payload.activo ?? true,
       featured: payload.featured ?? false,
       esComplemento: payload.esComplemento ?? false,
       images: payload.images ?? [],
@@ -356,7 +441,17 @@ router.post("/admin/productos", async (req, res) => {
       sizes: payload.sizes ?? [],
       salePrice: payload.salePrice ?? null,
     };
-    const [created] = await db.insert(productsTable).values(values).returning();
+    let created: DbProduct;
+    try {
+      [created] = await db.insert(productsTable).values(values).returning();
+    } catch (err) {
+      if (esCodigoDuplicado(err)) {
+        await responderCodigoDuplicado(res, values.sku ?? null);
+        return;
+      }
+      throw err;
+    }
+    created = await asegurarCodigoProducto(created);
     await upsertVariantesForm(created.id, req.body?.variantes);
     // Huella visual para la búsqueda por imagen del bot (fire-and-forget).
     queueProductEmbeddings(created);
@@ -380,14 +475,24 @@ router.put("/admin/productos/:id", async (req, res) => {
       res.status(400).json({ error: "no_changes", message: "Sin cambios" });
       return;
     }
-    const [updated] =
-      Object.keys(updates).length > 0
-        ? await db.update(productsTable).set(updates).where(eq(productsTable.id, id)).returning()
-        : await db.select().from(productsTable).where(eq(productsTable.id, id));
+    let updated: DbProduct;
+    try {
+      [updated] =
+        Object.keys(updates).length > 0
+          ? await db.update(productsTable).set(updates).where(eq(productsTable.id, id)).returning()
+          : await db.select().from(productsTable).where(eq(productsTable.id, id));
+    } catch (err) {
+      if (esCodigoDuplicado(err)) {
+        await responderCodigoDuplicado(res, updates.sku ?? null);
+        return;
+      }
+      throw err;
+    }
     if (!updated) {
       res.status(404).json({ error: "not_found", message: "Producto no encontrado" });
       return;
     }
+    updated = await asegurarCodigoProducto(updated);
     await upsertVariantesForm(updated.id, req.body?.variantes);
     // Si cambiaron las fotos, regenerar la huella visual (fire-and-forget).
     if (updates.images) queueProductEmbeddings(updated);
@@ -419,6 +524,41 @@ router.delete("/admin/productos/:id", async (req, res) => {
   }
 });
 
+// Fallback del buscador por código: el código del PRODUCTO (products.sku), que
+// es el que el dueño carga a mano. Devuelve la variante cuando no hay ambigüedad
+// (una sola variante, o una sola con stock); si hay varias, avisa cuál falta.
+async function buscarPorCodigoDeProducto(codigo: string) {
+  if (!codigo) return null;
+  const [prod] = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.sku, codigo))
+    .limit(1);
+  if (!prod) return null;
+
+  const variantes = (await loadVariantsMapRaw([prod.id])).get(prod.id) ?? [];
+  const conStock = variantes.filter((v) => v.stock > 0);
+  const elegida = variantes.length === 1 ? variantes[0] : conStock.length === 1 ? conStock[0] : null;
+  if (!elegida) return null;
+
+  const price = parseFloat(prod.price);
+  const sale = prod.salePrice != null ? parseFloat(prod.salePrice) : null;
+  return {
+    variante_id: elegida.id,
+    producto_id: prod.id,
+    nombre: prod.name,
+    categoria: prod.category,
+    imagen: prod.images?.[0] ?? "",
+    talle: elegida.talle,
+    color: elegida.color === "" ? null : elegida.color,
+    stock: elegida.stock,
+    sku: elegida.sku,
+    codigo_barras: elegida.codigoBarras,
+    precio_contado: sale != null ? sale : price,
+    precio_tarjeta: price,
+  };
+}
+
 // Búsqueda instantánea por código (para el POS / lector de código de barras):
 // matchea la variante exacta por sku O codigo_barras y devuelve el producto con
 // esa variante (talle/color, stock, precio) listo para agregar al ticket.
@@ -429,6 +569,9 @@ router.get("/admin/productos/codigo/:codigo", async (req, res) => {
       res.status(400).json({ error: "invalid_input", message: "Falta el código" });
       return;
     }
+    // El SKU se guarda normalizado (mayúsculas, guiones): si el operador lo
+    // escribe a mano en minúscula tiene que encontrarlo igual.
+    const skuBuscado = normalizeCode(codigo);
     const [row] = await db
       .select({
         variante_id: productVariantsTable.id,
@@ -447,12 +590,20 @@ router.get("/admin/productos/codigo/:codigo", async (req, res) => {
       .from(productVariantsTable)
       .innerJoin(productsTable, eq(productVariantsTable.productoId, productsTable.id))
       .where(
-        or(eq(productVariantsTable.sku, codigo), eq(productVariantsTable.codigoBarras, codigo)),
+        or(eq(productVariantsTable.sku, skuBuscado), eq(productVariantsTable.codigoBarras, codigo)),
       )
       .limit(1);
 
     if (!row) {
-      res.status(404).json({ error: "not_found", message: "No se encontró ninguna variante con ese código" });
+      // No es el código de una variante: puede ser el CÓDIGO DEL PRODUCTO (el que
+      // carga el dueño en el form). Si el producto tiene una sola variante, se
+      // resuelve sola; si tiene varias, hay que decirle cuál talle escanear.
+      const porProducto = await buscarPorCodigoDeProducto(skuBuscado);
+      if (porProducto) {
+        res.json(porProducto);
+        return;
+      }
+      res.status(404).json({ error: "not_found", message: "No se encontró ningún producto con ese código" });
       return;
     }
 

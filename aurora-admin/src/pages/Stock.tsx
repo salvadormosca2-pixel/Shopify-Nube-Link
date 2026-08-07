@@ -19,6 +19,8 @@ interface Variante {
   color?: string;
   stock: number;
   stock_minimo: number;
+  sku?: string | null;
+  codigo_barras?: string | null;
 }
 
 interface Producto {
@@ -196,7 +198,18 @@ export function Stock() {
           ) : visibles.length === 0 ? (
             <EmptyState message={soloReponer ? "Nada para reponer ✓" : "Sin variantes"} />
           ) : (
-            <Table headers={["Producto", "Talle", "Color", "Stock", "Stock Mín.", "Estado"]}>
+            <Table
+              headers={[
+                "Producto",
+                "Talle",
+                "Color",
+                "Código",
+                "Código de barras",
+                "Stock",
+                "Stock Mín.",
+                "Estado",
+              ]}
+            >
               {visibles.map((v) => {
                 const estado = estadoDe(v);
                 const stockColor =
@@ -216,6 +229,12 @@ export function Stock() {
                     </Cell>
                     <Cell className="text-gris">{v.talle || "—"}</Cell>
                     <Cell className="text-gris">{v.color || "—"}</Cell>
+                    <Cell mono className="text-gris">
+                      {v.sku || "—"}
+                    </Cell>
+                    <Cell mono className="text-gris">
+                      {v.codigo_barras || "—"}
+                    </Cell>
                     <Cell mono className={stockColor}>
                       {formatNumber(v.stock)}
                     </Cell>

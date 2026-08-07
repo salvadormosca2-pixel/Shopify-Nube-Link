@@ -11,6 +11,22 @@ function sanitizeSegment(s: string): string {
     .replace(/[^A-Z0-9]/g, ""); // sólo alfanumérico
 }
 
+// Código del PRODUCTO (no de la variante): ALF-0012. Es el que se autogenera
+// cuando el dueño deja vacío el campo "Código / SKU" del panel.
+export function generateProductCode(productoId: number): string {
+  return `ALF-${String(productoId).padStart(4, "0")}`;
+}
+
+// Normaliza un código escrito a mano: sin espacios de sobra, en mayúsculas y con
+// los espacios internos como guiones, para que "jean mom 40" y "JEAN-MOM-40"
+// sean el mismo código y el lector no falle por un espacio.
+export function normalizeCode(raw: unknown): string {
+  return String(raw ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "-");
+}
+
 // ALF-0012-40-AZUL  (sin color → ALF-0012-40)
 export function generateSku(productoId: number, talle: string, color: string): string {
   const base = `ALF-${String(productoId).padStart(4, "0")}-${sanitizeSegment(talle)}`;

@@ -34,7 +34,7 @@ router.use("/bot", botAuth);
 // Productos en oferta (salePrice < price).
 router.get("/bot/promociones", async (_req, res) => {
   try {
-    const rows = await db.select().from(productsTable);
+    const rows = await db.select().from(productsTable).where(eq(productsTable.activo, true));
     const promos = rows.filter(isPromo);
     const variants = await loadVariantsMap(promos.map((p) => p.id));
     res.json(promos.map((p) => toPromo(p, variants.get(p.id))));
@@ -53,6 +53,7 @@ router.get("/bot/productos", async (req, res) => {
     let rows = await db
       .select()
       .from(productsTable)
+      .where(eq(productsTable.activo, true)) // los pausados no se ofrecen
       .orderBy(productsTable.category, productsTable.name);
 
     if (search) {
@@ -100,7 +101,7 @@ router.get("/bot/destacados", async (_req, res) => {
     const rows = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.featured, true))
+      .where(and(eq(productsTable.featured, true), eq(productsTable.activo, true)))
       .orderBy(productsTable.category, productsTable.name);
 
     const variants = await loadVariantsMap(rows.map((p) => p.id));
@@ -171,7 +172,7 @@ router.get("/bot/complementos", async (_req, res) => {
     const rows = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.esComplemento, true))
+      .where(and(eq(productsTable.esComplemento, true), eq(productsTable.activo, true)))
       .orderBy(productsTable.price);
 
     const variants = await loadVariantsMap(rows.map((p) => p.id));

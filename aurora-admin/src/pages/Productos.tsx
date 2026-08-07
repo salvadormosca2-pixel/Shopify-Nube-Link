@@ -14,9 +14,13 @@ import { ErrorState, EmptyState } from "../components/ui/DataState";
 import { formatARS, pct } from "../lib/format";
 
 interface Variante {
+  id?: number;
   talle: string;
   color: string | null;
   stock: number;
+  // Códigos de la etiqueta: los genera el backend al guardar la variante.
+  sku?: string | null;
+  codigo_barras?: string | null;
 }
 
 interface Producto {
@@ -34,7 +38,10 @@ interface Producto {
   imagen?: string;
   imagenes?: string[];
   sku?: string;
+  // `activo` = publicado en la tienda (lo decide el dueño); `hay_stock` = si
+  // queda algo físico. Antes eran lo mismo y el checkbox no hacía nada.
   activo: boolean;
+  hay_stock?: boolean;
   destacado?: boolean;
   es_complemento?: boolean;
   variantes?: Variante[];
@@ -271,6 +278,7 @@ export function Productos() {
             />,
             "",
             "Producto",
+            "Código",
             "Categoría",
             "Género",
             "Contado",
@@ -309,6 +317,9 @@ export function Productos() {
                   <p className="font-medium text-tinta">{p.nombre}</p>
                   {p.marca && <p className="text-xs text-gris-2">{p.marca}</p>}
                 </Cell>
+                <Cell mono className="text-gris">
+                  {p.sku || "—"}
+                </Cell>
                 <Cell className="text-gris">{p.categoria || "—"}</Cell>
                 <Cell className="text-gris capitalize">{p.genero || "—"}</Cell>
                 <Cell mono className="text-tinta">
@@ -326,11 +337,14 @@ export function Productos() {
                 </Cell>
                 <Cell className="text-gris">{p.talles?.join(", ") || "—"}</Cell>
                 <Cell>
-                  {p.activo ? (
-                    <Badge tone="acento">Activo</Badge>
-                  ) : (
-                    <Badge tone="gris">Inactivo</Badge>
-                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {p.activo ? (
+                      <Badge tone="acento">Publicado</Badge>
+                    ) : (
+                      <Badge tone="gris">Pausado</Badge>
+                    )}
+                    {p.hay_stock === false && <Badge tone="rojo">Sin stock</Badge>}
+                  </div>
                 </Cell>
                 <Cell>
                   <div className="flex gap-1">
@@ -448,30 +462,36 @@ export function Productos() {
                 </datalist>
               </Field>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="SKU / Código">
-                <TextInput
-                  value={form.sku ?? ""}
-                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                />
-              </Field>
-            </div>
+            <Field label="Código / SKU de la prenda">
+              <TextInput
+                value={form.sku ?? ""}
+                onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                placeholder={form.id ? "" : "Dejalo vacío y se genera solo (ALF-0246)"}
+              />
+              <p className="mt-1 text-xs text-gris-2">
+                Es el código con el que buscás la prenda en Venta Rápida. Si lo dejás vacío se
+                genera uno automático. Cada talle/color además lleva su propio código de barras
+                (se ve abajo, en el stock).
+              </p>
+            </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Precio contado">
-                <TextInput
-                  type="number"
+                <PrecioInput
                   value={form.precio_contado}
-                  onChange={(e) => setForm({ ...form, precio_contado: Number(e.target.value) })}
+                  onChange={(n) => setForm({ ...form, precio_contado: n })}
                 />
               </Field>
               <Field label="Precio tarjeta">
-                <TextInput
-                  type="number"
+                <PrecioInput
                   value={form.precio_tarjeta}
-                  onChange={(e) => setForm({ ...form, precio_tarjeta: Number(e.target.value) })}
+                  onChange={(n) => setForm({ ...form, precio_tarjeta: n })}
                 />
               </Field>
             </div>
+            <p className="-mt-2 text-xs text-gris-2">
+              Alcanza con cargar uno de los dos. Si ponés los dos y el de contado es menor, el
+              producto sale en oferta con el ahorro calculado.
+            </p>
             <Field label="Talles disponibles">
               <MultiSelect
                 options={opciones(
@@ -519,7 +539,7 @@ export function Productos() {
                 onChange={(e) => setForm({ ...form, activo: e.target.checked })}
                 className="h-4 w-4 accent-acento"
               />
-              Producto activo
+              Publicado en la tienda y el bot (destildalo para pausarlo sin tocar el stock)
             </label>
             <label className="flex items-center gap-2 text-sm text-gris">
               <input
@@ -561,6 +581,21 @@ export function Productos() {
   );
 }
 
+// Input de precio que muestra el campo VACÍO cuando vale 0, en vez de un "0"
+// pegado adelante. El 0 lo lee el backend como "no lo cargué".
+function PrecioInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <TextInput
+      type="number"
+      min={0}
+      inputMode="numeric"
+      placeholder="0"
+      value={value === 0 ? "" : value}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
+    />
+  );
+}
+
 // Mini-tabla talle (× color) → cantidad. Edita el stock físico de las variantes;
 // al guardar el producto se crean/actualizan en producto_variantes.
 function StockPorTalle({
@@ -591,12 +626,18 @@ function StockPorTalle({
     if (!keys.has(`${v.talle}|${v.color ?? ""}`)) rows.push({ talle: v.talle, color: v.color });
   }
 
-  const stockDe = (talle: string, color: string | null) =>
-    value.find((v) => v.talle === talle && (v.color ?? "") === (color ?? ""))?.stock ?? 0;
+  const varianteDe = (talle: string, color: string | null) =>
+    value.find((v) => v.talle === talle && (v.color ?? "") === (color ?? ""));
 
+  // Al cambiar la cantidad se conservan los códigos que ya tenía la variante:
+  // si se perdían acá, el form los mandaba en blanco y desaparecían de la vista.
   const setStock = (talle: string, color: string | null, stock: number) => {
+    const previa = varianteDe(talle, color);
     const rest = value.filter((v) => !(v.talle === talle && (v.color ?? "") === (color ?? "")));
-    onChange([...rest, { talle, color, stock: Math.max(0, Math.trunc(stock) || 0) }]);
+    onChange([
+      ...rest,
+      { ...previa, talle, color, stock: Math.max(0, Math.trunc(stock) || 0) },
+    ]);
   };
 
   return (
@@ -607,24 +648,35 @@ function StockPorTalle({
             <th className="px-3 py-2">Talle</th>
             {colores.length > 0 && <th className="px-3 py-2">Color</th>}
             <th className="px-3 py-2">Cantidad</th>
+            <th className="px-3 py-2">Código</th>
+            <th className="px-3 py-2">Código de barras</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ talle, color }) => (
-            <tr key={`${talle}|${color ?? ""}`} className="border-b border-borde/50 last:border-0">
-              <td className="px-3 py-1.5 font-medium text-tinta">{talle}</td>
-              {colores.length > 0 && <td className="px-3 py-1.5 text-gris">{color ?? "—"}</td>}
-              <td className="px-3 py-1.5">
-                <input
-                  type="number"
-                  min={0}
-                  value={stockDe(talle, color)}
-                  onChange={(e) => setStock(talle, color, Number(e.target.value))}
-                  className="input-field w-24 py-1"
-                />
-              </td>
-            </tr>
-          ))}
+          {rows.map(({ talle, color }) => {
+            const v = varianteDe(talle, color);
+            return (
+              <tr key={`${talle}|${color ?? ""}`} className="border-b border-borde/50 last:border-0">
+                <td className="px-3 py-1.5 font-medium text-tinta">{talle}</td>
+                {colores.length > 0 && <td className="px-3 py-1.5 text-gris">{color ?? "—"}</td>}
+                <td className="px-3 py-1.5">
+                  <input
+                    type="number"
+                    min={0}
+                    value={v?.stock ?? 0}
+                    onChange={(e) => setStock(talle, color, Number(e.target.value))}
+                    className="input-field w-24 py-1"
+                  />
+                </td>
+                <td className="px-3 py-1.5 font-mono text-xs text-gris">
+                  {v?.sku ?? <span className="text-gris-2">se genera al guardar</span>}
+                </td>
+                <td className="px-3 py-1.5 font-mono text-xs text-gris">
+                  {v?.codigo_barras ?? <span className="text-gris-2">—</span>}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

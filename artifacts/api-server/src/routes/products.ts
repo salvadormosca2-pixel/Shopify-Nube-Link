@@ -10,7 +10,8 @@ router.get("/products", async (req, res) => {
   try {
     const { category, search, size, color, section, limit = "100", offset = "0" } = req.query as Record<string, string>;
 
-    const conditions: SQL[] = [];
+    // Los productos pausados desde el panel no se muestran en la tienda.
+    const conditions: SQL[] = [eq(productsTable.activo, true)];
 
     if (section) {
       conditions.push(inArray(productsTable.section, sectionsFor(section)));
@@ -52,11 +53,10 @@ router.get("/products", async (req, res) => {
       conditions.push(sql`${productsTable.colors}::jsonb ? ${color}`);
     }
 
-    const query = conditions.length > 0
-      ? db.select().from(productsTable).where(and(...conditions))
-      : db.select().from(productsTable);
-
-    const products = await query
+    const products = await db
+      .select()
+      .from(productsTable)
+      .where(and(...conditions))
       .limit(parseInt(limit, 10))
       .offset(parseInt(offset, 10));
 
@@ -77,10 +77,17 @@ router.get("/products", async (req, res) => {
 router.get("/products/categories", async (req, res) => {
   try {
     const { section } = req.query as Record<string, string>;
-    const query = section
-      ? db.selectDistinct({ category: productsTable.category }).from(productsTable).where(inArray(productsTable.section, sectionsFor(section)))
-      : db.selectDistinct({ category: productsTable.category }).from(productsTable);
-    const results = await query;
+    const results = await db
+      .selectDistinct({ category: productsTable.category })
+      .from(productsTable)
+      .where(
+        section
+          ? and(
+              inArray(productsTable.section, sectionsFor(section)),
+              eq(productsTable.activo, true),
+            )
+          : eq(productsTable.activo, true),
+      );
     const categories = results.map(r => r.category);
     res.json({ categories });
   } catch (err) {
@@ -94,7 +101,7 @@ router.get("/products/featured", async (req, res) => {
     const products = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.featured, true))
+      .where(and(eq(productsTable.featured, true), eq(productsTable.activo, true)))
       .limit(8);
 
     const formattedProducts = products.map(p => ({
@@ -127,7 +134,13 @@ router.get("/products/:id/related", async (req, res) => {
     const related = await db
       .select()
       .from(productsTable)
-      .where(and(eq(productsTable.category, product.category), ne(productsTable.id, id)))
+      .where(
+        and(
+          eq(productsTable.category, product.category),
+          ne(productsTable.id, id),
+          eq(productsTable.activo, true),
+        ),
+      )
       .limit(4);
 
     res.json({ products: related.map(p => ({ ...p, price: parseFloat(p.price) })), total: related.length });
@@ -148,7 +161,7 @@ router.get("/products/:id", async (req, res) => {
     const [product] = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.id, id))
+      .where(and(eq(productsTable.id, id), eq(productsTable.activo, true)))
       .limit(1);
 
     if (!product) {
