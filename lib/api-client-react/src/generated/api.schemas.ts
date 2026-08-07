@@ -17,7 +17,11 @@ export interface ErrorResponse {
 /** Promoción vigente cargada en Admin → Promociones (ej. "2x1"). */
 export interface ProductPromo {
   titulo: string;
-  /** Precio promocional; null cuando la promo es sólo una etiqueta. */
+  /** nxm | porcentaje | precio_fijo | etiqueta */
+  tipo?: string;
+  /** Explicación de la regla: "Llevando 3 pagás 2". */
+  condicion?: string;
+  /** Precio promocional; null salvo que el tipo sea precio_fijo. */
   precio_promo?: number | null;
   vigente_hasta?: string | null;
 }

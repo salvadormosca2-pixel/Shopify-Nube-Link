@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useCart } from "@/context/CartContext";
+import { usePromosCarrito } from "@/hooks/use-promos-carrito";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2, ArrowRight } from "lucide-react";
@@ -7,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function Cart() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const promos = usePromosCarrito(items, subtotal);
 
   if (items.length === 0) {
     return (
@@ -94,17 +96,47 @@ export default function Cart() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">{formatArs(subtotal)}</span>
               </div>
+
+              {/* Promos que se activaron solas con lo que hay en el carrito. */}
+              {promos.promos.map((p) => (
+                <div key={p.promo_id} className="flex justify-between" data-testid={`promo-${p.promo_id}`}>
+                  <span className="text-foreground">
+                    {p.titulo}
+                    <span className="block text-xs text-muted-foreground">{p.detalle}</span>
+                  </span>
+                  <span className="font-medium whitespace-nowrap">− {formatArs(p.descuento)}</span>
+                </div>
+              ))}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Envío</span>
                 <span className="text-muted-foreground text-xs">Calculado en checkout</span>
               </div>
             </div>
-            
+
+            {/* "Agregá 1 más y se activa el 3x2": es la parte que hace vender. */}
+            {promos.sugerencias.length > 0 && (
+              <div className="mb-6 border border-foreground/20 bg-foreground/5 px-4 py-3">
+                {promos.sugerencias.map((s) => (
+                  <p key={s.promo_id} className="text-xs font-medium" data-testid={`sugerencia-${s.promo_id}`}>
+                    {s.mensaje}
+                  </p>
+                ))}
+              </div>
+            )}
+
             <div className="flex justify-between items-center mb-8">
               <span className="font-bold uppercase">Total Estimado</span>
-              <span className="text-xl font-bold">{formatArs(subtotal)}</span>
+              <div className="text-right">
+                {promos.descuento > 0 && (
+                  <span className="block text-sm text-muted-foreground line-through font-light">
+                    {formatArs(subtotal)}
+                  </span>
+                )}
+                <span className="text-xl font-bold">{formatArs(promos.total)}</span>
+              </div>
             </div>
-            
+
             <Button asChild className="w-full h-14 rounded-none uppercase font-bold tracking-wider group" data-testid="button-checkout">
               <Link href="/checkout" className="flex items-center justify-center gap-2">
                 Ir al checkout

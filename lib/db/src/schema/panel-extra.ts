@@ -1,11 +1,27 @@
 import { pgTable, serial, integer, text, decimal, boolean, timestamp, json } from "drizzle-orm/pg-core";
 
-// ─── Promociones por producto (sección Promociones del panel) ────────────────
-// Vinculan UN producto a un precio_promo fijo, con ventana opcional de fechas.
+// ─── Promociones (sección Promociones del panel) ─────────────────────────────
+// Una promo es una REGLA que se aplica sola en el carrito sobre un CONJUNTO de
+// productos. `tipo` decide cómo se calcula:
+//   nxm         → "3x2": cada `lleva` unidades se pagan `paga` (se regalan las
+//                 más baratas del grupo). Es el caso de "3 remeras y una gratis".
+//   porcentaje  → `porcentaje`% de descuento llevando `lleva` o más unidades.
+//   precio_fijo → cada unidad pasa a costar `precioPromo` (llevando `lleva`+).
+//   etiqueta    → sólo el cartelito en la prenda, sin tocar el precio.
+//
+// La cantidad se cuenta SUMANDO todos los productos de la promo: "3 remeras"
+// puede ser 3 remeras distintas, que es como lo entiende el cliente.
 export const promocionesTable = pgTable("promociones", {
   id: serial("id").primaryKey(),
   titulo: text("titulo").notNull().default(""),
+  // Primer producto de la promo. Se mantiene para no romper lo ya cargado; la
+  // lista real de productos es `productos`.
   productoId: integer("producto_id").notNull(),
+  productos: json("productos").$type<number[]>().notNull().default([]),
+  tipo: text("tipo").notNull().default("etiqueta"),
+  lleva: integer("lleva").notNull().default(0),
+  paga: integer("paga").notNull().default(0),
+  porcentaje: decimal("porcentaje", { precision: 6, scale: 2 }).notNull().default("0"),
   precioPromo: decimal("precio_promo", { precision: 12, scale: 2 }).notNull().default("0"),
   fechaInicio: text("fecha_inicio").notNull().default(""), // "YYYY-MM-DD" o ""
   fechaFin: text("fecha_fin").notNull().default(""),

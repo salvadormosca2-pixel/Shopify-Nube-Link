@@ -13,6 +13,14 @@ import { formatARS, timeLeft } from "../lib/format";
 interface Promocion {
   id: string | number;
   titulo: string;
+  // Tipo de regla: cómo se calcula el descuento en el carrito.
+  tipo: string;
+  productos: number[];
+  productos_nombres?: string[];
+  lleva: number;
+  paga: number;
+  porcentaje: number;
+  condicion?: string;
   producto_id: string | number | "";
   precio_promo: number;
   fecha_inicio?: string;
@@ -27,13 +35,42 @@ interface Promocion {
 interface Producto {
   id: string | number;
   nombre: string;
+  categoria?: string;
   precio_contado: number;
   precio_tarjeta: number;
 }
 
+const TIPOS = [
+  {
+    value: "nxm",
+    label: "Llevando N pagás M (3x2, 2x1)",
+    ayuda: "Se regalan las prendas más baratas del grupo. Cuenta el total de unidades de la promo, aunque sean prendas distintas.",
+  },
+  {
+    value: "porcentaje",
+    label: "% de descuento",
+    ayuda: "Se aplica cuando el cliente lleva la cantidad mínima.",
+  },
+  {
+    value: "precio_fijo",
+    label: "Precio promocional por unidad",
+    ayuda: "Cada unidad pasa a costar ese precio.",
+  },
+  {
+    value: "etiqueta",
+    label: "Sólo cartel (sin descuento)",
+    ayuda: "Muestra la etiqueta en la prenda pero no toca el precio.",
+  },
+];
+
 const empty = (): Promocion => ({
   id: "",
   titulo: "",
+  tipo: "nxm",
+  productos: [],
+  lleva: 3,
+  paga: 2,
+  porcentaje: 0,
   producto_id: "",
   precio_promo: 0,
   fecha_inicio: "",
@@ -65,9 +102,16 @@ export function Promociones() {
   const findProducto = (id: string | number | "") =>
     productos.find((p) => String(p.id) === String(id));
 
-  // Nombre del producto: embebido o por lookup.
-  const productoNombre = (promo: Promocion): string =>
-    promo.producto_nombre || findProducto(promo.producto_id)?.nombre || "—";
+  // Qué prendas alcanza la promo, en texto corto para la tarjeta.
+  const alcance = (promo: Promocion): string => {
+    const nombres =
+      promo.productos_nombres?.length
+        ? promo.productos_nombres
+        : (promo.productos ?? []).map((id) => findProducto(id)?.nombre ?? `#${id}`);
+    if (nombres.length === 0) return promo.producto_nombre || "—";
+    if (nombres.length <= 2) return nombres.join(" + ");
+    return `${nombres.slice(0, 2).join(", ")} y ${nombres.length - 2} más`;
+  };
 
   // Precio original del producto: embebido o por lookup.
   const precioOriginal = (promo: Promocion): number | null => {
@@ -80,8 +124,8 @@ export function Promociones() {
 
   const save = async () => {
     if (!form) return;
-    if (!form.producto_id) {
-      setFormError("Seleccioná un producto para la promoción.");
+    if ((form.productos ?? []).length === 0) {
+      setFormError("Elegí al menos un producto para la promoción.");
       return;
     }
     setSaving(true);
@@ -137,7 +181,7 @@ export function Promociones() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-tinta">{promo.titulo}</p>
-                    <p className="truncate text-xs text-gris-2">{productoNombre(promo)}</p>
+                    <p className="truncate text-xs text-gris-2">{alcance(promo)}</p>
                   </div>
                   {promo.activo ? (
                     <Badge tone="acento">Activa</Badge>
@@ -146,14 +190,27 @@ export function Promociones() {
                   )}
                 </div>
 
-                <div className="flex items-baseline gap-2">
-                  {original != null && (
-                    <span className="text-sm text-gris-2 line-through">{formatARS(original)}</span>
-                  )}
-                  <span className="font-mono text-lg font-semibold text-acento">
-                    {formatARS(promo.precio_promo)}
-                  </span>
-                </div>
+                {/* Qué hace la regla en el carrito. */}
+                {promo.tipo === "precio_fijo" ? (
+                  <div className="flex items-baseline gap-2">
+                    {original != null && (
+                      <span className="text-sm text-gris-2 line-through">{formatARS(original)}</span>
+                    )}
+                    <span className="font-mono text-lg font-semibold text-acento">
+                      {formatARS(promo.precio_promo)}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-acento">
+                    {promo.condicion ||
+                      (promo.tipo === "etiqueta" ? "Sólo cartel, sin descuento" : "—")}
+                  </p>
+                )}
+                {(promo.productos ?? []).length > 1 && (
+                  <p className="text-xs text-gris-2">
+                    Alcanza {promo.productos.length} prendas · la cantidad se cuenta sumando todas
+                  </p>
+                )}
 
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 text-xs text-gris">
@@ -212,36 +269,106 @@ export function Promociones() {
                 {formError}
               </div>
             )}
-            <Field label="Título">
+            <Field label="Título (el cartel que ve el cliente en la prenda)">
               <TextInput
                 value={form.titulo}
                 onChange={(e) => setForm({ ...form, titulo: e.target.value })}
-                placeholder="Ej. Liquidación de verano"
+                placeholder="Ej. 3x2, 2x1, 20% OFF"
               />
             </Field>
-            <Field label="Producto">
+
+            <Field label="¿Qué hace la promo?">
               <Select
-                value={String(form.producto_id ?? "")}
-                onChange={(e) => setForm({ ...form, producto_id: e.target.value })}
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value })}
               >
-                <option value="">Seleccionar producto...</option>
-                {productos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
+                {TIPOS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </Select>
-              {!form.producto_id && formError && (
-                <span className="mt-1 block text-xs text-pale-rojo-txt">El producto es obligatorio.</span>
-              )}
+              <p className="mt-1 text-xs text-gris-2">
+                {TIPOS.find((t) => t.value === form.tipo)?.ayuda}
+              </p>
             </Field>
-            <Field label="Precio promocional">
-              <TextInput
-                type="number"
-                value={form.precio_promo}
-                onChange={(e) => setForm({ ...form, precio_promo: Number(e.target.value) })}
+
+            {form.tipo === "nxm" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Lleva">
+                  <TextInput
+                    type="number"
+                    min={2}
+                    value={form.lleva}
+                    onChange={(e) => setForm({ ...form, lleva: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+                <Field label="Paga">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={form.paga}
+                    onChange={(e) => setForm({ ...form, paga: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {form.tipo === "porcentaje" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="% de descuento">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.porcentaje === 0 ? "" : form.porcentaje}
+                    placeholder="20"
+                    onChange={(e) => setForm({ ...form, porcentaje: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+                <Field label="Cantidad mínima">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={form.lleva === 0 ? "" : form.lleva}
+                    placeholder="1 = siempre"
+                    onChange={(e) => setForm({ ...form, lleva: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {form.tipo === "precio_fijo" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Precio promocional por unidad">
+                  <TextInput
+                    type="number"
+                    value={form.precio_promo === 0 ? "" : form.precio_promo}
+                    placeholder="0"
+                    onChange={(e) => setForm({ ...form, precio_promo: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+                <Field label="Cantidad mínima">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={form.lleva === 0 ? "" : form.lleva}
+                    placeholder="1 = siempre"
+                    onChange={(e) => setForm({ ...form, lleva: Number(e.target.value) || 0 })}
+                  />
+                </Field>
+              </div>
+            )}
+
+            <Field label="Prendas en promoción">
+              <SelectorProductos
+                productos={productos}
+                value={form.productos ?? []}
+                onChange={(productos) => setForm({ ...form, productos })}
               />
             </Field>
+
+            <VistaPreviaPromo form={form} productos={productos} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Fecha de inicio">
                 <TextInput
@@ -278,6 +405,148 @@ export function Promociones() {
         loading={saving}
         message={`¿Eliminar "${toDelete?.titulo}"? Esta acción no se puede deshacer.`}
       />
+    </div>
+  );
+}
+
+// Selector de varias prendas, con buscador: el catálogo tiene 230 productos y un
+// <select multiple> se vuelve inusable.
+function SelectorProductos({
+  productos,
+  value,
+  onChange,
+}: {
+  productos: Producto[];
+  value: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const [q, setQ] = useState("");
+
+  const elegidos = new Set(value.map(Number));
+  const filtrados = q.trim()
+    ? productos.filter((p) => {
+        const t = q.toLowerCase();
+        return (
+          p.nombre.toLowerCase().includes(t) || (p.categoria ?? "").toLowerCase().includes(t)
+        );
+      })
+    : productos;
+
+  const toggle = (id: number) => {
+    const next = new Set(elegidos);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange([...next]);
+  };
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar prenda o categoría..."
+          className="input-field flex-1 sm:min-w-[200px]"
+        />
+        {q.trim() && filtrados.length > 0 && (
+          <button
+            type="button"
+            className="btn-secondary text-xs"
+            onClick={() => onChange([...new Set([...elegidos, ...filtrados.map((p) => Number(p.id))])])}
+          >
+            Agregar los {filtrados.length} de la búsqueda
+          </button>
+        )}
+        {value.length > 0 && (
+          <button type="button" className="btn-secondary text-xs" onClick={() => onChange([])}>
+            Limpiar
+          </button>
+        )}
+      </div>
+
+      <p className="mb-2 text-xs text-gris-2">
+        {value.length === 0
+          ? "Ninguna prenda elegida"
+          : `${value.length} ${value.length === 1 ? "prenda elegida" : "prendas elegidas"}`}
+      </p>
+
+      <div className="max-h-52 overflow-y-auto rounded-lg border border-borde">
+        {filtrados.length === 0 ? (
+          <p className="px-3 py-4 text-center text-sm text-gris-2">Sin resultados</p>
+        ) : (
+          filtrados.map((p) => (
+            <label
+              key={p.id}
+              className="flex cursor-pointer items-center gap-2 border-b border-borde/50 px-3 py-2 text-sm last:border-0 hover:bg-dark-hover"
+            >
+              <input
+                type="checkbox"
+                checked={elegidos.has(Number(p.id))}
+                onChange={() => toggle(Number(p.id))}
+                className="h-4 w-4 accent-acento"
+              />
+              <span className="flex-1 truncate text-tinta">{p.nombre}</span>
+              <span className="shrink-0 font-mono text-xs text-gris-2">
+                {formatARS(p.precio_contado)}
+              </span>
+            </label>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Simula la promo con las prendas elegidas para que el dueño vea EXACTAMENTE qué
+// va a pagar el cliente antes de publicarla.
+function VistaPreviaPromo({ form, productos }: { form: Promocion; productos: Producto[] }) {
+  const elegidos = (form.productos ?? [])
+    .map((id) => productos.find((p) => String(p.id) === String(id)))
+    .filter((p): p is Producto => !!p);
+
+  if (elegidos.length === 0 || form.tipo === "etiqueta") return null;
+
+  // Carrito de ejemplo: se repite la prenda más cara hasta llegar a la cantidad
+  // que dispara la promo (así el ejemplo es representativo).
+  const objetivo =
+    form.tipo === "nxm" ? Math.max(2, form.lleva) : Math.max(1, form.lleva || 1);
+  const precios: number[] = [];
+  for (let i = 0; i < objetivo; i++) {
+    precios.push(elegidos[i % elegidos.length].precio_contado);
+  }
+  const bruto = precios.reduce((a, n) => a + n, 0);
+
+  let descuento = 0;
+  if (form.tipo === "nxm") {
+    const lleva = Math.max(2, form.lleva);
+    const paga = Math.max(1, Math.min(form.paga, lleva - 1));
+    const gratis = Math.floor(precios.length / lleva) * (lleva - paga);
+    descuento = [...precios].sort((a, b) => b - a).slice(-gratis).reduce((a, n) => a + n, 0);
+  } else if (form.tipo === "porcentaje") {
+    descuento = (bruto * Math.max(0, Math.min(100, form.porcentaje))) / 100;
+  } else if (form.tipo === "precio_fijo" && form.precio_promo > 0) {
+    descuento = precios.filter((p) => p > form.precio_promo).reduce((a, p) => a + (p - form.precio_promo), 0);
+  }
+
+  if (descuento <= 0) {
+    return (
+      <div className="rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm text-pale-ambar-txt">
+        Así como está, esta promo no descuenta nada. Revisá los números.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-borde bg-card px-4 py-3 text-sm">
+      <p className="text-xs uppercase tracking-wide text-gris-2">Así le queda al cliente</p>
+      <p className="mt-1 text-gris">
+        Llevando {precios.length} {precios.length === 1 ? "prenda" : "prendas"} de la promo (
+        {formatARS(bruto)}):
+      </p>
+      <p className="mt-1 font-medium text-tinta">
+        paga <span className="font-mono text-acento">{formatARS(bruto - descuento)}</span> — ahorra{" "}
+        <span className="font-mono">{formatARS(descuento)}</span>
+      </p>
     </div>
   );
 }

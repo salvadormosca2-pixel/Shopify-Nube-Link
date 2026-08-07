@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, productsTable, couponsTable } from "@workspace/db/schema";
 import { eq, inArray, sql, and, gte } from "drizzle-orm";
+import { reglasDeCarrito } from "../lib/promociones";
+import { calcularCarrito } from "../lib/promos-carrito";
 
 const router: IRouter = Router();
 
@@ -127,8 +129,24 @@ router.post("/orders", async (req, res) => {
       }
     }
 
-    const discountAmount = Math.round(subtotal * discountPct / 100);
-    const total = subtotal - discountAmount + shippingCost;
+    // Promociones (3x2, % llevando N, precio promocional). Se recalculan acá con
+    // los precios de la base: es el número que se COBRA, no el que mostró la web.
+    const reglas = await reglasDeCarrito();
+    const promoResultado = calcularCarrito(
+      [...qtyByProduct.entries()].map(([productId, { qty, name }]) => ({
+        producto_id: productId,
+        nombre: nameMap.get(productId) ?? name,
+        cantidad: qty,
+        precio_unitario: priceMap.get(productId) ?? 0,
+      })),
+      reglas,
+    );
+
+    // El cupón se aplica sobre lo que queda después de las promos, para que un
+    // 20% de cupón no se calcule sobre prendas que ya salieron regaladas.
+    const baseCupon = Math.max(0, subtotal - promoResultado.descuento);
+    const discountAmount = Math.round((baseCupon * discountPct) / 100);
+    const total = baseCupon - discountAmount + shippingCost;
     const trackingNumber = generateTrackingNumber();
 
     // Atomic transaction: insert order + conditionally decrement stock

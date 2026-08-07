@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCart } from "@/context/CartContext";
+import { usePromosCarrito } from "@/hooks/use-promos-carrito";
 import { useGetProvinces, useGetShippingCost, useCreateOrder, useCreatePaymentPreference, useValidateCoupon, getGetShippingCostQueryKey } from "@workspace/api-client-react";
 import { formatArs } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const { items, subtotal, clearCart } = useCart();
+  const promos = usePromosCarrito(items, subtotal);
   const { toast } = useToast();
 
   const [selectedProvince, setSelectedProvince] = useState<string>("");
@@ -74,8 +76,12 @@ export default function Checkout() {
   }, [formProvince]);
 
   const shippingCost = shippingData?.cost || 0;
-  const discountAmount = appliedCoupon ? Math.round(subtotal * appliedCoupon.discount / 100) : 0;
-  const total = subtotal - discountAmount + shippingCost;
+  // El cupón se calcula sobre lo que queda DESPUÉS de las promos (3x2, % llevando
+  // N), igual que en el servidor: si no, el total de pantalla no coincidía con el
+  // que se cobra.
+  const baseCupon = Math.max(0, subtotal - promos.descuento);
+  const discountAmount = appliedCoupon ? Math.round(baseCupon * appliedCoupon.discount / 100) : 0;
+  const total = baseCupon - discountAmount + shippingCost;
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
@@ -418,6 +424,15 @@ export default function Checkout() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">{formatArs(subtotal)}</span>
               </div>
+              {promos.promos.map((p) => (
+                <div key={p.promo_id} className="flex justify-between text-green-600">
+                  <span>
+                    {p.titulo}
+                    <span className="block text-xs opacity-80">{p.detalle}</span>
+                  </span>
+                  <span className="font-medium whitespace-nowrap">-{formatArs(p.descuento)}</span>
+                </div>
+              ))}
               {appliedCoupon && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento ({appliedCoupon.discount}%)</span>

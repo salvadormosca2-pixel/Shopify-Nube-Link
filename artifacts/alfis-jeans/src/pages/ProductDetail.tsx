@@ -453,15 +453,23 @@ export default function ProductDetail() {
 
           {/* Promo del panel (2x1, 3x2, ...): etiqueta grande arriba del precio. */}
           {product.promo && (
-            <div className="mb-4 inline-flex items-center gap-2 self-start bg-foreground text-background px-4 py-2">
-              <span className="text-sm font-semibold tracking-wider uppercase" data-testid="promo-titulo">
-                {product.promo.titulo}
-              </span>
-              {product.promo.vigente_hasta && (
-                <span className="text-[11px] font-light opacity-80">
-                  hasta el {String(product.promo.vigente_hasta).slice(8, 10)}/
-                  {String(product.promo.vigente_hasta).slice(5, 7)}
+            <div className="mb-4 self-start">
+              <div className="inline-flex items-center gap-2 bg-foreground text-background px-4 py-2">
+                <span className="text-sm font-semibold tracking-wider uppercase" data-testid="promo-titulo">
+                  {product.promo.titulo}
                 </span>
+                {product.promo.vigente_hasta && (
+                  <span className="text-[11px] font-light opacity-80">
+                    hasta el {String(product.promo.vigente_hasta).slice(8, 10)}/
+                    {String(product.promo.vigente_hasta).slice(5, 7)}
+                  </span>
+                )}
+              </div>
+              {/* La condición: sin esto el cliente ve "3x2" y no sabe qué tiene que hacer. */}
+              {product.promo.condicion && (
+                <p className="mt-1.5 text-sm text-[hsl(var(--muted-foreground))]" data-testid="promo-condicion">
+                  {product.promo.condicion} — se aplica solo en el carrito
+                </p>
               )}
             </div>
           )}

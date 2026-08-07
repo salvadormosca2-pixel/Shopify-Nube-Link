@@ -31,6 +31,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
 import { adminAuth } from "../middleware/admin";
+import { productosDe, condicionDe } from "../lib/promociones";
 
 const router: IRouter = Router();
 router.use("/admin", adminAuth);
@@ -402,36 +403,83 @@ router.patch("/admin/devoluciones/:id", async (req, res) => {
   }
 });
 
-// ─── PROMOCIONES por producto ────────────────────────────────────────────────
+// ─── PROMOCIONES ─────────────────────────────────────────────────────────────
+// Una promo alcanza VARIOS productos (`productos`) y es una regla que se aplica
+// sola en el carrito. `producto_id` se sigue devolviendo por compatibilidad con
+// las promos que se cargaron cuando era de a un producto.
 async function promoConProducto(rows: (typeof promocionesTable.$inferSelect)[]) {
-  const ids = [...new Set(rows.map((p) => p.productoId))];
+  const ids = [...new Set(rows.flatMap((p) => productosDe(p)))];
   const prods = ids.length ? await db.select().from(productsTable).where(inArray(productsTable.id, ids)) : [];
   const byId = new Map(prods.map((p) => [p.id, p]));
+  const precioDe = (p: typeof productsTable.$inferSelect | undefined) =>
+    p ? (p.salePrice != null ? parseFloat(p.salePrice) : parseFloat(p.price)) : 0;
+
   return rows.map((p) => {
-    const prod = byId.get(p.productoId);
-    const precio = prod ? (prod.salePrice != null ? parseFloat(prod.salePrice) : parseFloat(prod.price)) : 0;
+    const productos = productosDe(p);
+    const primero = byId.get(productos[0]);
     return {
       id: p.id,
       titulo: p.titulo,
-      producto_id: p.productoId,
-      producto_nombre: prod?.name ?? "",
+      tipo: p.tipo,
+      productos,
+      productos_nombres: productos.map((id) => byId.get(id)?.name ?? `#${id}`),
+      lleva: p.lleva,
+      paga: p.paga,
+      porcentaje: parseFloat(p.porcentaje),
+      condicion: condicionDe(p),
+      // Compat con la UI vieja.
+      producto_id: productos[0] ?? 0,
+      producto_nombre: primero?.name ?? "",
       precio_promo: parseFloat(p.precioPromo),
-      precio,
-      precio_contado: precio,
+      precio: precioDe(primero),
+      precio_contado: precioDe(primero),
       fecha_inicio: p.fechaInicio,
       fecha_fin: p.fechaFin,
       activo: p.activo,
     };
   });
 }
-const promoFromBody = (b: Record<string, unknown>) => ({
-  titulo: String(b.titulo ?? ""),
-  productoId: num(b.producto_id) ?? 0,
-  precioPromo: String(Number(b.precio_promo) || 0),
-  fechaInicio: String(b.fecha_inicio ?? ""),
-  fechaFin: String(b.fecha_fin ?? ""),
-  activo: b.activo !== false,
-});
+
+const TIPOS_PROMO = new Set(["nxm", "porcentaje", "precio_fijo", "etiqueta"]);
+
+const promoFromBody = (b: Record<string, unknown>) => {
+  const productos = Array.isArray(b.productos)
+    ? [...new Set((b.productos as unknown[]).map((n) => parseInt(String(n), 10)).filter((n) => !Number.isNaN(n)))]
+    : [];
+  const unico = num(b.producto_id) ?? 0;
+  const lista = productos.length > 0 ? productos : unico ? [unico] : [];
+  const tipo = String(b.tipo ?? "etiqueta");
+  return {
+    titulo: String(b.titulo ?? ""),
+    productos: lista,
+    // `producto_id` es NOT NULL en la tabla: se guarda el primero de la lista.
+    productoId: lista[0] ?? 0,
+    tipo: TIPOS_PROMO.has(tipo) ? tipo : "etiqueta",
+    lleva: Math.max(0, Math.trunc(Number(b.lleva) || 0)),
+    paga: Math.max(0, Math.trunc(Number(b.paga) || 0)),
+    porcentaje: String(Math.max(0, Math.min(100, Number(b.porcentaje) || 0))),
+    precioPromo: String(Number(b.precio_promo) || 0),
+    fechaInicio: String(b.fecha_inicio ?? ""),
+    fechaFin: String(b.fecha_fin ?? ""),
+    activo: b.activo !== false,
+  };
+};
+
+// Una promo mal cargada (un 3x2 sin decir 3 ni 2) no descuenta nada y el dueño
+// no se entera hasta que un cliente reclama. Mejor rechazarla en el momento.
+function validarPromo(v: ReturnType<typeof promoFromBody>): string | null {
+  if (v.productos.length === 0) return "Elegí al menos un producto";
+  if (v.tipo === "nxm" && (v.lleva < 2 || v.paga < 1 || v.paga >= v.lleva)) {
+    return "En un 3x2 el 'lleva' tiene que ser al menos 2 y mayor que el 'paga'";
+  }
+  if (v.tipo === "porcentaje" && Number(v.porcentaje) <= 0) {
+    return "Poné el porcentaje de descuento";
+  }
+  if (v.tipo === "precio_fijo" && Number(v.precioPromo) <= 0) {
+    return "Poné el precio promocional";
+  }
+  return null;
+}
 
 router.get("/admin/promociones", async (_req, res) => {
   try {
@@ -444,7 +492,8 @@ router.get("/admin/promociones", async (_req, res) => {
 router.post("/admin/promociones", async (req, res) => {
   try {
     const v = promoFromBody(req.body ?? {});
-    if (!v.productoId) { res.status(400).json({ error: "invalid_product", message: "Elegí un producto" }); return; }
+    const problema = validarPromo(v);
+    if (problema) { res.status(400).json({ error: "invalid_promo", message: problema }); return; }
     const [created] = await db.insert(promocionesTable).values(v).returning();
     res.status(201).json((await promoConProducto([created]))[0]);
   } catch {
@@ -455,8 +504,11 @@ router.put("/admin/promociones/:id", async (req, res) => {
   try {
     const id = num(req.params.id);
     if (id == null) { res.status(400).json({ error: "invalid_id", message: "ID inválido" }); return; }
+    const v = promoFromBody(req.body ?? {});
+    const problema = validarPromo(v);
+    if (problema) { res.status(400).json({ error: "invalid_promo", message: problema }); return; }
     const [updated] = await db.update(promocionesTable)
-      .set({ ...promoFromBody(req.body ?? {}), updatedAt: new Date() })
+      .set({ ...v, updatedAt: new Date() })
       .where(eq(promocionesTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "not_found", message: "Promoción no encontrada" }); return; }
     res.json((await promoConProducto([updated]))[0]);

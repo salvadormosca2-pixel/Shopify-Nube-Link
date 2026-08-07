@@ -446,10 +446,16 @@ components:
       properties:
         titulo:
           type: string
+        tipo:
+          type: string
+          description: nxm | porcentaje | precio_fijo | etiqueta
+        condicion:
+          type: string
+          description: 'Explicación de la regla: "Llevando 3 pagás 2".'
         precio_promo:
           type: number
           nullable: true
-          description: Precio promocional; null cuando la promo es sólo una etiqueta.
+          description: Precio promocional; null salvo que el tipo sea precio_fijo.
         vigente_hasta:
           type: string
           nullable: true

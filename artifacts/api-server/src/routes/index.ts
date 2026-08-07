@@ -17,6 +17,7 @@ import whatsappRouter from "./whatsapp";
 import reportesRouter from "./reportes";
 import facturacionRouter from "./facturacion";
 import financiacionRouter from "./financiacion";
+import carritoRouter from "./carrito";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(whatsappRouter);
 router.use(reportesRouter);
 router.use(facturacionRouter);
 router.use(financiacionRouter);
+router.use(carritoRouter);
 
 export default router;
