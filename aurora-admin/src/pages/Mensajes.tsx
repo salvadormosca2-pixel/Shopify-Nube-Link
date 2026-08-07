@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Bot, BotOff, MessageSquare, Settings, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Send, Bot, BotOff, MessageSquare, Settings, Loader2, ExternalLink } from "lucide-react";
 import { api, apiError } from "../api/client";
 import { useApi } from "../lib/useApi";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -53,6 +54,15 @@ const TONO_ETIQUETA: Record<string, "acento" | "ambar" | "rojo" | "azul" | "gris
 
 const tonoDe = (etiqueta: string) => TONO_ETIQUETA[etiqueta.toLowerCase()] ?? "azul";
 
+// Respuestas de un toque para el mostrador. Se cargan en el campo y se editan
+// antes de mandar; no se envían solas.
+const PLANTILLAS = [
+  "¡Hola! Soy del equipo de Alfis Jeans 👋 ¿En qué te puedo ayudar?",
+  "¡Hola! Perdón la demora. Contame qué prenda buscabas y te paso stock y precio.",
+  "¡Hola! Sí, tenemos ese modelo. ¿Qué talle usás?",
+  "Estamos en Catamarca. ¿Querés pasar por el local o preferís envío?",
+];
+
 // Normaliza el texto del mensaje (texto vs contenido).
 function msgText(m: Mensaje): string {
   return m.texto ?? m.contenido ?? "";
@@ -65,6 +75,14 @@ function isIncoming(m: Mensaje): boolean {
   return false;
 }
 
+// Los teléfonos vienen de tres lados con formatos distintos: Chatwoot manda
+// "+5493834959044", las derivaciones del bot "5493834959044" y los pedidos
+// "3834959044". Se comparan por los últimos 10 dígitos, que es el número real.
+function claveTelefono(tel: string | undefined): string {
+  const d = String(tel ?? "").replace(/\D/g, "");
+  return d.length > 10 ? d.slice(-10) : d;
+}
+
 export function Mensajes() {
   const convs = useApi<Conversacion[]>(
     () => api.get(`/admin/chat/conversaciones`).then((r) => r.data),
@@ -74,6 +92,14 @@ export function Mensajes() {
 
   const [activeId, setActiveId] = useState<string | number | null>(null);
   const [tick, setTick] = useState(0); // se incrementa cada ~8s para refetch del chat
+
+  // Se puede llegar acá desde Derivaciones: ?telefono=<tel>&derivacion=<id>.
+  // Se abre sola la conversación de ese cliente y, al contestarle, la derivación
+  // queda resuelta (si no, seguiría en rojo aunque ya lo hayas atendido).
+  const [params, setParams] = useSearchParams();
+  const telParam = params.get("telefono") ?? "";
+  const derivacionParam = params.get("derivacion") ?? "";
+  const [noEncontrada, setNoEncontrada] = useState(false);
   const [botOn, setBotOn] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -129,6 +155,20 @@ export function Mensajes() {
       setGlobalBusy(false);
     }
   };
+
+  // Al llegar con ?telefono=, se busca esa conversación en la lista ya cargada.
+  useEffect(() => {
+    if (!telParam || conversaciones.length === 0) return;
+    const buscado = claveTelefono(telParam);
+    if (!buscado) return;
+    const match = conversaciones.find((c) => claveTelefono(c.telefono) === buscado);
+    if (match) {
+      setActiveId(match.id);
+      setNoEncontrada(false);
+    } else {
+      setNoEncontrada(true);
+    }
+  }, [telParam, conversaciones]);
 
   const active = conversaciones.find((c) => String(c.id) === String(activeId)) ?? null;
 
@@ -191,6 +231,19 @@ export function Mensajes() {
         }
         setBotOn(false);
       }
+      // Si entramos desde Derivaciones, contestarle YA es haberlo atendido: se
+      // marca resuelta sola para que el aviso rojo del menú se apague.
+      if (derivacionParam) {
+        try {
+          await api.patch(`/admin/derivaciones/${derivacionParam}`, { estado: "resuelta" });
+          setAviso("Le contestaste — la derivación quedó resuelta.");
+        } catch {
+          /* best-effort: el mensaje ya salió, que no falle por esto */
+        }
+        const next = new URLSearchParams(params);
+        next.delete("derivacion");
+        setParams(next, { replace: true });
+      }
       chat.refetch();
     } catch (err) {
       setChatError(apiError(err));
@@ -243,6 +296,24 @@ export function Mensajes() {
       {aviso && (
         <div className="mb-3 rounded-lg border border-acento/30 bg-acento/10 px-4 py-3 text-sm text-acento">
           {aviso}
+        </div>
+      )}
+
+      {/* Vine de una derivación pero ese teléfono no tiene chat abierto en Chatwoot. */}
+      {noEncontrada && telParam && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-4 py-3 text-sm text-pale-ambar-txt">
+          <span>
+            No hay una conversación abierta en Chatwoot para{" "}
+            <strong className="font-mono">{telParam}</strong>.
+          </span>
+          <a
+            className="btn-secondary"
+            href={`https://wa.me/${telParam.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ExternalLink size={15} /> Escribirle por WhatsApp
+          </a>
         </div>
       )}
 
@@ -398,6 +469,21 @@ export function Mensajes() {
                     </Badge>{" "}
                     El bot de n8n no responde en esta conversación.
                   </p>
+                )}
+                {/* Respuestas de un toque: para no escribir de cero cuando el
+                    cliente está esperando. Se cargan en el campo y se pueden editar. */}
+                {!draft.trim() && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {PLANTILLAS.map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setDraft(p)}
+                        className="rounded-full border border-borde px-2.5 py-1 text-[11px] text-gris transition hover:border-acento/40 hover:bg-acento/5 hover:text-tinta"
+                      >
+                        {p.length > 40 ? `${p.slice(0, 40)}…` : p}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 <div className="flex items-center gap-2">
                   <input

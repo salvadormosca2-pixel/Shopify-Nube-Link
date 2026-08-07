@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -56,6 +57,7 @@ function espera(desde: string | undefined): string {
 }
 
 export function Derivaciones() {
+  const navigate = useNavigate();
   const list = useApi<Derivacion[]>(
     () => api.get(`/admin/derivaciones?limit=100`).then((r) => r.data),
     [],
@@ -187,8 +189,27 @@ export function Derivaciones() {
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  <button className="btn-primary" onClick={() => setResponder(d)}>
-                    <Send size={15} /> Responder
+                  {/* Responder = abrir SU chat en Mensajes (Chatwoot), que es donde
+                      está toda la conversación. Al contestarle, la derivación se
+                      marca resuelta sola. */}
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      navigate(
+                        `/mensajes?telefono=${encodeURIComponent(d.telefono ?? "")}&derivacion=${d.id}`,
+                      )
+                    }
+                    disabled={!d.telefono}
+                    title={
+                      d.telefono
+                        ? "Abre la conversación en Mensajes"
+                        : "Esta derivación no tiene teléfono"
+                    }
+                  >
+                    <MessageCircle size={15} /> Abrir chat
+                  </button>
+                  <button className="btn-secondary" onClick={() => setResponder(d)}>
+                    <Send size={15} /> Respuesta rápida
                   </button>
                   {estado !== "resuelta" && (
                     <button
@@ -301,6 +322,11 @@ function ResponderModal({
       }
     >
       <div className="space-y-4">
+        <p className="rounded-md border border-borde bg-fondo px-3 py-2 text-xs text-gris-2">
+          Esto manda un WhatsApp suelto, sin pasar por el chat. Si querés ver toda la
+          conversación y contestar ahí, usá <strong className="text-tinta">"Abrir chat"</strong>.
+        </p>
+
         {error && (
           <div className="rounded-lg border border-pale-ambar-txt/20 bg-pale-ambar px-3 py-2 text-sm text-pale-ambar-txt">
             <p>{error}</p>
